@@ -336,6 +336,16 @@ a.btn { text-decoration: none; }
 .bubble p { font-size: 18px; font-weight: 600; padding-top: 8px; }
 .bubble .play { width: 36px; height: 36px; }
 .bubble-who { display: block; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.coach-wait { margin-top: 12px; font-size: 14px; font-weight: 600; color: var(--brand); display: flex; align-items: center; gap: 8px; }
+.dots { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--brand); border-right-color: transparent; animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fixes { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.fixes li { background: var(--surface); border-radius: var(--radius-sm); padding: 10px 12px; }
+.fixes s { color: var(--bad); text-decoration-thickness: 2px; }
+.fixes b { color: var(--good); }
+.fixes span { display: block; font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+.example-answer { margin-top: 14px; font-size: 15px; }
+.example-answer summary { cursor: pointer; font-weight: 700; color: var(--ink-2); }
 .q-de-sm { font-size: 21px; line-height: 1.35; }
 .fix-sentence { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .fix-sentence .tile.correct { box-shadow: inset 0 0 0 2px var(--good); background: var(--good-soft); color: var(--good); }

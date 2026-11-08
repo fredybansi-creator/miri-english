@@ -53,7 +53,7 @@ function hasPhrase(tokenList, phrase) {
 }
 
 // Split the model answer into words and mark the ones she did not say.
-function markAnswer(answer, saidTokens) {
+export function markAnswer(answer, saidTokens) {
   const pool = new Map();
   for (const t of saidTokens) pool.set(t, (pool.get(t) || 0) + 1);
   return answer.split(/\s+/).map((word) => {
