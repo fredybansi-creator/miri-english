@@ -15,6 +15,26 @@ if (canSpeak) {
   window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
 }
 
+// iPhone Safari only allows speechSynthesis after it was started once by a tap. Sam's replies are
+// spoken automatically (after the AI answers), so "unlock" the device voice on the first tap
+// with a silent utterance. Same for the shared <audio> element below.
+let unlocked = false;
+function unlockAudio() {
+  if (unlocked) return;
+  unlocked = true;
+  try {
+    if (canSpeak) {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
+  } catch { /* ignore */ }
+  document.removeEventListener('touchend', unlockAudio, true);
+  document.removeEventListener('click', unlockAudio, true);
+}
+document.addEventListener('touchend', unlockAudio, true);
+document.addEventListener('click', unlockAudio, true);
+
 // Best-sounding native English voices first (Edge/Windows "Natural" voices, Apple, Google).
 const PREFERRED = {
   'en-US': ['Microsoft Ava Online', 'Microsoft Jenny Online', 'Microsoft Aria Online', 'Microsoft Andrew Online', 'Microsoft Guy Online',

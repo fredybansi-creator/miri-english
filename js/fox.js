@@ -1,4 +1,6 @@
 // Sam the fox – an animated SVG character with soft shading for a 3D look.
+// Performance note: no SVG filters (Safari on iPhone re-renders them every animation frame),
+// the idle bob moves the whole <svg> (GPU-friendly), inner animations are small and cheap.
 // States (CSS classes on .fox): idle (default), talking, thinking, listening, happy.
 
 export function foxSVG() {
@@ -22,9 +24,6 @@ export function foxSVG() {
         <stop offset="0" stop-color="#5b3a26"/>
         <stop offset="1" stop-color="#1d110b"/>
       </radialGradient>
-      <filter id="fx-soft" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#7a3210" flood-opacity=".25"/>
-      </filter>
     </defs>
 
     <ellipse class="fx-shadow" cx="100" cy="190" rx="50" ry="7" fill="#000" opacity=".12"/>
@@ -34,7 +33,7 @@ export function foxSVG() {
       <path d="M46 200 C50 160 72 144 100 144 C128 144 150 160 154 200 Z" fill="url(#fx-fur)"/>
       <path d="M77 200 C79 172 89 158 100 158 C111 158 121 172 123 200 Z" fill="url(#fx-cream)"/>
 
-      <g class="fx-head" filter="url(#fx-soft)">
+      <g class="fx-head">
         <!-- ears -->
         <g class="fx-ear-l">
           <path d="M44 84 L56 20 L94 58 Z" fill="url(#fx-fur)" stroke="#e8742c" stroke-width="6" stroke-linejoin="round"/>

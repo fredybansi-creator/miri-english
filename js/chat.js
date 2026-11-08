@@ -45,7 +45,8 @@ export function startChat({ lesson, onExit, onFallback }) {
     setFoxState(stage, e.detail.state === 'start' ? 'talking' : foxBase);
   };
   window.addEventListener('tts', onTts);
-  function cleanup() { session?.stop(); stopSpeaking(); window.removeEventListener('tts', onTts); }
+  let closed = false;
+  function cleanup() { closed = true; session?.stop(); stopSpeaking(); window.removeEventListener('tts', onTts); }
 
   function render() {
     ui.progress(Math.min(miriTurns(), MAX_TURNS - 1), MAX_TURNS);
@@ -106,7 +107,12 @@ export function startChat({ lesson, onExit, onFallback }) {
     fox('listening');
     $('[data-label]', ui.body).textContent = 'Ich höre zu … tippe zum Beenden';
     live.textContent = '';
-    const current = listen({ onInterim: (t) => { live.textContent = t ? `„${t}“` : ''; } });
+    // throttle live-text updates (each update re-lays out the page)
+    let pending = '', raf = 0;
+    const current = listen({ onInterim: (t) => {
+      pending = t;
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; live.textContent = pending ? `„${pending}“` : ''; });
+    } });
     session = current;
     const safety = setTimeout(() => current.stop(), 45000);
     current.promise
@@ -134,7 +140,11 @@ export function startChat({ lesson, onExit, onFallback }) {
       if (done || miriTurns() >= MAX_TURNS) finished = true;
       fox(finished ? 'happy' : 'idle');
       render();
-      say(reply, { role: 'coach' }); // one-off line → device voice unless "Natürlich" is chosen
+      // iPhone: going straight from speech recognition to speech output can hang Safari –
+      // give the audio system a moment to switch back before Sam talks.
+      setTimeout(() => {
+        if (!closed) { try { say(reply, { role: 'coach' }); } catch { /* ignore */ } }
+      }, 700);
     } catch {
       busy = false;
       fox('idle');

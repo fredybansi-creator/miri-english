@@ -461,16 +461,14 @@ ol.plain { list-style: none; padding: 0; margin: 0; }
 .chat-input .live { min-height: 28px; font-size: 17px; }
 
 /* Sam the fox */
-.fox-stage { display: flex; justify-content: center; margin: -6px -16px 2px; padding-top: 2px; position: sticky; top: 0; z-index: 2; background: linear-gradient(var(--bg) 85%, transparent); }
-.fox { width: 104px; height: 104px; overflow: visible; }
-.fox .fx-all { transform-box: view-box; transform-origin: 100px 190px; animation: fx-bob 3.4s ease-in-out infinite; }
+.fox-stage { display: flex; justify-content: center; margin: -6px -16px 2px; padding-top: 2px; position: sticky; top: 0; z-index: 2; background: var(--bg); contain: layout paint; }
+.fox { width: 104px; height: 104px; overflow: visible; animation: fx-bob 3.4s ease-in-out infinite; will-change: transform; }
 .fox .fx-head { transform-box: view-box; transform-origin: 100px 150px; transition: transform .4s ease; }
 .fox .fx-eye { transform-box: fill-box; transform-origin: center; animation: fx-blink 4.6s infinite; }
 .fox .fx-pupil { transition: transform .3s ease; }
 .fox .fx-ear-l { transform-box: fill-box; transform-origin: 75% 95%; animation: fx-ear-l 7s infinite; transition: transform .3s ease; }
 .fox .fx-ear-r { transform-box: fill-box; transform-origin: 25% 95%; animation: fx-ear-r 7s 1.3s infinite; transition: transform .3s ease; }
 .fox .fx-mouth-open { transform-box: fill-box; transform-origin: center; transform: scaleY(0); }
-.fox .fx-shadow { transform-box: fill-box; transform-origin: center; animation: fx-shadow 3.4s ease-in-out infinite; }
 
 .fox.talking .fx-mouth-closed { opacity: 0; }
 .fox.talking .fx-mouth-open { animation: fx-talk .22s ease-in-out infinite alternate; }
@@ -479,14 +477,18 @@ ol.plain { list-style: none; padding: 0; margin: 0; }
 .fox.thinking .fx-head { transform: rotate(-7deg); }
 .fox.thinking .fx-pupil { transform: translate(2px, -3px); }
 
-.fox.listening .fx-ear-l { animation: none; transform: rotate(-9deg) translateY(-2px); }
-.fox.listening .fx-ear-r { animation: none; transform: rotate(9deg) translateY(-2px); }
+/* while she speaks: a still, attentive pose – no running animations next to the microphone */
+.fox.listening, .fox.listening * { animation: none !important; }
+.fox.listening .fx-ear-l { transform: rotate(-9deg) translateY(-2px); }
+.fox.listening .fx-ear-r { transform: rotate(9deg) translateY(-2px); }
 .fox.listening .fx-head { transform: rotate(5deg) scale(1.03); }
 
-.fox.happy .fx-all { animation: fx-hop .5s ease-out 2; }
+.fox.happy { animation: fx-hop .5s ease-out 2; }
+
+/* setting "Sam animieren: Aus" */
+body.no-fox-anim .fox, body.no-fox-anim .fox * { animation: none !important; transition: none !important; }
 
 @keyframes fx-bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(-1.2deg); } }
-@keyframes fx-shadow { 0%, 100% { transform: scaleX(1); opacity: .12; } 50% { transform: scaleX(.92); opacity: .09; } }
 @keyframes fx-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
 @keyframes fx-ear-l { 0%, 86%, 100% { transform: rotate(0); } 89% { transform: rotate(-10deg); } 92% { transform: rotate(4deg); } 95% { transform: rotate(0); } }
 @keyframes fx-ear-r { 0%, 90%, 100% { transform: rotate(0); } 93% { transform: rotate(10deg); } 96% { transform: rotate(-3deg); } }

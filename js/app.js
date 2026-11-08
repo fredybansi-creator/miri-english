@@ -402,6 +402,13 @@ function renderProgress() {
         </div>
       </div>
       <div class="setting">
+        <div><b>Sam animieren</b><p class="small muted">Aus, falls das Gespräch auf deinem Handy ruckelt</p></div>
+        <div class="seg" data-setting="foxAnim">
+          <button data-v="on" aria-pressed="${s.settings.foxAnim !== false}">An</button>
+          <button data-v="off" aria-pressed="${s.settings.foxAnim === false}">Aus</button>
+        </div>
+      </div>
+      <div class="setting">
         <div><b>Vorlese-Tempo</b></div>
         <div class="seg" data-setting="rate">
           <button data-v="0.8" aria-pressed="${s.settings.rate === 0.8}">Langsam</button>
@@ -419,9 +426,10 @@ function renderProgress() {
     const b = e.target.closest('button');
     if (!b) return;
     const key = seg.dataset.setting;
-    s.settings[key] = key === 'rate' ? Number(b.dataset.v) : (key === 'cloudVoice' || key === 'cloudVoiceCoach') ? b.dataset.v === 'on' : b.dataset.v;
+    s.settings[key] = key === 'rate' ? Number(b.dataset.v) : ['cloudVoice', 'cloudVoiceCoach', 'foxAnim'].includes(key) ? b.dataset.v === 'on' : b.dataset.v;
     save();
     $$('button', seg).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    if (key === 'foxAnim') { applyFoxSetting(); return; }
     say(key === 'rate' ? 'This is how fast I will speak.' : 'Hello Miri! This is how I sound.');
   }));
 
@@ -503,7 +511,12 @@ function ensureWordCards() {
   if (missing.length) addWordCards(missing);
 }
 
+function applyFoxSetting() {
+  document.body.classList.toggle('no-fox-anim', getState().settings.foxAnim === false);
+}
+
 ensureWordCards();
+applyFoxSetting();
 render();
 initSync().then((changed) => {
   ensureWordCards();
