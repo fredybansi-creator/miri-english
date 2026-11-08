@@ -7,7 +7,7 @@ import { startLesson, startReview, reviewPool } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
 import { startChat } from './chat.js';
 import { openLookup, closeLookup } from './lookup.js';
-import { canListen, listen, errorMessage, say } from './speech.js';
+import { canListen, listen, errorMessage, say, englishVoices, voiceQuality, testDeviceVoice } from './speech.js';
 import { initSync, getCode, restore, normalizeCode, status, onStatus } from './sync.js';
 
 const app = $('#app');
@@ -378,6 +378,16 @@ function renderProgress() {
       </details>
     </div>
 
+    <h2 class="section-title">Stimme des Handys</h2>
+    <div class="card">
+      <p class="small muted">Für Sam, Korrekturen – und alles, wenn die natürliche Stimme aus ist. Tippe ▶ zum Anhören, dann auf den Namen zum Auswählen.</p>
+      <div data-voices style="margin-top:10px"></div>
+      <details class="example-answer" style="margin-top:12px">
+        <summary>Bessere Stimme aufs iPhone holen</summary>
+        <p class="small muted" style="margin-top:6px">Einstellungen › Bedienungshilfen › Gesprochene Inhalte › Stimmen › Englisch › z. B. <b>Ava (Premium)</b> oder <b>Zoe (Premium)</b> laden. Danach die App komplett schließen und neu öffnen – wenn die Stimme hier mit ⭐ erscheint, kann die App sie nutzen.</p>
+      </details>
+    </div>
+
     <h2 class="section-title">Einstellungen</h2>
     <div class="card">
       <div class="setting">
@@ -441,6 +451,8 @@ function renderProgress() {
     }
   });
 
+  renderVoicePicker();
+
   $('[data-copycode]').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(getCode()); toast('Code kopiert – heb ihn gut auf!'); }
     catch { toast('Bitte den Code abschreiben.'); }
@@ -462,6 +474,48 @@ function renderProgress() {
       .finally(() => { micBtn.classList.remove('listening'); session = null; });
   });
 }
+
+// ---------------------------------------------------------------- device voice picker
+function renderVoicePicker() {
+  const box = $('[data-voices]');
+  if (!box) return;
+  const s = getState();
+  const list = englishVoices()
+    .filter((v) => voiceQuality(v) > 0)
+    .sort((a, b) => voiceQuality(b) - voiceQuality(a) || a.name.localeCompare(b.name));
+  if (!list.length) {
+    box.innerHTML = '<p class="small">Keine englische Stimme gefunden. Auf dem iPhone sind normalerweise welche dabei – App neu öffnen und nochmal schauen.</p>';
+    return;
+  }
+  const chosen = s.settings.deviceVoice || '';
+  const badge = (v) => (voiceQuality(v) >= 3 ? '⭐ Premium' : voiceQuality(v) === 2 ? '✨ Enhanced' : '');
+  box.innerHTML = `
+    <div class="voice-list">
+      <button class="voice-row ${!chosen ? 'on' : ''}" data-pick="">
+        <span class="grow"><b>Automatisch</b><br><span class="small muted">die beste verfügbare Stimme</span></span>
+      </button>
+      ${list.map((v) => `
+        <div class="voice-row ${chosen === v.voiceURI ? 'on' : ''}">
+          <button class="play" data-test="${esc(v.voiceURI)}" aria-label="Anhören">${icon.play}</button>
+          <button class="grow voice-pick" data-pick="${esc(v.voiceURI)}">
+            <b>${esc(v.name)}</b> <span class="small muted">${esc(v.lang)}</span>
+            ${badge(v) ? `<span class="chip good" style="margin-left:4px">${badge(v)}</span>` : ''}
+          </button>
+        </div>`).join('')}
+    </div>
+    ${list.some((v) => voiceQuality(v) >= 2) ? '' : '<p class="small muted" style="margin-top:8px">Noch keine ⭐ Premium-Stimme sichtbar.</p>'}`;
+  box.querySelectorAll('[data-test]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    testDeviceVoice(b.dataset.test);
+  }));
+  box.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => {
+    s.settings.deviceVoice = b.dataset.pick || '';
+    save();
+    renderVoicePicker();
+    if (b.dataset.pick) testDeviceVoice(b.dataset.pick, 'Great, I will use this voice.');
+  }));
+}
+window.addEventListener('voices-loaded', () => { if (location.hash === '#/progress') renderVoicePicker(); });
 
 // ---------------------------------------------------------------- backup
 function syncStatusText() {

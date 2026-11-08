@@ -9,10 +9,15 @@ export const canListen = !!SR;
 export const canSpeak = 'speechSynthesis' in window;
 
 let voices = [];
-function loadVoices() { voices = window.speechSynthesis.getVoices(); }
+function loadVoices() {
+  voices = window.speechSynthesis.getVoices();
+  window.dispatchEvent(new Event('voices-loaded'));
+}
 if (canSpeak) {
   loadVoices();
   window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
+  // iOS sometimes fills the list late and never fires voiceschanged
+  setTimeout(loadVoices, 800);
 }
 
 // iPhone Safari only allows speechSynthesis after it was started once by a tap. Sam's replies are
@@ -38,25 +43,47 @@ document.addEventListener('click', unlockAudio, true);
 // Best-sounding native English voices first (Edge/Windows "Natural" voices, Apple, Google).
 const PREFERRED = {
   'en-US': ['Microsoft Ava Online', 'Microsoft Jenny Online', 'Microsoft Aria Online', 'Microsoft Andrew Online', 'Microsoft Guy Online',
-    'Samantha', 'Ava', 'Allison', 'Evan', 'Google US English', 'Microsoft Zira', 'Microsoft David'],
-  'en-GB': ['Microsoft Sonia Online', 'Microsoft Libby Online', 'Microsoft Ryan Online', 'Serena', 'Kate', 'Daniel', 'Arthur',
+    'Ava', 'Zoe', 'Evan', 'Nathan', 'Allison', 'Samantha', 'Google US English', 'Microsoft Zira', 'Microsoft David'],
+  'en-GB': ['Microsoft Sonia Online', 'Microsoft Libby Online', 'Microsoft Ryan Online', 'Serena', 'Kate', 'Jamie', 'Daniel', 'Arthur',
     'Google UK English Female', 'Google UK English Male', 'Microsoft Hazel', 'Microsoft George'],
 };
 
-// Only ever pick an English voice – never the German system default.
-function pickVoice(lang) {
+const norm = (v) => (v.lang || '').replace('_', '-');
+const id = (v) => `${v.name} ${v.voiceURI || ''}`;
+
+// Quality tier from the voice's name or internal id (Apple: com.apple.voice.premium.en-US.Ava).
+export function voiceQuality(v) {
+  const s = id(v).toLowerCase();
+  if (/premium|neural|natural|online/.test(s)) return 3;
+  if (/enhanced|siri/.test(s)) return 2;
+  // novelty / joke voices (and the robotic "Eloquence" set) – never use these
+  if (/eloquence|novelty|\b(bad news|bubbles|whisper|zarvox|trinoids|cellos|bells|good news|organ|superstar|albert|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|flo|eddy|reed|sandy|boing|jester|wobble)\b/.test(s)) return 0;
+  return 1;
+}
+
+export function englishVoices() {
   if (!voices.length && canSpeak) voices = window.speechSynthesis.getVoices();
-  const norm = (v) => (v.lang || '').replace('_', '-');
-  const english = voices.filter((v) => /^en(-|$)/i.test(norm(v)));
+  return voices.filter((v) => /^en(-|$)/i.test(norm(v)));
+}
+
+// Only ever pick an English voice – never the German system default.
+// Order: her own choice → best quality tier → preferred names → local voice.
+function pickVoice(lang) {
+  const english = englishVoices();
+  const chosen = getState().settings.deviceVoice;
+  if (chosen) {
+    const v = english.find((x) => x.voiceURI === chosen) || english.find((x) => x.name === chosen);
+    if (v) return v;
+  }
   const exact = english.filter((v) => norm(v).toLowerCase() === lang.toLowerCase());
   const pool = exact.length ? exact : english;
   if (!pool.length) return null;
-  for (const name of PREFERRED[lang] || PREFERRED['en-US']) {
-    const v = pool.find((x) => x.name.startsWith(name));
-    if (v) return v;
-  }
-  const quality = pool.find((v) => /premium|enhanced|natural|neural|online/i.test(v.name));
-  return quality || pool.find((v) => v.localService) || pool[0];
+  const names = PREFERRED[lang] || PREFERRED['en-US'];
+  const rank = (v) => {
+    const i = names.findIndex((n) => v.name.startsWith(n));
+    return voiceQuality(v) * 100 - (i < 0 ? 50 : i) + (v.localService ? 1 : 0);
+  };
+  return pool.slice().sort((a, b) => rank(b) - rank(a))[0];
 }
 
 // ---------------------------------------------------------------- natural voice (ElevenLabs via Supabase)
@@ -120,6 +147,17 @@ function sayInner(text, { rate, role = 'main' } = {}) {
   });
 }
 
+/** Play a sample with one specific device voice (for the voice picker). */
+export function testDeviceVoice(voiceURI, text = "Hi Miri! It's been ages – what have you been up to?") {
+  if (!canSpeak) return;
+  const v = englishVoices().find((x) => x.voiceURI === voiceURI);
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.rate = getState().settings.rate;
+  window.speechSynthesis.speak(u);
+}
+
 function browserSay(text, { rate } = {}) {
   if (!canSpeak || !text) return Promise.resolve();
   const synth = window.speechSynthesis;
@@ -128,7 +166,7 @@ function browserSay(text, { rate } = {}) {
   const u = new SpeechSynthesisUtterance(text);
   u.lang = s.accent;
   const v = pickVoice(s.accent);
-  if (v) u.voice = v;
+  if (v) { u.voice = v; u.lang = v.lang; }
   else if (voices.length) window.dispatchEvent(new Event('no-english-voice')); // only non-English voices installed
   u.rate = rate ?? s.rate;
   return new Promise((resolve) => {
