@@ -278,6 +278,13 @@ function renderProgress() {
         </div>
       </div>
       <div class="setting">
+        <div><b>Natürliche Stimme</b><p class="small muted">Klingt wie ein echter Mensch (ElevenLabs)</p></div>
+        <div class="seg" data-setting="cloudVoice">
+          <button data-v="on" aria-pressed="${s.settings.cloudVoice !== false}">An</button>
+          <button data-v="off" aria-pressed="${s.settings.cloudVoice === false}">Aus</button>
+        </div>
+      </div>
+      <div class="setting">
         <div><b>Vorlese-Tempo</b></div>
         <div class="seg" data-setting="rate">
           <button data-v="0.8" aria-pressed="${s.settings.rate === 0.8}">Langsam</button>
@@ -295,7 +302,7 @@ function renderProgress() {
     const b = e.target.closest('button');
     if (!b) return;
     const key = seg.dataset.setting;
-    s.settings[key] = key === 'rate' ? Number(b.dataset.v) : b.dataset.v;
+    s.settings[key] = key === 'rate' ? Number(b.dataset.v) : key === 'cloudVoice' ? b.dataset.v === 'on' : b.dataset.v;
     save();
     $$('button', seg).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     say(key === 'rate' ? 'This is how fast I will speak.' : 'Hello Miri! This is how I sound.');

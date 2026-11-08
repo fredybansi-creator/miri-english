@@ -32,14 +32,14 @@ export const icon = {
   flame: svg('<path d="M12 22c4.4 0 7-2.9 7-6.6 0-3.6-2.6-5.9-4.3-8.4-.5 2-1.5 3-2.7 3.4.2-3-1.2-5.9-3.5-8.4-.3 4.1-5.5 6.6-5.5 13.4C3 19.1 7.6 22 12 22z"/>', 'fill="currentColor" stroke="none"'),
 };
 
-export function playBtn(text, cls = '') {
-  return `<button class="play ${cls}" data-say="${esc(text)}" aria-label="Anhören">${icon.play}</button>`;
+export function playBtn(text, cls = '', role = 'main') {
+  return `<button class="play ${cls}" data-say="${esc(text)}" data-role="${role}" aria-label="Anhören">${icon.play}</button>`;
 }
 
 // One delegated listener: any [data-say] button reads its text aloud.
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-say]');
-  if (b) say(b.dataset.say);
+  if (b) say(b.dataset.say, { role: b.dataset.role || 'main' });
 });
 
 let toastTimer;

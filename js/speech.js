@@ -1,5 +1,8 @@
 // Speech: recognition (Safari webkitSpeechRecognition) and text-to-speech.
 import { getState } from './store.js';
+import { SUPABASE_URL } from './config.js';
+
+const TTS_URL = `${SUPABASE_URL}/functions/v1/tts`;
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canListen = !!SR;
@@ -28,7 +31,52 @@ function pickVoice(lang) {
   return pool.find((v) => v.localService) || pool[0];
 }
 
-export function say(text, { rate } = {}) {
+// ---------------------------------------------------------------- natural voice (ElevenLabs via Supabase)
+// One shared <audio> element: on iPhone it is "unlocked" by the first tap and can then play
+// later sentences too. If the cloud voice fails, we fall back to the built-in browser voice.
+const audio = typeof Audio !== 'undefined' ? new Audio() : null;
+if (audio) audio.preload = 'auto';
+let cloudFailures = 0;
+
+function cloudEnabled() {
+  return !!audio && getState().settings.cloudVoice !== false && cloudFailures < 3;
+}
+
+export function audioUrl(text, role = 'main') {
+  const v = getState().settings.accent === 'en-GB' ? 'uk' : 'us';
+  return `${TTS_URL}?v=${v}&r=${role}&t=${encodeURIComponent(text.replace(/\s+/g, ' ').trim())}`;
+}
+
+// Warm the cache so the audio is ready when she taps (e.g. the model answer while she speaks).
+export function prefetch(texts, role = 'main') {
+  if (!cloudEnabled()) return;
+  for (const t of texts.filter(Boolean)) fetch(audioUrl(t, role)).catch(() => {});
+}
+
+export function say(text, { rate, role = 'main' } = {}) {
+  if (!text) return Promise.resolve();
+  stopSpeaking();
+  if (!cloudEnabled()) return browserSay(text, { rate });
+  return new Promise((resolve) => {
+    let fellBack = false;
+    const fallback = () => {
+      if (fellBack) return;
+      fellBack = true;
+      cloudFailures++;
+      browserSay(text, { rate }).then(resolve);
+    };
+    audio.onended = () => resolve();
+    audio.onerror = fallback;
+    audio.src = audioUrl(text, role);
+    // slow button passes ~0.7; the "langsam" setting is 0.8
+    const r = rate ?? getState().settings.rate;
+    audio.playbackRate = r < 0.75 ? 0.75 : r < 0.9 ? 0.85 : 1;
+    const p = audio.play();
+    if (p) p.catch((e) => { if (e && e.name === 'NotAllowedError') resolve(); else fallback(); });
+  });
+}
+
+function browserSay(text, { rate } = {}) {
   if (!canSpeak || !text) return Promise.resolve();
   const synth = window.speechSynthesis;
   synth.cancel();
@@ -46,6 +94,7 @@ export function say(text, { rate } = {}) {
 
 export function stopSpeaking() {
   if (canSpeak) window.speechSynthesis.cancel();
+  if (audio && !audio.paused) audio.pause();
 }
 
 /**

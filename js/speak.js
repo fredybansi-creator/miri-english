@@ -3,7 +3,7 @@
 //   free                – a friend asks something, she answers freely about her life (AI coach)
 //   shadow              – she hears an English sentence and repeats it (offline check only)
 import { esc, icon, playBtn, shuffle } from './ui.js';
-import { canListen, listen, errorMessage, say } from './speech.js';
+import { canListen, listen, errorMessage, say, prefetch } from './speech.js';
 import { checkAnswer, markAnswer, tokens } from './check.js';
 import { getState, save, today, day } from './store.js';
 import { aiFeedback } from './ai.js';
@@ -68,7 +68,7 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
       ? `<div class="chat">
            <div class="bubble">
              <span class="bubble-who">${esc(friend)}</span>
-             <div class="row" style="gap:10px;align-items:flex-start">${playBtn(item.they)}<p>${esc(item.they)}</p></div>
+             <div class="row" style="gap:10px;align-items:flex-start">${playBtn(item.they, '', 'friend')}<p>${esc(item.they)}</p></div>
            </div>
          </div>`
       : '';
@@ -321,6 +321,8 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
   renderPrompt();
   // Read the friend's line / the sentence to repeat aloud (works when opened by a tap).
   if (kind === 'shadow') say(item.en);
-  else if (item.they) say(item.they);
+  else if (item.they) say(item.they, { role: 'friend' });
+  // Have the model answers ready by the time she has spoken.
+  prefetch([item.answers[0], item.levelUp]);
   return { destroy: stopListening };
 }
