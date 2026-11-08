@@ -333,6 +333,12 @@ function renderProgress() {
 }
 
 // ---------------------------------------------------------------- start
+let warnedVoice = false;
+window.addEventListener('no-english-voice', () => {
+  if (warnedVoice) return;
+  warnedVoice = true;
+  toast('Auf diesem Gerät ist keine englische Stimme installiert – deshalb klingt das Vorlesen deutsch.');
+});
 window.addEventListener('hashchange', render);
 document.addEventListener('visibilitychange', () => {
   // a new day may have started while the app was in the background

@@ -15,20 +15,28 @@ if (canSpeak) {
   window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
 }
 
-const PREFERRED = ['Samantha', 'Ava', 'Allison', 'Evan', 'Daniel', 'Serena', 'Kate', 'Arthur', 'Google US English', 'Google UK English Female'];
+// Best-sounding native English voices first (Edge/Windows "Natural" voices, Apple, Google).
+const PREFERRED = {
+  'en-US': ['Microsoft Ava Online', 'Microsoft Jenny Online', 'Microsoft Aria Online', 'Microsoft Andrew Online', 'Microsoft Guy Online',
+    'Samantha', 'Ava', 'Allison', 'Evan', 'Google US English', 'Microsoft Zira', 'Microsoft David'],
+  'en-GB': ['Microsoft Sonia Online', 'Microsoft Libby Online', 'Microsoft Ryan Online', 'Serena', 'Kate', 'Daniel', 'Arthur',
+    'Google UK English Female', 'Google UK English Male', 'Microsoft Hazel', 'Microsoft George'],
+};
 
+// Only ever pick an English voice – never the German system default.
 function pickVoice(lang) {
-  const norm = (v) => v.lang.replace('_', '-');
-  const exact = voices.filter((v) => norm(v) === lang);
-  const pool = exact.length ? exact : voices.filter((v) => norm(v).startsWith('en'));
+  if (!voices.length && canSpeak) voices = window.speechSynthesis.getVoices();
+  const norm = (v) => (v.lang || '').replace('_', '-');
+  const english = voices.filter((v) => /^en(-|$)/i.test(norm(v)));
+  const exact = english.filter((v) => norm(v).toLowerCase() === lang.toLowerCase());
+  const pool = exact.length ? exact : english;
   if (!pool.length) return null;
-  const quality = pool.find((v) => /premium|enhanced/i.test(v.name));
-  if (quality) return quality;
-  for (const name of PREFERRED) {
+  for (const name of PREFERRED[lang] || PREFERRED['en-US']) {
     const v = pool.find((x) => x.name.startsWith(name));
     if (v) return v;
   }
-  return pool.find((v) => v.localService) || pool[0];
+  const quality = pool.find((v) => /premium|enhanced|natural|neural|online/i.test(v.name));
+  return quality || pool.find((v) => v.localService) || pool[0];
 }
 
 // ---------------------------------------------------------------- natural voice (ElevenLabs via Supabase)
@@ -85,6 +93,7 @@ function browserSay(text, { rate } = {}) {
   u.lang = s.accent;
   const v = pickVoice(s.accent);
   if (v) u.voice = v;
+  else if (voices.length) window.dispatchEvent(new Event('no-english-voice')); // only non-English voices installed
   u.rate = rate ?? s.rate;
   return new Promise((resolve) => {
     u.onend = u.onerror = () => resolve();

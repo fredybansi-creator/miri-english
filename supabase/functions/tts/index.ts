@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
   }
 
   // 2) generate with ElevenLabs
-  const key = Deno.env.get("ELEVENLABS_API_KEY");
+  const key = Deno.env.get("ELEVENLABS_API_KEY")?.trim().replace(/^["']|["']$/g, "");
   if (!key) return err(503, "not_configured");
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (limited(ip)) return err(429, "rate_limited");
@@ -92,6 +92,7 @@ Deno.serve(async (req) => {
   if (!res || !res.ok) {
     const detail = res ? (await res.text()).slice(0, 200) : "timeout";
     console.log("elevenlabs failed", res?.status, detail);
+    if (res?.status === 401 && !key.startsWith("sk_")) console.log("hint: ELEVENLABS_API_KEY does not look like an ElevenLabs key (should start with sk_)");
     // 401 = bad key, 402/429 = quota used up → app falls back to the built-in voice
     return err(502, `elevenlabs_${res?.status || "timeout"}`);
   }
