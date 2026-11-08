@@ -1,7 +1,7 @@
 // AI feedback via the Supabase Edge Function "feedback" (Gemini behind it).
 import { FEEDBACK_URL } from './config.js';
 
-export async function aiFeedback(item, said, { timeout = 15000 } = {}) {
+export async function aiFeedback(item, said, { timeout = 30000 } = {}) {
   if (!FEEDBACK_URL || navigator.onLine === false) throw Object.assign(new Error('offline'), { code: 'offline' });
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);

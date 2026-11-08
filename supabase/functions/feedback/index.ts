@@ -11,7 +11,9 @@ const ALLOWED_ORIGINS = [
 ];
 
 // Tried in order; aliases first so the function keeps working when Google renames models.
-const MODELS = (Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest,gemini-flash-lite-latest,gemini-2.5-flash")
+// Flash-Lite first: fast and good enough for this task. Each model gets MODEL_TIMEOUT_MS.
+const MODEL_TIMEOUT_MS = 10_000;
+const MODELS = (Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest,gemini-flash-latest,gemini-3.8-flash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 const SYSTEM = `You are a warm, encouraging English speaking coach for Miri, a native German speaker at about B1+ level.
@@ -87,27 +89,43 @@ const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
 
 async function askGemini(key: string, input: Record<string, unknown>) {
   let lastError = "no model available";
+  const skipped: string[] = [];
   for (const model of MODELS) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: JSON.stringify(input) }] }],
-        generationConfig: { temperature: 0.3, responseMimeType: "application/json", responseSchema: SCHEMA },
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    let res: Response;
+    let data: { candidates?: { content?: { parts?: { text?: string }[] } }[] } | null = null;
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents: [{ role: "user", parts: [{ text: JSON.stringify(input) }] }],
+          generationConfig: { temperature: 0.3, responseMimeType: "application/json", responseSchema: SCHEMA },
+        }),
+        signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+      });
+      if (res.ok) data = await res.json();
+    } catch {
+      lastError = `${model}: timeout`;
+      skipped.push(lastError);
+      console.log("gemini model failed", lastError);
+      continue;
+    }
+    if (res.ok && data) {
       const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
       try {
-        return { model, result: JSON.parse(text) };
+        return { model, skipped, result: JSON.parse(text) };
       } catch {
         lastError = `${model}: unreadable answer`;
+        skipped.push(lastError);
         continue;
       }
     }
-    lastError = `${model}: HTTP ${res.status}`;
+    const errText = (await res.text()).replace(/\s+/g, " ");
+    const reason = (errText.match(/"message":\s*"([^"]{0,160})/) || [])[1] || "";
+    lastError = `${model}: HTTP ${res.status} ${reason}`.trim();
+    skipped.push(lastError);
+    console.log("gemini model failed", lastError);
     // 404 = model name unknown, 429 = quota for this model used up → try the next model
     if (![404, 429, 500, 503].includes(res.status)) break;
   }
@@ -140,8 +158,8 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const { model, result } = await askGemini(key, input);
-    return json({ ok: true, model, ...result }, 200, origin);
+    const { model, skipped, result } = await askGemini(key, input);
+    return json({ ok: true, model, skipped, ...result }, 200, origin);
   } catch (e) {
     return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
   }

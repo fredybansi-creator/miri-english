@@ -96,6 +96,13 @@ Draft module list (everyday English with friends, ~B1 → B2):
 - Voice: Safari `webkitSpeechRecognition`; fallback = iPhone keyboard dictation. TTS: `speechSynthesis`.
 - AI feedback: Supabase Edge Function → Gemini (free). If AI is unavailable, simple offline check.
 
+## Infrastructure (as of 2026-11-08)
+- App: https://fredybansi-creator.github.io/miri-english/ (GitHub Pages from `main`)
+- Supabase project **Miri English** (`aagbnrcsprmhcwllfmcn`, eu-central-1, free) in org "Battlezone"
+- Edge Function `feedback` (source: `supabase/functions/feedback/index.ts`, deployed with verify_jwt=false;
+  it checks the Origin itself). Secret `GEMINI_API_KEY` (free Google AI Studio key, set by Freddy).
+  Model order: gemini-flash-lite-latest → gemini-flash-latest → gemini-3.8-flash (10 s each).
+
 ## Build phases
 1. **App shell + Today screen + flashcards (SRS) + module 1 content**, voice exercise with offline
    check. Publish on GitHub Pages → Miri tests the microphone on her iPhone early.
