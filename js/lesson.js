@@ -1,7 +1,7 @@
 // Lesson player: new phrases → tip → exercises → summary.
 import { $, $$, esc, icon, playBtn, shuffle, buzz } from './ui.js';
 import { shell, summary } from './sessions.js';
-import { SPEAK } from '../content/index.js';
+import { SPEAK, LESSONS } from '../content/index.js';
 import { renderSpeak } from './speak.js';
 import { sameSentence } from './check.js';
 import { addCards } from './srs.js';
@@ -36,6 +36,7 @@ export function startLesson(lesson, { onExit }) {
     const step = steps[pos];
     const go = (ok) => {
       if (ok !== undefined) { answered++; if (ok) correct++; }
+      if (ok === false) markWeak(lesson, step); // comes back sooner in the mixed review
       // wrong answers come back once at the end of the lesson
       if (ok === false && !retried.has(step) && step.type !== 'match') { retried.add(step); steps.push(step); }
       pos++;
@@ -60,6 +61,84 @@ export function startLesson(lesson, { onExit }) {
       title: 'Lektion geschafft!',
       text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} neue Ausdrücke sind jetzt in deinen Karteikarten.`}`,
       stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke']],
+      onDone: onExit,
+    });
+  }
+
+  next();
+}
+
+// ---------------------------------------------------------------- mixed review
+// Short exercises from finished lessons (grammar, word order, false friends, listening) come back
+// a few at a time, so points from earlier lessons are not forgotten. Wrong answers come back first.
+const REVIEW_TYPES = new Set(['choice', 'gap', 'fix', 'build', 'listen', 'listenbuild']);
+
+function exKey(lesson, ex) {
+  const i = lesson.exercises.indexOf(ex);
+  return i >= 0 ? `${lesson.id}:${i}` : null;
+}
+
+function markWeak(lesson, step) {
+  const key = exKey(lesson, step);
+  if (!key || !REVIEW_TYPES.has(step.type)) return;
+  const s = getState();
+  s.review = s.review || {};
+  s.review[key] = { ...(s.review[key] || {}), weak: true };
+  save();
+}
+
+export function reviewPool() {
+  const s = getState();
+  const items = [];
+  for (const l of LESSONS) {
+    if (!s.lessons[l.id]?.done) continue;
+    l.exercises.forEach((ex, i) => {
+      if (REVIEW_TYPES.has(ex.type)) items.push({ key: `${l.id}:${i}`, ex, lesson: l });
+    });
+  }
+  return items;
+}
+
+export function startReview({ onExit, count = 3 }) {
+  const s = getState();
+  s.review = s.review || {};
+  const t = today();
+  const pool = reviewPool().filter((x) => s.review[x.key]?.last !== t);
+  if (!pool.length) { onExit(); return; }
+  // weak first, then never reviewed, then longest ago
+  const picked = shuffle(pool)
+    .sort((a, b) => {
+      const ra = s.review[a.key] || {}, rb = s.review[b.key] || {};
+      return (rb.weak ? 1 : 0) - (ra.weak ? 1 : 0) || (ra.last || '').localeCompare(rb.last || '');
+    })
+    .slice(0, count);
+
+  const started = Date.now();
+  const ui = shell({ onClose: onExit });
+  let i = 0, correct = 0;
+
+  function next() {
+    ui.progress(i, picked.length);
+    if (i >= picked.length) return finish();
+    const { key, ex, lesson } = picked[i];
+    RENDER[ex.type](ui.body, ex, (ok) => {
+      s.review[key] = { last: t, weak: ok === false };
+      if (ok) correct++;
+      save();
+      i++;
+      next();
+    });
+    // small hint which lesson this comes from
+    ui.body.querySelector('.kicker')?.insertAdjacentHTML('beforeend', ` · <span style="opacity:.7">Wiederholung: ${esc(lesson.title)}</span>`);
+  }
+
+  function finish() {
+    addTime((Date.now() - started) / 1000);
+    ui.hideTop();
+    summary(ui.body, {
+      emoji: '🔁', title: 'Wiederholung geschafft!',
+      text: 'Alte Themen kurz wiederholen ist einer der besten Tricks, damit sie hängen bleiben.',
+      stats: [[`${correct}/${picked.length}`, 'richtig']],
       onDone: onExit,
     });
   }

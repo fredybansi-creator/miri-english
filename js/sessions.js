@@ -58,7 +58,8 @@ export function cardContent(id) {
   return { id, en: m.better, de: m.wrong, note: m.why, mistake: true };
 }
 
-export function startCards({ practice = false, onExit }) {
+/** @param then optional { label, run } – offered after the cards (e.g. the mixed review) */
+export function startCards({ practice = false, onExit, then = null }) {
   const started = Date.now();
   let queue = practice ? shuffle(learnedIds()).slice(0, 20) : dueIds(15);
   queue = queue.filter((id) => cardContent(id));
@@ -67,6 +68,7 @@ export function startCards({ practice = false, onExit }) {
   const ui = shell({ onClose: onExit });
 
   if (!total) {
+    if (then) { then.run(); return; }
     ui.hideTop();
     summary(ui.body, {
       emoji: '✨', title: practice ? 'Noch keine Karten' : 'Heute nichts fällig',
@@ -146,7 +148,8 @@ export function startCards({ practice = false, onExit }) {
       emoji: '🧠', title: 'Karten geschafft!',
       text: again ? 'Die „Nochmal“-Karten kommen bald wieder – so bleiben sie hängen.' : 'Alles gewusst – stark!',
       stats: [[String(total), total === 1 ? 'Karte' : 'Karten'], [String(again), 'Nochmal']],
-      onDone: onExit,
+      button: then ? then.label : 'Weiter',
+      onDone: then ? then.run : onExit,
     });
   }
 

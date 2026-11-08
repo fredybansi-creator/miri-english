@@ -12,6 +12,7 @@ const defaults = () => ({
   days: {},      // 'YYYY-MM-DD' -> { lesson, cards, speaking, seconds, reviews, spoken }
   speaking: {},  // sentenceId -> { best, count, last }
   mistakes: [],  // coach fixes → "Meine Fehler" cards: { id, wrong, better, why, date }
+  review: {},    // 'lessonId:exerciseIndex' -> { last, weak } for the mixed review
   sync: {},      // { code, lastPush, resetAt }
 });
 
@@ -123,6 +124,12 @@ export function mergeStates(a, b) {
     seen.add(k);
     return true;
   });
+
+  out.review = { ...(a.review || {}) };
+  for (const [k, r] of Object.entries(b.review || {})) {
+    const o = out.review[k];
+    if (!o || (r.last || '') > (o.last || '')) out.review[k] = r;
+  }
 
   out.sync = { ...(b.sync || {}), ...(a.sync || {}) }; // keep this device's code
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);

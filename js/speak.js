@@ -44,8 +44,14 @@ function record(item, result) {
   const prev = s.speaking[item.id] || { best: 0, count: 0, last: null };
   s.speaking[item.id] = { best: Math.max(prev.best, result.score || 0), count: prev.count + 1, last: today() };
   day().spoken++;
+  addMistakeCards(result.ai?.fixes || [], item.id);
+}
 
-  // Error-driven learning: the coach's fixes become "Meine Fehler" flashcards (a few per day).
+// Error-driven learning: the coach's fixes become "Meine Fehler" flashcards (a few per day).
+export function addMistakeCards(rawFixes, sourceId) {
+  const s = getState();
+  const result = { ai: { fixes: rawFixes } };
+  const item = { id: sourceId };
   // Skip content swaps (longer phrases with no word in common, e.g. "Yes it's been ages" → "No way!") –
   // those are not language mistakes. Single-word swaps like become → get are kept.
   const isLanguageFix = (f) => {

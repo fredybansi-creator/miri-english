@@ -52,7 +52,43 @@ const OUTPUT = `Return JSON only, with these fields:
 - tip: one short German tip about a typical German-speaker mistake she made, or "" if none.
 Speak to her as "du". Be kind and concise.`;
 
-const systemFor = (mode: string) => `${INTRO}\n\n${mode === "free" ? TASK_FREE : TASK_TRANSLATE}\n\n${OUTPUT}`;
+const systemFor = (mode: string) => {
+  if (mode === "chat_reply") return CHAT_REPLY;
+  if (mode === "chat_review") return `${INTRO}\n\n${TASK_CHAT_REVIEW}\n\n${OUTPUT}`;
+  return `${INTRO}\n\n${mode === "free" ? TASK_FREE : TASK_TRANSLATE}\n\n${OUTPUT}`;
+};
+
+// ---- conversation partner ("Sam") -------------------------------------------------------------
+const CHAT_REPLY = `You are Sam, Miri's friendly English-speaking friend (native speaker, casual, warm, a bit funny).
+Miri is German (about B1+) and practises having relaxed spoken conversations with friends.
+You get the scenario and the conversation so far. Write Sam's NEXT line.
+Rules:
+- 1–2 short sentences, max 25 words, natural spoken English (B1–B2 level, everyday idioms are welcome).
+- React to what she actually said (show interest, share a tiny bit about yourself), then ask ONE open
+  follow-up question that makes her tell more (why / how / what happened / what was it like).
+- Never correct her English and never mention grammar. If you don't understand her, ask casually.
+- No emojis, no lists, no stage directions.
+- When she has answered 5 times (count her turns in the history), wrap up warmly in 1–2 sentences
+  WITHOUT a question and set done = true. Otherwise done = false.
+Return JSON only: { "reply": string, "done": boolean }.`;
+
+const TASK_CHAT_REVIEW = `TASK: Miri just had a short spoken conversation with her friend Sam (the input contains the scenario and
+all lines). Review ONLY her lines, like a friendly coach after the conversation:
+- level: "great" (natural, mostly correct, gave detailed answers), "good" (understandable, some mistakes or
+  short answers), "try" (very short answers or hard to understand).
+- praise: one specific encouraging sentence in German about something SHE said (lines marked "Miri").
+  Never praise words or phrases that only Sam used.
+- corrected: her LONGEST answer, minimally corrected.
+- fixes: up to 4 of her most important mistakes across all lines (exact words she used → better).
+- betterWords: up to 4 phrases that would have made her sound more natural in this conversation.
+- levelUp: her longest answer retold richer and more natural (keep her facts).
+- tip: one short German tip about her most frequent mistake pattern, or about giving longer answers.`;
+
+const CHAT_SCHEMA = {
+  type: "OBJECT",
+  properties: { reply: { type: "STRING" }, done: { type: "BOOLEAN" } },
+  required: ["reply", "done"],
+};
 
 const SCHEMA = {
   type: "OBJECT",
@@ -101,7 +137,7 @@ function json(body: unknown, status: number, origin: string | null) {
 
 const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
 
-async function askGemini(key: string, input: Record<string, unknown>, system: string) {
+async function askGemini(key: string, input: Record<string, unknown>, system: string, schema: unknown = SCHEMA, temperature = 0.3) {
   let lastError = "no model available";
   const skipped: string[] = [];
   for (const model of MODELS) {
@@ -114,7 +150,7 @@ async function askGemini(key: string, input: Record<string, unknown>, system: st
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },
           contents: [{ role: "user", parts: [{ text: JSON.stringify(input) }] }],
-          generationConfig: { temperature: 0.3, responseMimeType: "application/json", responseSchema: SCHEMA },
+          generationConfig: { temperature, responseMimeType: "application/json", responseSchema: schema },
         }),
         signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
       });
@@ -160,6 +196,26 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400, origin); }
+
+  // ---- conversation partner
+  if (body.mode === "chat_reply" || body.mode === "chat_review") {
+    const history = (Array.isArray(body.history) ? body.history : []).slice(-16).map((h: Record<string, unknown>) => ({
+      who: h.who === "miri" ? "Miri" : "Sam",
+      text: clip(h.text, 600),
+    }));
+    if (!history.length) return json({ error: "empty" }, 400, origin);
+    const input = { scenario: clip(body.scenario, 400), conversation: history };
+    try {
+      if (body.mode === "chat_reply") {
+        const { model, result } = await askGemini(key, input, systemFor("chat_reply"), CHAT_SCHEMA, 0.8);
+        return json({ ok: true, model, reply: clip(result.reply, 300), done: !!result.done }, 200, origin);
+      }
+      const { model, result } = await askGemini(key, input, systemFor("chat_review"));
+      return json({ ok: true, model, ...result }, 200, origin);
+    } catch (e) {
+      return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
+    }
+  }
 
   const said = clip(body.said, 1200).trim();
   if (!said) return json({ error: "empty" }, 400, origin);

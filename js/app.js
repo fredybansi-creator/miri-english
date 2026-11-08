@@ -3,8 +3,9 @@ import { $, $$, esc, icon, playBtn, setSession, toast, plural } from './ui.js';
 import { MODULES, LESSONS, PHRASES, findLesson } from '../content/index.js';
 import { getState, save, today, addDays, day, streak, bestStreak, totalSeconds, isActiveDay, resetAll } from './store.js';
 import { dueCount, learnedIds } from './srs.js';
-import { startLesson } from './lesson.js';
+import { startLesson, startReview, reviewPool } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
+import { startChat } from './chat.js';
 import { canListen, listen, errorMessage, say } from './speech.js';
 import { initSync, getCode, restore, normalizeCode, status, onStatus } from './sync.js';
 
@@ -34,6 +35,14 @@ function dateLabel() {
 
 function go(route) { location.hash = '#/' + route; }
 
+// Topic for today's chat: the finished lesson she has chatted about least (newest first on ties).
+function chatLesson() {
+  const s = getState();
+  const done = LESSONS.filter((l) => isDone(l) && l.free);
+  if (!done.length) return LESSONS[0];
+  return done.slice().reverse().sort((a, b) => (s.speaking[`chat-${a.id}`]?.count || 0) - (s.speaking[`chat-${b.id}`]?.count || 0))[0];
+}
+
 // ---------------------------------------------------------------- router
 function render() {
   const [route, arg] = location.hash.replace(/^#\/?/, '').split('/');
@@ -45,9 +54,25 @@ function render() {
     if (l && unlocked(l)) return startLesson(l, { onExit: () => go('today') });
     return go('modules');
   }
-  if (route === 'review') return startCards({ onExit: () => go('today') });
+  if (route === 'review') {
+    const toToday = () => { go('today'); render(); };
+    const hasReview = reviewPool().length > 0;
+    return startCards({
+      onExit: toToday,
+      then: hasReview ? { label: 'Weiter: 3 Übungen zur Wiederholung', run: () => startReview({ onExit: toToday }) } : null,
+    });
+  }
   if (route === 'practice') return startCards({ practice: true, onExit: () => go('cards') });
-  if (route === 'speak') return startSpeaking({ onExit: () => go('today') });
+  if (route === 'speak') {
+    // Daily speaking = a real conversation with Sam about a finished lesson's topic.
+    // If the AI can't be reached, fall back to the scripted conversation.
+    return startChat({
+      lesson: chatLesson(),
+      onExit: () => go('today'),
+      onFallback: () => startSpeaking({ onExit: () => go('today') }),
+    });
+  }
+  if (route === 'speak-script') return startSpeaking({ onExit: () => go('today') });
 
   setSession(false);
   const tab = TABS.some((t) => t.id === route) ? route : 'today';
@@ -68,12 +93,12 @@ function renderWelcome() {
       <div class="center">
         <div class="celebrate">👋</div>
         <h1 class="summary-title">Hi Miri!</h1>
-        <p class="muted" style="margin-top:8px">Willkommen bei <b>Miri English</b>. Jeden Tag ca. 10 Minuten – und du sprichst Englisch, statt nur Vokabeln zu pauken.</p>
+        <p class="muted" style="margin-top:8px">Willkommen bei <b>Miri English</b>. Jeden Tag ca. 15 Minuten – und du sprichst Englisch, statt nur Vokabeln zu pauken.</p>
       </div>
       <ol class="plain welcome-steps">
         <li><div class="task-icon">📘</div><div><b>Lektion</b><p class="small muted">Neue Ausdrücke, ein kurzer Tipp und Übungen.</p></div></li>
-        <li><div class="task-icon">🧠</div><div><b>Karteikarten</b><p class="small muted">Kommen genau dann wieder, wenn du sie sonst vergessen würdest.</p></div></li>
-        <li><div class="task-icon">🗣️</div><div><b>Sprechen</b><p class="small muted">Deutsche Sätze laut auf Englisch sagen – mit Tipps, wie es noch natürlicher klingt.</p></div></li>
+        <li><div class="task-icon">🧠</div><div><b>Karteikarten & Wiederholung</b><p class="small muted">Kommen genau dann wieder, wenn du sie sonst vergessen würdest – auch deine eigenen Fehler.</p></div></li>
+        <li><div class="task-icon">🦊</div><div><b>Plaudern mit Sam</b><p class="small muted">Ein echtes Gespräch: Sam reagiert auf das, was du sagst, und fragt nach. Danach bekommst du Tipps.</p></div></li>
       </ol>
       <div class="card" style="margin-top:22px">
         <b>📱 Tipp: Als App speichern</b>
@@ -114,7 +139,7 @@ function renderToday() {
     ? 'Erledigt – stark!'
     : lesson ? `${esc(lesson.module.titleDe)} · Lektion ${lesson.index + 1}: ${esc(lesson.title)}` : 'Alle Lektionen geschafft – wiederhole eine!';
   const cardsSub = !hasCards ? 'Kommen nach deiner ersten Lektion' : d.cards ? 'Erledigt!' : due ? `${plural(due, 'Karte', 'Karten')} fällig` : 'Heute nichts fällig 🎉';
-  const speakSub = d.speaking ? 'Erledigt – super gesprochen!' : 'Ein kurzes Gespräch – antworte laut auf Englisch';
+  const speakSub = d.speaking ? 'Erledigt – super gesprochen!' : `Plaudere mit Sam 🦊 über „${esc(chatLesson().title)}“`;
 
   const lessonHref = lesson ? `#/lesson/${lesson.id}` : '#/modules';
   const msg = doneN === 3 ? 'Tagesziel geschafft! 🎉' : doneN === 0 ? 'Dein Plan für heute' : 'Weiter so!';
@@ -135,14 +160,14 @@ function renderToday() {
       </div>
       <div>
         <h2>${msg}</h2>
-        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 10 Minuten · Lektion, Karten, Sprechen'}</p>
+        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 15 Minuten · Lektion, Karten, Plaudern mit Sam'}</p>
       </div>
     </div>
 
     <h2 class="section-title">Heute</h2>
     ${taskHtml({ href: lessonHref, emoji: '📘', title: 'Lektion', sub: lessonSub, done: d.lesson })}
     ${taskHtml({ href: '#/review', emoji: '🧠', title: 'Karteikarten', sub: cardsSub, done: cardsDone, disabled: !hasCards })}
-    ${taskHtml({ href: '#/speak', emoji: '🗣️', title: 'Sprechen', sub: speakSub, done: d.speaking })}
+    ${taskHtml({ href: '#/speak', emoji: '🦊', title: 'Plaudern mit Sam', sub: speakSub, done: d.speaking })}
 
     ${phraseOfTheDay()}
   `;
@@ -229,6 +254,7 @@ function renderCards() {
       <a class="btn btn-line btn-block" href="#/practice" ${ids.length ? '' : 'style="pointer-events:none;opacity:.5"'}>Freies Üben (zählt nicht)</a>
     </div>
     ${mistakesHtml(cards, t)}
+    <a class="btn btn-ghost btn-block" href="#/speak-script" style="margin-top:6px">🎭 Geführtes Gespräch üben (Übersetzen)</a>
     <h2 class="section-title">Deine Ausdrücke</h2>
     ${ids.length ? `<div class="card phrase-list">
       ${ids.map((id) => PHRASES.get(id)).filter(Boolean).map((p) => `
@@ -327,7 +353,7 @@ function renderProgress() {
         </div>
       </div>
       <div class="setting">
-        <div><b>Coach-Korrekturen</b><p class="small muted">Natürliche Stimme verbraucht dafür jedes Mal Credits</p></div>
+        <div><b>Sam & Korrekturen</b><p class="small muted">Sätze, die die KI neu schreibt – natürliche Stimme kostet dafür jedes Mal Credits</p></div>
         <div class="seg" data-setting="cloudVoiceCoach">
           <button data-v="on" aria-pressed="${s.settings.cloudVoiceCoach === true}">Natürlich</button>
           <button data-v="off" aria-pressed="${s.settings.cloudVoiceCoach !== true}">Gerät</button>

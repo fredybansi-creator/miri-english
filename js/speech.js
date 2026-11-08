@@ -62,8 +62,20 @@ export function prefetch(texts, role = 'main') {
   for (const t of texts.filter(Boolean)) fetch(audioUrl(t, role)).catch(() => {});
 }
 
-export function say(text, { rate, role = 'main' } = {}) {
+// Tells listeners (e.g. Sam the fox) when something is being read aloud.
+function emitTts(state, role) {
+  window.dispatchEvent(new CustomEvent('tts', { detail: { state, role } }));
+}
+
+export function say(text, opts = {}) {
   if (!text) return Promise.resolve();
+  emitTts('start', opts.role || 'main');
+  const p = sayInner(text, opts);
+  p.finally(() => emitTts('end', opts.role || 'main'));
+  return p;
+}
+
+function sayInner(text, { rate, role = 'main' } = {}) {
   stopSpeaking();
   // role 'coach' = one-off sentences written by the AI coach. They are never reused, so caching
   // saves nothing – by default they use the device voice to save ElevenLabs credits.

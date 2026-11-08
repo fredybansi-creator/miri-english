@@ -1,6 +1,45 @@
 // AI feedback via the Supabase Edge Function "feedback" (Gemini behind it).
 import { FEEDBACK_URL } from './config.js';
 
+async function post(payload, timeout = 30000) {
+  if (!FEEDBACK_URL || navigator.onLine === false) throw Object.assign(new Error('offline'), { code: 'offline' });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(FEEDBACK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw Object.assign(new Error(data.error || `http_${res.status}`), { code: data.error || res.status });
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Conversation partner: Sam's next line. history = [{ who: 'sam'|'miri', text }] */
+export async function chatReply(scenario, history) {
+  const d = await post({ mode: 'chat_reply', scenario, history }, 20000);
+  return { reply: String(d.reply || ''), done: !!d.done };
+}
+
+/** Coach feedback on the whole conversation (same shape as aiFeedback). */
+export async function chatReview(scenario, history) {
+  const d = await post({ mode: 'chat_review', scenario, history });
+  return {
+    level: ['great', 'good', 'try'].includes(d.level) ? d.level : 'good',
+    praise: String(d.praise || ''),
+    corrected: String(d.corrected || ''),
+    fixes: Array.isArray(d.fixes) ? d.fixes.slice(0, 4) : [],
+    betterWords: Array.isArray(d.betterWords) ? d.betterWords.slice(0, 4) : [],
+    levelUp: String(d.levelUp || ''),
+    tip: String(d.tip || ''),
+  };
+}
+
 /**
  * mode 'translate': item = { they, de, answers }
  * mode 'free':      item = { they, hint, useWords, sample }
