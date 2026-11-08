@@ -1,10 +1,10 @@
 // Spaced repetition (simplified SM-2): Nochmal / Schwer / Gut / Leicht.
 import { getState, save, today, addDays, day } from './store.js';
 
-export function addCards(ids) {
+export function addCards(ids, { due = today() } = {}) {
   const cards = getState().cards;
   for (const id of ids) {
-    if (!cards[id]) cards[id] = { due: today(), interval: 0, ease: 2.5, reps: 0, lapses: 0, last: null, added: today() };
+    if (!cards[id]) cards[id] = { due, interval: 0, ease: 2.5, reps: 0, lapses: 0, last: null, added: today() };
   }
   save();
 }

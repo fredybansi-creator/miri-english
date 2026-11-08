@@ -106,6 +106,10 @@ Draft module list (everyday English with friends, ~B1 → B2):
   friend, UK: Alice + George), model eleven_flash_v2_5. Each sentence is generated once and cached in the public
   Storage bucket `tts`; later requests redirect there. Secret `ELEVENLABS_API_KEY` (set by Freddy, free plan).
   App falls back to an English browser voice if ElevenLabs fails (e.g. monthly credits used up).
+- Edge Function `progress` + table `public.progress` (RLS on, no policies – service role only): progress backup.
+  Miri's device gets a 16-character backup code (Fortschritt → Sicherung); only its SHA-256 hash is stored.
+  App pulls + merges on start, pushes 4 s after each change. Restore on a new device = enter the code.
+- "Meine Fehler": AI coach fixes become flashcards (max 5 new per day, first review next day).
 
 ## Build phases
 1. **App shell + Today screen + flashcards (SRS) + module 1 content**, voice exercise with offline

@@ -5,8 +5,9 @@
 import { esc, icon, playBtn, shuffle } from './ui.js';
 import { canListen, listen, errorMessage, say } from './speech.js';
 import { checkAnswer, markAnswer, tokens } from './check.js';
-import { getState, save, today, day } from './store.js';
+import { getState, save, today, day, addDays } from './store.js';
 import { aiFeedback } from './ai.js';
+import { addCards } from './srs.js';
 
 const AI_SCORE = { great: 1, good: 0.7, try: 0.3 };
 
@@ -30,15 +31,44 @@ const SHADOW_TITLES = {
 };
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+const MAX_NEW_MISTAKE_CARDS_PER_DAY = 5;
+
+function hashId(text) {
+  let h = 0;
+  for (const ch of text.toLowerCase().trim()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `mx-${h.toString(36)}`;
+}
+
 function record(item, result) {
   const s = getState();
   const prev = s.speaking[item.id] || { best: 0, count: 0, last: null };
   s.speaking[item.id] = { best: Math.max(prev.best, result.score || 0), count: prev.count + 1, last: today() };
   day().spoken++;
-  for (const en of result.missing || []) {
-    if (en && !s.mistakes.some((m) => m.en === en)) s.mistakes.push({ en, sentenceId: item.id, date: today() });
+
+  // Error-driven learning: the coach's fixes become "Meine Fehler" flashcards (a few per day).
+  // Skip content swaps (longer phrases with no word in common, e.g. "Yes it's been ages" → "No way!") –
+  // those are not language mistakes. Single-word swaps like become → get are kept.
+  const isLanguageFix = (f) => {
+    const a = tokens(f.wrong), b = tokens(f.better);
+    if (a.length < 3 || b.length < 3) return true;
+    return a.some((w) => b.includes(w));
+  };
+  const fixes = (result.ai?.fixes || []).filter((f) => f.wrong && f.better
+    && f.wrong.trim().toLowerCase() !== f.better.trim().toLowerCase() && isLanguageFix(f));
+  const newToday = s.mistakes.filter((m) => m.date === today() && m.id).length;
+  const fresh = [];
+  for (const f of fixes) {
+    if (newToday + fresh.length >= MAX_NEW_MISTAKE_CARDS_PER_DAY) break;
+    const id = hashId(f.better);
+    if (s.mistakes.some((m) => m.id === id) || fresh.some((m) => m.id === id)) continue;
+    fresh.push({ id, wrong: f.wrong.slice(0, 160), better: f.better.slice(0, 160), why: (f.why || '').slice(0, 200), sentenceId: item.id, date: today() });
   }
-  save();
+  if (fresh.length) {
+    s.mistakes.push(...fresh);
+    addCards(fresh.map((m) => m.id), { due: addDays(today(), 1) }); // first review tomorrow; saves
+  } else {
+    save();
+  }
 }
 
 const marked = (list) => list.map((m) => (m.said ? esc(m.word) : `<mark class="miss">${esc(m.word)}</mark>`)).join(' ');

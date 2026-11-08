@@ -6,6 +6,7 @@ import { dueCount, learnedIds } from './srs.js';
 import { startLesson } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
 import { canListen, listen, errorMessage, say } from './speech.js';
+import { initSync, getCode, restore, normalizeCode, status, onStatus } from './sync.js';
 
 const app = $('#app');
 const TABS = [
@@ -79,8 +80,15 @@ function renderWelcome() {
         <p class="small muted" style="margin-top:4px">In Safari unten auf <b>Teilen</b> (□↑) tippen → <b>„Zum Home-Bildschirm“</b>. Dann öffnest du Miri English wie eine App.</p>
       </div>
       <div class="grow"></div>
-      <div class="session-foot"><button class="btn btn-block" data-start>Los geht’s!</button></div>
+      <div class="session-foot">
+        <button class="btn btn-block" data-start>Los geht’s!</button>
+        <button class="btn btn-ghost btn-sm" data-have-code>Ich habe schon einen Sicherungscode</button>
+      </div>
     </div>`;
+  $('[data-have-code]').addEventListener('click', () => {
+    const input = window.prompt('Gib deinen Sicherungscode ein (z. B. ABCD-EFGH-JKLM-NPQR):');
+    if (input) restoreFlow(input);
+  });
   $('[data-start]').addEventListener('click', () => {
     getState().welcomed = true;
     save();
@@ -149,7 +157,7 @@ function taskHtml({ href, emoji, title, sub, done, disabled }) {
 }
 
 function phraseOfTheDay() {
-  const ids = learnedIds();
+  const ids = learnedIds().filter((id) => PHRASES.has(id));
   const pool = ids.length ? ids : LESSONS[0].phrases.map((p) => p.id);
   const t = today();
   let h = 0;
@@ -220,6 +228,7 @@ function renderCards() {
       <a class="btn btn-block ${due ? '' : 'btn-soft'}" href="#/review" ${due ? '' : 'style="pointer-events:none;opacity:.5"'}>Fällige Karten lernen</a>
       <a class="btn btn-line btn-block" href="#/practice" ${ids.length ? '' : 'style="pointer-events:none;opacity:.5"'}>Freies Üben (zählt nicht)</a>
     </div>
+    ${mistakesHtml(cards, t)}
     <h2 class="section-title">Deine Ausdrücke</h2>
     ${ids.length ? `<div class="card phrase-list">
       ${ids.map((id) => PHRASES.get(id)).filter(Boolean).map((p) => `
@@ -229,6 +238,21 @@ function renderCards() {
           ${cards[p.id].due <= t ? '<span class="due-dot" title="fällig"></span>' : ''}
         </div>`).join('')}
     </div>` : `<div class="card empty"><div>🃏</div>Nach deiner ersten Lektion landen hier deine Ausdrücke.</div>`}`;
+}
+
+function mistakesHtml(cards, t) {
+  const list = getState().mistakes.filter((m) => m.id && cards[m.id]).slice().reverse();
+  if (!list.length) return '';
+  return `
+    <h2 class="section-title">Meine Fehler · ${list.length}</h2>
+    <div class="card phrase-list">
+      ${list.map((m) => `
+        <div class="phrase-item">
+          ${playBtn(m.better)}
+          <div class="grow"><b>${esc(m.better)}</b><span>statt <s>${esc(m.wrong)}</s>${m.why ? ` · ${esc(m.why)}` : ''}</span></div>
+          ${cards[m.id].due <= t ? '<span class="due-dot" title="fällig"></span>' : ''}
+        </div>`).join('')}
+    </div>`;
 }
 
 // ---------------------------------------------------------------- progress & settings
@@ -266,6 +290,24 @@ function renderProgress() {
         <button class="mic" data-mictest style="width:56px;height:56px" aria-label="Mikrofon testen">${icon.mic}</button>
         <p class="grow" data-micout>${canListen ? '' : esc(errorMessage('unsupported'))}</p>
       </div>
+    </div>
+
+    <h2 class="section-title">Sicherung</h2>
+    <div class="card">
+      <p class="small" data-syncstatus>${syncStatusText()}</p>
+      <p class="small muted" style="margin-top:10px">Dein persönlicher Sicherungscode – damit holst du deinen Fortschritt auf ein neues Handy:</p>
+      <div class="row" style="margin-top:8px">
+        <code class="sync-code grow">${esc(getCode())}</code>
+        <button class="btn btn-soft btn-sm" data-copycode>Kopieren</button>
+      </div>
+      <details class="example-answer" style="margin-top:14px">
+        <summary>Fortschritt von einem anderen Gerät holen</summary>
+        <p class="small muted" style="margin-top:8px">Gib den Code ein, der auf dem anderen Gerät steht. Beide Stände werden zusammengeführt – es geht nichts verloren.</p>
+        <div class="row" style="margin-top:8px">
+          <input class="code-input grow" data-restorecode placeholder="XXXX-XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off" spellcheck="false">
+          <button class="btn btn-sm" data-restore>Holen</button>
+        </div>
+      </details>
     </div>
 
     <h2 class="section-title">Einstellungen</h2>
@@ -323,6 +365,12 @@ function renderProgress() {
     }
   });
 
+  $('[data-copycode]').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(getCode()); toast('Code kopiert – heb ihn gut auf!'); }
+    catch { toast('Bitte den Code abschreiben.'); }
+  });
+  $('[data-restore]').addEventListener('click', () => restoreFlow($('[data-restorecode]').value));
+
   const micBtn = $('[data-mictest]');
   const out = $('[data-micout]');
   let session = null;
@@ -339,6 +387,33 @@ function renderProgress() {
   });
 }
 
+// ---------------------------------------------------------------- backup
+function syncStatusText() {
+  const t = status.lastPush;
+  const ago = t ? Math.round((Date.now() - t) / 60000) : null;
+  const when = ago === null ? '' : ago < 1 ? 'gerade eben' : ago < 60 ? `vor ${ago} Min.` : new Date(t).toLocaleString('de-DE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  switch (status.state) {
+    case 'syncing': return '⏳ Wird gesichert …';
+    case 'offline': return `📴 Offline – wird gesichert, sobald du wieder Internet hast.${when ? ` Letzte Sicherung: ${when}` : ''}`;
+    case 'error': return `⚠️ Sicherung gerade nicht möglich.${when ? ` Letzte Sicherung: ${when}` : ''}`;
+    default: return t ? `✅ Automatisch gesichert – ${when}` : '⏳ Noch nicht gesichert';
+  }
+}
+onStatus(() => { const el = $('[data-syncstatus]'); if (el) el.textContent = syncStatusText(); });
+
+async function restoreFlow(input) {
+  const code = normalizeCode(input);
+  if (!code) { toast('Der Code hat 16 Zeichen, z. B. ABCD-EFGH-JKLM-NPQR.'); return; }
+  try {
+    await restore(code);
+    toast('Fortschritt geholt! 🎉');
+    go('today');
+    render();
+  } catch (e) {
+    toast(e.message === 'not_found' ? 'Zu diesem Code gibt es keine Sicherung.' : 'Das hat nicht geklappt – prüf den Code und dein Internet.');
+  }
+}
+
 // ---------------------------------------------------------------- start
 let warnedVoice = false;
 window.addEventListener('no-english-voice', () => {
@@ -352,3 +427,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !document.body.classList.contains('in-session')) render();
 });
 render();
+initSync().then((changed) => {
+  if (changed && !document.body.classList.contains('in-session')) render();
+});

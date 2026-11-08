@@ -438,6 +438,12 @@ ol.plain { list-style: none; padding: 0; margin: 0; }
 .phrase-item span { font-size: 14px; color: var(--ink-2); }
 .due-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
 
+/* Backup */
+.sync-code { font: 700 15px/1.2 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 12px 12px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.code-input { min-width: 0; padding: 11px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font: 600 16px ui-monospace, "SF Mono", Menlo, Consolas, monospace; text-transform: uppercase; }
+.code-input:focus { outline: none; border-color: var(--brand); }
+.mistake-front { font-size: 22px; font-weight: 600; color: var(--bad); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 50%, transparent); }
+
 /* Toast */
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + var(--safe-b) + 16px); z-index: 50;

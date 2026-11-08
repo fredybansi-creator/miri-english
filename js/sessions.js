@@ -50,10 +50,18 @@ export function summary(body, { emoji = '🎉', title, text = '', stats = [], bu
 }
 
 // ---------------------------------------------------------------- flashcards
+// A card is either a lesson phrase or one of her own mistakes the coach corrected.
+export function cardContent(id) {
+  if (PHRASES.has(id)) return PHRASES.get(id);
+  const m = getState().mistakes.find((x) => x.id === id);
+  if (!m) return null;
+  return { id, en: m.better, de: m.wrong, note: m.why, mistake: true };
+}
+
 export function startCards({ practice = false, onExit }) {
   const started = Date.now();
   let queue = practice ? shuffle(learnedIds()).slice(0, 20) : dueIds(15);
-  queue = queue.filter((id) => PHRASES.has(id));
+  queue = queue.filter((id) => cardContent(id));
   const total = queue.length;
   let done = 0, again = 0;
   const ui = shell({ onClose: onExit });
@@ -75,12 +83,17 @@ export function startCards({ practice = false, onExit }) {
   }
 
   function showFront(id) {
-    const p = PHRASES.get(id);
+    const p = cardContent(id);
     const card = getState().cards[id] || { reps: 0 };
-    const reverse = !practice && card.reps % 3 === 2; // sometimes EN → DE
+    const reverse = !practice && !p.mistake && card.reps % 3 === 2; // sometimes EN → DE
     ui.body.innerHTML = `
       <div class="flash">
-        ${reverse
+        ${p.mistake
+          ? `<div class="kicker accent">Mein Fehler · Wie sagt man es richtig?</div>
+             <p class="small muted">Du hast gesagt:</p>
+             <p class="mistake-front">${esc(p.de)}</p>
+             <p class="flash-say">🗣️ Sag die richtige Version laut – dann aufdecken.</p>`
+          : reverse
           ? `<div class="kicker">Was bedeutet das?</div>
              <div class="row" style="justify-content:center">${playBtn(p.en)}<p class="big-en">${esc(p.en)}</p></div>`
           : `<div class="kicker">Wie sagt man auf Englisch?</div>
@@ -92,7 +105,7 @@ export function startCards({ practice = false, onExit }) {
   }
 
   function showBack(id, reverse) {
-    const p = PHRASES.get(id);
+    const p = cardContent(id);
     const card = getState().cards[id];
     const grades = practice
       ? `<div class="grades two">
@@ -105,7 +118,7 @@ export function startCards({ practice = false, onExit }) {
          </div>`;
     ui.body.innerHTML = `
       <div class="flash">
-        <p class="muted" style="font-size:17px">${esc(p.de)}</p>
+        <p class="muted" style="font-size:17px">${p.mistake ? `Statt <s>${esc(p.de)}</s> sag:` : esc(p.de)}</p>
         <div class="flash-divider"></div>
         <div class="row" style="justify-content:center">${playBtn(p.en, 'lg')}<p class="big-en">${esc(p.en)}</p></div>
         ${p.ex ? `<div class="example">${playBtn(p.ex)}<p>${esc(p.ex)}</p></div>` : ''}
