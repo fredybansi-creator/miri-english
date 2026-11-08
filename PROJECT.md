@@ -102,6 +102,10 @@ Draft module list (everyday English with friends, ~B1 → B2):
 - Edge Function `feedback` (source: `supabase/functions/feedback/index.ts`, deployed with verify_jwt=false;
   it checks the Origin itself). Secret `GEMINI_API_KEY` (free Google AI Studio key, set by Freddy).
   Model order: gemini-flash-lite-latest → gemini-flash-latest → gemini-3.8-flash (10 s each).
+- Edge Function `tts` (source: `supabase/functions/tts/index.ts`): ElevenLabs voices (US: Jessica + Will as
+  friend, UK: Alice + George), model eleven_flash_v2_5. Each sentence is generated once and cached in the public
+  Storage bucket `tts`; later requests redirect there. Secret `ELEVENLABS_API_KEY` (set by Freddy, free plan).
+  App falls back to an English browser voice if ElevenLabs fails (e.g. monthly credits used up).
 
 ## Build phases
 1. **App shell + Today screen + flashcards (SRS) + module 1 content**, voice exercise with offline
