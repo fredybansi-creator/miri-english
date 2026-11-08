@@ -35,6 +35,17 @@ export async function chatReply(scenario, history) {
   return { reply: String(d.reply || ''), done: !!d.done };
 }
 
+/** Correction of one chat message: { correct, corrected, fixes[], tip } */
+export async function chatFix(they, said) {
+  const d = await post({ mode: 'chat_fix', they, said }, 20000);
+  return {
+    correct: !!d.correct,
+    corrected: String(d.corrected || said),
+    fixes: Array.isArray(d.fixes) ? d.fixes.slice(0, 3) : [],
+    tip: String(d.tip || ''),
+  };
+}
+
 /** Coach feedback on the whole conversation (same shape as aiFeedback). */
 export async function chatReview(scenario, history) {
   const d = await post({ mode: 'chat_review', scenario, history });

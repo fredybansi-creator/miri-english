@@ -443,6 +443,16 @@ ol.plain { list-style: none; padding: 0; margin: 0; }
 
 /* Conversation with Sam */
 .chat-main { flex: 1; display: flex; flex-direction: column; }
+.chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.msg-fix { align-self: flex-end; max-width: 88%; margin-top: -4px; font-size: 14px; }
+.msg-fix.pending { color: var(--ink-2); display: flex; gap: 6px; align-items: center; }
+.msg-fix.pending .dots { width: 12px; height: 12px; }
+.msg-fix.ok { color: var(--good); font-weight: 700; }
+.msg-fix.bad { background: var(--warn-soft); border-radius: 14px; padding: 10px 12px; width: 88%; }
+.msg-fix.bad p { font-size: 16px; font-weight: 600; padding-top: 6px; }
+.msg-fix.bad .play { width: 32px; height: 32px; }
+.msg-fix.bad .fixes { margin-top: 8px; }
+.msg-fix-label { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--warn); }
 .chatlog { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .msg { max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: 17px; line-height: 1.4; }
 .msg p { padding-top: 6px; }

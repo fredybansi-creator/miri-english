@@ -72,9 +72,40 @@ Rules:
   follow-up question that makes her tell more (why / how / what happened / what was it like).
 - Never correct her English and never mention grammar. If you don't understand her, ask casually.
 - No emojis, no lists, no stage directions.
-- When she has answered 5 times (count her turns in the history), wrap up warmly in 1–2 sentences
-  WITHOUT a question and set done = true. Otherwise done = false.
+- The conversation has no end: keep it going. If a topic runs dry, move naturally to a related
+  everyday topic (plans, work, hobbies, food, travel, friends, films). Don't repeat questions.
+- Always set done = false.
 Return JSON only: { "reply": string, "done": boolean }.`;
+
+// ---- correction of ONE chat message (shown right under her bubble) ---------------------------
+const CHAT_FIX = `You correct ONE message that Miri (German, about B1+) just said in a casual spoken chat with her friend Sam.
+Her text comes from speech recognition: ignore punctuation, capitalisation, missing apostrophes and filler words.
+Only flag real grammar mistakes, wrong words or clearly unnatural wording – not style preferences.
+Return JSON only:
+- ok: true if the message is correct and natural enough for a friendly chat (small slips are fine).
+- corrected: her message minimally corrected (keep her words where they are fine). If ok, repeat it.
+- fixes: up to 3 items { wrong, better, why } – wrong = her exact words, better = what to say instead,
+  why = very short German explanation (max 12 words). Empty if ok.
+- tip: one very short German tip, or "".
+Use plain everyday English, no idioms.`;
+
+const CHAT_FIX_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    ok: { type: "BOOLEAN" },
+    corrected: { type: "STRING" },
+    fixes: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: { wrong: { type: "STRING" }, better: { type: "STRING" }, why: { type: "STRING" } },
+        required: ["wrong", "better", "why"],
+      },
+    },
+    tip: { type: "STRING" },
+  },
+  required: ["ok", "corrected", "fixes", "tip"],
+};
 
 const TASK_CHAT_REVIEW = `TASK: Miri just had a short spoken conversation with her friend Sam (the input contains the scenario and
 all lines). Review ONLY her lines, like a friendly coach after the conversation:
@@ -230,6 +261,18 @@ Deno.serve(async (req) => {
     try {
       const { model, result } = await askGemini(key, { word, context: clip(body.context, 300) }, LOOKUP, LOOKUP_SCHEMA, 0.2);
       return json({ ok: true, model, ...result }, 200, origin);
+    } catch (e) {
+      return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
+    }
+  }
+
+  // ---- correction of one chat message
+  if (body.mode === "chat_fix") {
+    const said = clip(body.said, 800).trim();
+    if (!said) return json({ error: "empty" }, 400, origin);
+    try {
+      const { model, result } = await askGemini(key, { sam_said_before: clip(body.they, 300), miri_said: said }, CHAT_FIX, CHAT_FIX_SCHEMA, 0.2);
+      return json({ ok: true, model, correct: !!result.ok, corrected: clip(result.corrected, 800), fixes: (result.fixes || []).slice(0, 3), tip: clip(result.tip, 200) }, 200, origin);
     } catch (e) {
       return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
     }

@@ -4,3 +4,5 @@ Thumbs.db
 .env.*
 supabase/.temp/
 samples/
+tools/.venv/
+tools/models/

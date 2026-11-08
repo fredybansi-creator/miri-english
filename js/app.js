@@ -66,13 +66,8 @@ function render() {
   }
   if (route === 'practice') return startCards({ practice: true, onExit: () => go('cards') });
   if (route === 'speak') {
-    // Daily speaking = a real conversation with Sam about a finished lesson's topic.
-    // If the AI can't be reached, fall back to the scripted conversation.
-    return startChat({
-      lesson: chatLesson(),
-      onExit: () => go('today'),
-      onFallback: () => startSpeaking({ onExit: () => go('today') }),
-    });
+    // Daily speaking = an open conversation with Sam (saved, continues next time).
+    return startChat({ pickLesson: chatLesson, onExit: () => { go('today'); render(); } });
   }
   if (route === 'speak-script') return startSpeaking({ onExit: () => go('today') });
 
@@ -141,7 +136,12 @@ function renderToday() {
     ? 'Erledigt – stark!'
     : lesson ? `${esc(lesson.module.titleDe)} · Lektion ${lesson.index + 1}: ${esc(lesson.title)}` : 'Alle Lektionen geschafft – wiederhole eine!';
   const cardsSub = !hasCards ? 'Kommen nach deiner ersten Lektion' : d.cards ? 'Erledigt!' : due ? `${plural(due, 'Karte', 'Karten')} fällig` : 'Heute nichts fällig 🎉';
-  const speakSub = d.speaking ? 'Erledigt – super gesprochen!' : `Plaudere mit Sam 🦊 über „${esc(chatLesson().title)}“`;
+  const chatGoal = Math.max(0, 3 - (d.chatMsgs || 0));
+  const speakSub = d.speaking
+    ? 'Erledigt – du kannst trotzdem weiterplaudern!'
+    : s.chat?.msgs?.some((m) => m.who === 'miri')
+      ? `Weiterplaudern – noch ${chatGoal} ${chatGoal === 1 ? 'Nachricht' : 'Nachrichten'} fürs Tagesziel`
+      : `Plaudere mit Sam 🦊 – ${chatGoal} Nachrichten fürs Tagesziel`;
 
   const lessonHref = lesson ? `#/lesson/${lesson.id}` : '#/modules';
   const msg = doneN === 3 ? 'Tagesziel geschafft! 🎉' : doneN === 0 ? 'Dein Plan für heute' : 'Weiter so!';
@@ -398,17 +398,17 @@ function renderProgress() {
         </div>
       </div>
       <div class="setting">
-        <div><b>Natürliche Stimme</b><p class="small muted">Klingt wie ein echter Mensch (ElevenLabs)</p></div>
-        <div class="seg" data-setting="cloudVoice">
-          <button data-v="on" aria-pressed="${s.settings.cloudVoice !== false}">An</button>
-          <button data-v="off" aria-pressed="${s.settings.cloudVoice === false}">Aus</button>
+        <div><b>Natürliche Stimme (Lektionen)</b><p class="small muted">Kokoro – kostenlos, ohne Limit</p></div>
+        <div class="seg" data-setting="naturalVoice">
+          <button data-v="on" aria-pressed="${s.settings.naturalVoice !== false}">An</button>
+          <button data-v="off" aria-pressed="${s.settings.naturalVoice === false}">Aus</button>
         </div>
       </div>
       <div class="setting">
-        <div><b>Sam & Korrekturen</b><p class="small muted">Sätze, die die KI neu schreibt – natürliche Stimme kostet dafür jedes Mal Credits</p></div>
-        <div class="seg" data-setting="cloudVoiceCoach">
-          <button data-v="on" aria-pressed="${s.settings.cloudVoiceCoach === true}">Natürlich</button>
-          <button data-v="off" aria-pressed="${s.settings.cloudVoiceCoach !== true}">Gerät</button>
+        <div><b>Sams Stimme</b><p class="small muted">ElevenLabs (kostenloses Kontingent) oder die Stimme des Handys</p></div>
+        <div class="seg" data-setting="samVoice">
+          <button data-v="on" aria-pressed="${s.settings.samVoice !== false}">ElevenLabs</button>
+          <button data-v="off" aria-pressed="${s.settings.samVoice === false}">Handy</button>
         </div>
       </div>
       <div class="setting">
@@ -436,10 +436,11 @@ function renderProgress() {
     const b = e.target.closest('button');
     if (!b) return;
     const key = seg.dataset.setting;
-    s.settings[key] = key === 'rate' ? Number(b.dataset.v) : ['cloudVoice', 'cloudVoiceCoach', 'foxAnim'].includes(key) ? b.dataset.v === 'on' : b.dataset.v;
+    s.settings[key] = key === 'rate' ? Number(b.dataset.v) : ['naturalVoice', 'samVoice', 'foxAnim'].includes(key) ? b.dataset.v === 'on' : b.dataset.v;
     save();
     $$('button', seg).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     if (key === 'foxAnim') { applyFoxSetting(); return; }
+    if (key === 'samVoice') { say("Hey, it's Sam! This is how I sound.", { role: 'sam' }); return; }
     say(key === 'rate' ? 'This is how fast I will speak.' : 'Hello Miri! This is how I sound.');
   }));
 

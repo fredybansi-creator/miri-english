@@ -1,40 +1,64 @@
-// Real conversation with an AI friend ("Sam"): he reacts to what she says and keeps asking,
-// she answers out loud. No interruptions – feedback on the whole conversation at the end.
+// Endless conversation with Sam the fox. He reacts to what she says and keeps asking; every message
+// she sends gets a short correction right below it. The conversation is saved automatically – next
+// time she continues where she stopped, or starts a new one.
 import { $, esc, icon, playBtn } from './ui.js';
-import { shell, summary } from './sessions.js';
+import { shell } from './sessions.js';
 import { canListen, listen, errorMessage, say, stopSpeaking } from './speech.js';
-import { chatReply, chatReview } from './ai.js';
+import { chatReply, chatFix } from './ai.js';
 import { addMistakeCards } from './speak.js';
+import { markAnswer, tokens } from './check.js';
 import { foxSVG, setFoxState } from './fox.js';
+import { LESSONS, findLesson } from '../content/index.js';
 import { getState, save, today, day, markTask, addTime } from './store.js';
 
-const MAX_TURNS = 5;
+const DAILY_GOAL = 3;       // her messages per day that complete the "Plaudern" task
+const HISTORY_FOR_AI = 16;  // last lines Sam sees
+const ARCHIVE_SIZE = 10;
 
 export function scenarioFor(lesson) {
   const words = (lesson.free?.useWords || []).join(', ');
-  return `Two friends chatting. Topic of Miri's last lesson: "${lesson.title}" – ${lesson.goal} (German description). `
-    + `Sam opened with: "${lesson.free?.they}". Phrases she practised: ${words}.`;
+  return `Two friends chatting. Start topic from Miri's lesson: "${lesson.title}" – ${lesson.goal} (German description). `
+    + `Sam opened with: "${lesson.free?.they}". Phrases she practised: ${words}. The chat can move on to other everyday topics.`;
+}
+
+function newChat(lesson) {
+  return { id: `c${Date.now().toString(36)}`, lessonId: lesson.id, started: today(), msgs: [{ who: 'sam', text: lesson.free.they }] };
+}
+
+/** Saved chat, or a new one about `pickLesson()`'s topic. */
+function currentChat(pickLesson) {
+  const s = getState();
+  if (!s.chat || !findLesson(s.chat.lessonId)) { s.chat = newChat(pickLesson()); save(); }
+  // corrections that were still running when the app was closed
+  for (const m of s.chat.msgs) if (m.fix === 'pending') m.fix = 'error';
+  return s.chat;
+}
+
+function archive(chat) {
+  const s = getState();
+  if (!chat.msgs.some((m) => m.who === 'miri')) return;
+  s.chatArchive = [{ ...chat, ended: today() }, ...(s.chatArchive || [])].slice(0, ARCHIVE_SIZE);
 }
 
 /**
- * @param lesson    the lesson whose topic the chat is about (needs lesson.free.they as opener)
- * @param onFallback called if the AI friend can't be reached at the start (→ scripted conversation)
+ * @param pickLesson () => lesson – topic for a new conversation
  */
-export function startChat({ lesson, onExit, onFallback }) {
+export function startChat({ pickLesson, onExit }) {
   const started = Date.now();
-  const scenario = scenarioFor(lesson);
-  const history = [{ who: 'sam', text: lesson.free.they }];
+  let chat = currentChat(pickLesson);
+  let lesson = findLesson(chat.lessonId) || LESSONS[0];
+  let scenario = scenarioFor(lesson);
+
   let mode = canListen ? 'mic' : 'type';
   let session = null;
-  let busy = false;
-  let finished = false;
+  let waiting = false;   // Sam is writing
+  let speaking = false;  // Sam is talking
   let notice = canListen ? '' : errorMessage('unsupported');
+  let closed = false;
+  // Hands-free (like a voice call): after Sam has finished talking, the mic opens by itself.
+  const handsFree = () => canListen && mode === 'mic' && getState().settings.handsFree !== false;
 
-  const ui = shell({ onClose: () => { cleanup(); onExit(); } });
-  const miriTurns = () => history.filter((h) => h.who === 'miri').length;
-
-  // Sam the fox sits on top and reacts: talking while his line is read, thinking while he writes,
-  // listening while she speaks.
+  const ui = shell({ onClose: leave, confirm: false });
   ui.body.innerHTML = `<div class="fox-stage">${foxSVG()}</div><div class="chat-main" data-chat></div>`;
   const stage = $('.fox-stage', ui.body);
   const main = $('[data-chat]', ui.body);
@@ -45,67 +69,150 @@ export function startChat({ lesson, onExit, onFallback }) {
     setFoxState(stage, e.detail.state === 'start' ? 'talking' : foxBase);
   };
   window.addEventListener('tts', onTts);
-  let closed = false;
-  function cleanup() { closed = true; session?.stop(); stopSpeaking(); window.removeEventListener('tts', onTts); }
+
+  function leave() {
+    closed = true;
+    session?.stop();
+    stopSpeaking();
+    window.removeEventListener('tts', onTts);
+    addTime((Date.now() - started) / 1000);
+    onExit();
+  }
+
+  const myCount = () => chat.msgs.filter((m) => m.who === 'miri').length;
+  const lastSamBefore = (i) => { for (let j = i - 1; j >= 0; j--) if (chat.msgs[j].who === 'sam') return chat.msgs[j].text; return ''; };
+
+  function fixHtml(m) {
+    const f = m.fix;
+    if (!f) return '';
+    if (f === 'pending') return '<div class="msg-fix pending"><span class="dots"></span> wird geprüft …</div>';
+    if (f === 'error') return '';
+    if (f.correct || !f.fixes.length) return '<div class="msg-fix ok">✓ Passt so!</div>';
+    const corrected = markAnswer(f.corrected, tokens(m.text))
+      .map((x) => (x.said ? esc(x.word) : `<mark class="miss">${esc(x.word)}</mark>`)).join(' ');
+    return `
+      <div class="msg-fix bad">
+        <div class="msg-fix-label">Besser so:</div>
+        <div class="row" style="gap:8px;align-items:flex-start">${playBtn(f.corrected, '', 'coach')}<p>${corrected}</p></div>
+        <ul class="fixes">${f.fixes.map((x) => `<li><div><s>${esc(x.wrong)}</s> → <b>${esc(x.better)}</b></div>${x.why ? `<span>${esc(x.why)}</span>` : ''}</li>`).join('')}</ul>
+        ${f.tip ? `<p class="small muted" style="margin-top:6px">💡 ${esc(f.tip)}</p>` : ''}
+      </div>`;
+  }
 
   function render() {
-    ui.progress(Math.min(miriTurns(), MAX_TURNS - 1), MAX_TURNS);
-    const log = history.map((h, i) => (h.who === 'sam'
+    const n = myCount();
+    ui.progress(Math.min(day().chatMsgs || 0, DAILY_GOAL), DAILY_GOAL);
+    const log = chat.msgs.map((m) => (m.who === 'sam'
       ? `<div class="msg sam"><span class="bubble-who">Sam 🦊</span>
-           <div class="row" style="gap:8px;align-items:flex-start">${playBtn(h.text, '', i === 0 ? 'friend' : 'coach')}<p>${esc(h.text)}</p></div></div>`
-      : `<div class="msg miri"><p>${esc(h.text)}</p></div>`)).join('');
-    const typing = busy ? '<div class="msg sam typing"><span></span><span></span><span></span></div>' : '';
+           <div class="row" style="gap:8px;align-items:flex-start">${playBtn(m.text, '', 'sam')}<p>${esc(m.text)}</p></div></div>`
+      : `<div class="msg miri"><p>${esc(m.text)}</p></div>${fixHtml(m)}`)).join('');
+    const typing = waiting ? '<div class="msg sam typing"><span></span><span></span><span></span></div>' : '';
+    const needsReply = !waiting && chat.msgs[chat.msgs.length - 1]?.who === 'miri';
 
-    const input = finished
-      ? `<div class="session-foot">
-           <button class="btn btn-block" data-act="review">Feedback zum Gespräch</button>
+    const label = waiting ? 'Sam schreibt …' : speaking ? 'Sam spricht …' : handsFree() ? 'Freihändig – sprich einfach los, wenn das Mikro leuchtet' : 'Tippen und antworten';
+    const input = mode === 'mic'
+      ? `<div class="chat-input">
+           <div class="live" data-live>${notice ? `<span class="small">${esc(notice)}</span>` : ''}</div>
+           <button class="mic" data-act="mic" ${waiting ? 'disabled' : ''} aria-label="Antworten">${icon.mic}</button>
+           <div class="mic-label" data-label>${label}</div>
          </div>`
-      : mode === 'mic'
-        ? `<div class="chat-input">
-             <div class="live" data-live>${notice ? `<span class="small">${esc(notice)}</span>` : ''}</div>
-             <button class="mic" data-act="mic" ${busy ? 'disabled' : ''} aria-label="Antworten">${icon.mic}</button>
-             <div class="mic-label" data-label>${busy ? 'Sam schreibt …' : 'Tippen und antworten'}</div>
-           </div>`
-        : `<div class="chat-input">
-             <textarea class="type-area" data-text rows="2" placeholder="Tippe – oder nutze das 🎤 der Tastatur." ${busy ? 'disabled' : ''}></textarea>
-             <button class="btn btn-block" data-act="send" ${busy ? 'disabled' : ''} style="margin-top:8px">Senden</button>
-           </div>`;
+      : `<div class="chat-input">
+           ${notice ? `<p class="small muted">${esc(notice)}</p>` : ''}
+           <textarea class="type-area" data-text rows="2" placeholder="Tippe – oder nutze das 🎤 der Tastatur." ${waiting ? 'disabled' : ''}></textarea>
+           <button class="btn btn-block" data-act="send" ${waiting ? 'disabled' : ''} style="margin-top:8px">Senden</button>
+         </div>`;
 
     main.innerHTML = `
-      <div class="kicker" style="text-align:center">💬 Plaudern mit Sam · ${esc(lesson.title)}</div>
-      <p class="small muted" style="text-align:center">Antworte so ausführlich du kannst – Sam fragt nach. Korrekturen gibt’s erst am Ende.</p>
+      <div class="chat-head">
+        <div class="kicker" style="margin:0">💬 Plaudern mit Sam</div>
+        <button class="btn btn-ghost btn-sm" data-act="new">＋ Neues Gespräch</button>
+      </div>
+      <p class="small muted" style="text-align:center">${n ? `${n} ${n === 1 ? 'Nachricht' : 'Nachrichten'} · ` : ''}Erzähl so viel du magst – du kannst jederzeit aufhören, alles wird gespeichert.</p>
       <div class="chatlog" data-log>${log}${typing}</div>
+      ${needsReply ? '<button class="btn btn-soft btn-sm" data-act="retry" style="align-self:flex-start;margin-top:8px">🔄 Sam antworten lassen</button>' : ''}
       <div class="grow"></div>
       ${input}
-      ${finished ? '' : `<div class="links session-foot">
+      <div class="links session-foot">
+        ${mode === 'mic' ? `<button class="btn btn-ghost btn-sm" data-act="hands">${getState().settings.handsFree !== false ? '🎧 Freihändig: An' : '🎧 Freihändig: Aus'}</button>` : ''}
         ${mode === 'mic' ? '<button class="btn btn-ghost btn-sm" data-act="type">⌨️ Tippen</button>' : (canListen ? '<button class="btn btn-ghost btn-sm" data-act="micmode">🎤 Sprechen</button>' : '')}
-        ${miriTurns() >= 2 ? '<button class="btn btn-ghost btn-sm" data-act="end">Gespräch beenden</button>' : ''}
-      </div>`}`;
+      </div>`;
 
-    const logEl = $('[data-log]', ui.body);
-    logEl.lastElementChild?.scrollIntoView({ block: 'end' });
-
-    $('[data-act="mic"]', ui.body)?.addEventListener('click', toggleMic);
-    $('[data-act="send"]', ui.body)?.addEventListener('click', () => {
-      const t = $('[data-text]', ui.body).value.trim();
-      if (t) answer(t);
+    $('[data-log]', main).lastElementChild?.scrollIntoView({ block: 'end' });
+    $('[data-act="mic"]', main)?.addEventListener('click', toggleMic);
+    $('[data-act="send"]', main)?.addEventListener('click', () => {
+      const t = $('[data-text]', main).value.trim();
+      if (t) send(t);
     });
-    $('[data-act="type"]', ui.body)?.addEventListener('click', () => { session?.stop(); mode = 'type'; render(); });
-    $('[data-act="micmode"]', ui.body)?.addEventListener('click', () => { mode = 'mic'; notice = ''; render(); });
-    $('[data-act="end"]', ui.body)?.addEventListener('click', () => { finished = true; render(); });
-    $('[data-act="review"]', ui.body)?.addEventListener('click', review);
+    $('[data-act="type"]', main)?.addEventListener('click', () => { session?.stop(); mode = 'type'; render(); });
+    $('[data-act="micmode"]', main)?.addEventListener('click', () => { mode = 'mic'; notice = ''; render(); });
+    $('[data-act="retry"]', main)?.addEventListener('click', askSam);
+    $('[data-act="hands"]', main)?.addEventListener('click', () => {
+      const s = getState();
+      s.settings.handsFree = s.settings.handsFree === false;
+      save();
+      if (!s.settings.handsFree) session?.stop();
+      render();
+    });
+    $('[data-act="new"]', main)?.addEventListener('click', startNew);
+  }
+
+  function startNew() {
+    if (myCount() && !window.confirm('Neues Gespräch mit Sam beginnen? Das jetzige wird gespeichert.')) return;
+    session?.stop();
+    stopSpeaking();
+    archive(chat);
+    const s = getState();
+    // next topic: a different finished lesson if possible
+    let next = pickLesson();
+    if (next.id === chat.lessonId) {
+      const done = LESSONS.filter((l) => s.lessons[l.id]?.done && l.free && l.id !== chat.lessonId);
+      if (done.length) next = done[Math.floor(Math.random() * done.length)];
+    }
+    chat = s.chat = newChat(next);
+    lesson = next;
+    scenario = scenarioFor(lesson);
+    save();
+    fox('happy');
+    render();
+    samSays(lesson.free.they);
   }
 
   function toggleMic() {
-    if (busy) return;
+    if (waiting) return;
     if (session) { session.stop(); return; }
-    const btn = $('[data-act="mic"]', ui.body);
-    const live = $('[data-live]', ui.body);
+    startListening();
+  }
+
+  // Sam has finished talking → open the mic by itself (hands-free).
+  function autoListen() {
+    if (closed || !handsFree() || session || waiting) return;
+    setTimeout(() => { if (!closed && handsFree() && !session && !waiting && !speaking) startListening(true); }, 450);
+  }
+
+  // Speak one of Sam's lines; afterwards the mic opens again in hands-free mode.
+  function samSays(text, delay = 0) {
+    setTimeout(() => {
+      if (closed) return;
+      speaking = true;
+      render();
+      Promise.resolve(say(text, { role: 'sam' })).catch(() => {}).finally(() => {
+        speaking = false;
+        if (closed) return;
+        render();
+        autoListen();
+      });
+    }, delay);
+  }
+
+  function startListening(auto = false) {
+    const btn = $('[data-act="mic"]', main);
+    if (!btn) return;
+    const live = $('[data-live]', main);
     btn.classList.add('listening');
     btn.innerHTML = icon.stop;
     stopSpeaking();
     fox('listening');
-    $('[data-label]', ui.body).textContent = 'Ich höre zu … tippe zum Beenden';
+    $('[data-label]', main).textContent = 'Ich höre zu … tippe zum Beenden';
     live.textContent = '';
     // throttle live-text updates (each update re-lays out the page)
     let pending = '', raf = 0;
@@ -116,94 +223,76 @@ export function startChat({ lesson, onExit, onFallback }) {
     session = current;
     const safety = setTimeout(() => current.stop(), 45000);
     current.promise
-      .then((r) => answer(r.text))
+      .then((r) => send(r.text))
       .catch((err) => {
         fox('idle');
-        if (err.code === 'aborted') return;
-        notice = errorMessage(err.code);
-        if (['not-allowed', 'service-not-allowed', 'unsupported', 'audio-capture', 'start-failed'].includes(err.code)) mode = 'type';
+        if (err.code === 'aborted') { render(); return; }
+        if (auto && ['not-allowed', 'service-not-allowed', 'start-failed'].includes(err.code)) {
+          // iPhone didn't allow opening the mic without a tap → fall back to tap-to-talk
+          getState().settings.handsFree = false;
+          save();
+          notice = 'Dein iPhone lässt das Mikro nicht von allein starten – tippe einfach aufs Mikro zum Antworten.';
+        } else if (err.code === 'no-speech') {
+          notice = 'Ich habe nichts gehört – tippe aufs Mikro, wenn du weiterreden willst.';
+        } else {
+          notice = errorMessage(err.code);
+          if (['not-allowed', 'service-not-allowed', 'unsupported', 'audio-capture', 'start-failed'].includes(err.code)) mode = 'type';
+        }
         render();
       })
       .finally(() => { clearTimeout(safety); if (session === current) session = null; });
   }
 
-  async function answer(text) {
+  function send(text) {
     notice = '';
-    history.push({ who: 'miri', text });
-    busy = true;
+    const msg = { who: 'miri', text, fix: 'pending' };
+    chat.msgs.push(msg);
+    if (chat.msgs.length > 200) chat.msgs.splice(0, chat.msgs.length - 200); // keep the backup small
+    const index = chat.msgs.indexOf(msg);
+    const d = day();
+    d.chatMsgs = (d.chatMsgs || 0) + 1;
+    d.spoken++;
+    save();
+    if (d.chatMsgs >= DAILY_GOAL && !d.speaking) markTask('speaking');
+
+    // correction for this message (runs in parallel with Sam's reply)
+    chatFix(lastSamBefore(index), text)
+      .then((f) => {
+        msg.fix = f;
+        if (!f.correct && f.fixes.length) addMistakeCards(f.fixes, `chat-${lesson.id}`); // saves
+        else save();
+      })
+      .catch(() => { msg.fix = 'error'; save(); })
+      .finally(() => { if (!closed) render(); });
+
+    askSam();
+  }
+
+  async function askSam() {
+    waiting = true;
     fox('thinking');
     render();
     try {
-      const { reply, done } = await chatReply(scenario, history);
-      history.push({ who: 'sam', text: reply });
-      busy = false;
-      if (done || miriTurns() >= MAX_TURNS) finished = true;
-      fox(finished ? 'happy' : 'idle');
+      const history = chat.msgs.slice(-HISTORY_FOR_AI).map((m) => ({ who: m.who, text: m.text }));
+      const { reply } = await chatReply(scenario, history);
+      chat.msgs.push({ who: 'sam', text: reply });
+      save();
+      waiting = false;
+      fox('idle');
+      if (closed) return;
       render();
       // iPhone: going straight from speech recognition to speech output can hang Safari –
       // give the audio system a moment to switch back before Sam talks.
-      setTimeout(() => {
-        if (!closed) { try { say(reply, { role: 'coach' }); } catch { /* ignore */ } }
-      }, 700);
+      samSays(reply, 700);
     } catch {
-      busy = false;
+      waiting = false;
       fox('idle');
-      if (miriTurns() <= 1 && onFallback) { cleanup(); onFallback(); return; }
-      notice = 'Sam ist gerade nicht erreichbar. Du kannst das Gespräch beenden und Feedback holen.';
-      finished = miriTurns() >= 2;
-      if (!finished) history.pop(); // let her try again
-      render();
+      notice = 'Sam ist gerade nicht erreichbar – tippe gleich auf „Sam antworten lassen“.';
+      if (!closed) render();
     }
-  }
-
-  async function review() {
-    ui.hideTop();
-    stopSpeaking();
-    fox('thinking');
-    main.innerHTML = `<div class="center" style="margin-top:12px">
-      <p class="coach-wait" style="justify-content:center"><span class="dots"></span> Sam und dein Coach schauen sich das Gespräch an …</p></div>`;
-    const turns = miriTurns();
-    let fb = null;
-    try { fb = await chatReview(scenario, history); } catch { /* show summary without feedback */ }
-
-    const s = getState();
-    const id = `chat-${lesson.id}`;
-    const prev = s.speaking[id] || { best: 0, count: 0, last: null };
-    const score = fb ? { great: 1, good: 0.7, try: 0.3 }[fb.level] : 0.5;
-    s.speaking[id] = { best: Math.max(prev.best, score), count: prev.count + 1, last: today() };
-    day().spoken += turns;
-    save();
-    if (fb) addMistakeCards(fb.fixes, id);
-    markTask('speaking');
-    addTime((Date.now() - started) / 1000);
-
-    if (!fb) {
-      cleanup();
-      summary(ui.body, { emoji: '🗣️', title: 'Gut gesprochen!', text: `Du hast ${turns} Mal geantwortet. (Feedback ist gerade nicht verfügbar.)`, onDone: onExit });
-      return;
-    }
-    fox('happy');
-    const title = { great: 'Super Gespräch! 🎉', good: 'Gutes Gespräch! 👍', try: 'Guter Anfang! 💪' }[fb.level];
-    main.innerHTML = `
-      <div class="kicker">💬 Feedback zum Gespräch</div>
-      <div class="result-box ${fb.level}">
-        <h3>${title}</h3>
-        ${fb.praise ? `<p style="margin-top:4px">${esc(fb.praise)}</p>` : ''}
-        ${fb.fixes.length ? `
-          <p class="small muted" style="margin-top:14px">Das kannst du nächstes Mal besser sagen:</p>
-          <ul class="fixes">${fb.fixes.map((f) => `<li><div><s>${esc(f.wrong)}</s> → <b>${esc(f.better)}</b></div>${f.why ? `<span>${esc(f.why)}</span>` : ''}</li>`).join('')}</ul>
-          <p class="small muted" style="margin-top:8px">📌 Diese Fehler kommen als Karteikarten wieder („Meine Fehler“).</p>` : '<p class="small" style="margin-top:12px">✅ Keine echten Fehler – stark!</p>'}
-        ${fb.betterWords.length ? `<div class="better"><b class="small">Damit klingst du noch natürlicher:</b>
-          <div class="better-words">${fb.betterWords.map((w) => `<span>${esc(w)}</span>`).join('')}</div></div>` : ''}
-        ${fb.levelUp ? `<div class="levelup"><div class="levelup-label">⬆️ Deine längste Antwort – noch natürlicher</div>
-          <div class="answer-line">${playBtn(fb.levelUp, '', 'coach')}<p>${esc(fb.levelUp)}</p></div></div>` : ''}
-        ${fb.tip ? `<p class="note"><span>💡</span><span>${esc(fb.tip)}</span></p>` : ''}
-      </div>
-      <div class="grow"></div>
-      <div class="session-foot"><button class="btn btn-block" data-done>Fertig</button></div>`;
-    $('[data-done]', ui.body).addEventListener('click', () => { cleanup(); onExit(); });
   }
 
   render();
-  say(lesson.free.they, { role: 'friend' }); // fixed opener → cached natural voice
+  // a brand-new chat: Sam says hello (then the mic opens); a continued chat starts quietly
+  if (!chat.msgs.some((m) => m.who === 'miri')) samSays(chat.msgs[0].text);
 }

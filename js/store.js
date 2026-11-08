@@ -14,6 +14,8 @@ const defaults = () => ({
   mistakes: [],  // coach fixes → "Meine Fehler" cards: { id, wrong, better, why, date }
   review: {},    // 'lessonId:exerciseIndex' -> { last, weak } for the mixed review
   words: [],     // looked-up words saved as cards: { id, en, de, ex, exDe, note, date }
+  chat: null,    // current conversation with Sam: { id, lessonId, started, msgs: [{ who, text, fix }] }
+  chatArchive: [], // up to 10 earlier conversations
   sync: {},      // { code, lastPush, resetAt }
 });
 
@@ -105,6 +107,7 @@ export function mergeStates(a, b) {
       seconds: Math.max(o.seconds || 0, x.seconds || 0),
       reviews: Math.max(o.reviews || 0, x.reviews || 0),
       spoken: Math.max(o.spoken || 0, x.spoken || 0),
+      chatMsgs: Math.max(o.chatMsgs || 0, x.chatMsgs || 0),
     };
   }
 
@@ -134,6 +137,13 @@ export function mergeStates(a, b) {
     const o = out.review[k];
     if (!o || (r.last || '') > (o.last || '')) out.review[k] = r;
   }
+
+  // conversation with Sam: keep the one with more messages
+  const ca = a.chat, cb = b.chat;
+  out.chat = !ca ? cb || null : !cb ? ca : ((cb.msgs?.length || 0) > (ca.msgs?.length || 0) ? cb : ca);
+  const seenChats = new Set();
+  out.chatArchive = [...(a.chatArchive || []), ...(b.chatArchive || [])]
+    .filter((c) => c?.id && !seenChats.has(c.id) && seenChats.add(c.id)).slice(0, 10);
 
   out.sync = { ...(b.sync || {}), ...(a.sync || {}) }; // keep this device's code
   out.updatedAt = Math.max(a.updatedAt || 0, b.updatedAt || 0);
