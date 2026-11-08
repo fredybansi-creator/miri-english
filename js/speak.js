@@ -3,7 +3,7 @@
 //   free                – a friend asks something, she answers freely about her life (AI coach)
 //   shadow              – she hears an English sentence and repeats it (offline check only)
 import { esc, icon, playBtn, shuffle } from './ui.js';
-import { canListen, listen, errorMessage, say, prefetch } from './speech.js';
+import { canListen, listen, errorMessage, say } from './speech.js';
 import { checkAnswer, markAnswer, tokens } from './check.js';
 import { getState, save, today, day } from './store.js';
 import { aiFeedback } from './ai.js';
@@ -225,11 +225,11 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
     root.querySelector('[data-act="retry"]').addEventListener('click', () => { attempt++; notice = ''; renderPrompt(); });
   }
 
-  function levelUpHtml(text, labelText = '⬆️ Level up – so klingst du noch natürlicher') {
+  function levelUpHtml(text, labelText = '⬆️ Level up – so klingst du noch natürlicher', role = 'main') {
     return text ? `
       <div class="levelup">
         <div class="levelup-label">${labelText}</div>
-        <div class="answer-line">${playBtn(text)}<p>${esc(text)}</p></div>
+        <div class="answer-line">${playBtn(text, '', role)}<p>${esc(text)}</p></div>
       </div>` : '';
   }
 
@@ -294,7 +294,7 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
         <p class="result-said" style="margin-top:10px">Du hast gesagt: <q>${esc(offline.said)}</q></p>
         ${changed ? `
           <p class="small muted" style="margin-top:14px">Deine Antwort, korrigiert <span>(markiert = geändert)</span>:</p>
-          <div class="answer-line" style="margin-top:6px">${playBtn(ai.corrected)}<p>${correctedHtml}</p></div>` : `
+          <div class="answer-line" style="margin-top:6px">${playBtn(ai.corrected, '', 'coach')}<p>${correctedHtml}</p></div>` : `
           <p class="small" style="margin-top:12px">✅ Das kann man genau so sagen.</p>`}
         ${ai.fixes.length ? `
           <ul class="fixes">
@@ -305,7 +305,7 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
             <b class="small">${kind === 'free' ? 'Damit kannst du noch mehr sagen:' : 'Diese Wörter machen deinen Satz noch besser:'}</b>
             <div class="better-words">${ai.betterWords.map((w) => `<span>${esc(w)}</span>`).join('')}</div>
           </div>` : ''}
-        ${levelUpHtml(ai.levelUp || item.levelUp)}
+        ${ai.levelUp ? levelUpHtml(ai.levelUp, undefined, 'coach') : levelUpHtml(item.levelUp)}
         ${ai.tip ? `<p class="note"><span>💡</span><span>${esc(ai.tip)}</span></p>` : ''}
         ${example ? `
           <details class="example-answer">
@@ -322,7 +322,5 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
   // Read the friend's line / the sentence to repeat aloud (works when opened by a tap).
   if (kind === 'shadow') say(item.en);
   else if (item.they) say(item.they, { role: 'friend' });
-  // Have the model answers ready by the time she has spoken.
-  prefetch([item.answers[0], item.levelUp]);
   return { destroy: stopListening };
 }

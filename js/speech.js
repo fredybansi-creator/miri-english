@@ -52,7 +52,8 @@ function cloudEnabled() {
 
 export function audioUrl(text, role = 'main') {
   const v = getState().settings.accent === 'en-GB' ? 'uk' : 'us';
-  return `${TTS_URL}?v=${v}&r=${role}&t=${encodeURIComponent(text.replace(/\s+/g, ' ').trim())}`;
+  const r = role === 'friend' ? 'friend' : 'main';
+  return `${TTS_URL}?v=${v}&r=${r}&t=${encodeURIComponent(text.replace(/\s+/g, ' ').trim())}`;
 }
 
 // Warm the cache so the audio is ready when she taps (e.g. the model answer while she speaks).
@@ -64,7 +65,10 @@ export function prefetch(texts, role = 'main') {
 export function say(text, { rate, role = 'main' } = {}) {
   if (!text) return Promise.resolve();
   stopSpeaking();
-  if (!cloudEnabled()) return browserSay(text, { rate });
+  // role 'coach' = one-off sentences written by the AI coach. They are never reused, so caching
+  // saves nothing – by default they use the device voice to save ElevenLabs credits.
+  const coachOnDevice = role === 'coach' && getState().settings.cloudVoiceCoach !== true;
+  if (!cloudEnabled() || coachOnDevice) return browserSay(text, { rate });
   return new Promise((resolve) => {
     let fellBack = false;
     const fallback = () => {
