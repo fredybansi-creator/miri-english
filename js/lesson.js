@@ -85,6 +85,25 @@ function feedback(root, { ok, title, text = '', extra = '' , onNext }) {
   div.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
+// Tap selects an answer (can be changed), the always-visible "Prüfen" button checks it.
+function selectThenCheck(root, selector, onCheck, { onSelect } = {}) {
+  root.insertAdjacentHTML('beforeend', '<div class="session-foot"><button class="btn btn-block" data-check disabled>Prüfen</button></div>');
+  const btn = $('[data-check]', root);
+  let chosen = null;
+  $$(selector, root).forEach((b) => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    $$(selector, root).forEach((x) => x.classList.toggle('selected', x === b));
+    chosen = b;
+    btn.disabled = false;
+    onSelect?.(b);
+  }));
+  btn.addEventListener('click', () => {
+    if (!chosen) return;
+    $$(selector, root).forEach((x) => { x.classList.remove('selected'); x.disabled = true; });
+    onCheck(chosen);
+  });
+}
+
 const GOOD = ['Richtig!', 'Super!', 'Genau!', 'Klasse!'];
 const pickGood = () => GOOD[Math.floor(Math.random() * GOOD.length)];
 
@@ -128,7 +147,7 @@ const RENDER = {
       <p class="q">${esc(ex.q)}</p>
       <div class="options">${order.map((i) => `<button class="option" data-i="${i}">${esc(ex.options[i])}</button>`).join('')}</div>
       <div class="grow"></div>`;
-    $$('.option', root).forEach((b) => b.addEventListener('click', () => {
+    selectThenCheck(root, '.option', (b) => {
       const i = Number(b.dataset.i);
       const ok = i === ex.answer;
       $('.options', root).classList.add('answered');
@@ -141,7 +160,7 @@ const RENDER = {
         text: esc(ex.explain || ''),
         onNext: () => go(ok),
       });
-    }));
+    });
   },
 
   gap(root, ex, go) {
@@ -152,13 +171,13 @@ const RENDER = {
       <p class="gap-sentence">${esc(before)}<span class="gap-blank" data-blank>&nbsp;</span>${esc(after)}</p>
       <div class="chips">${order.map((i) => `<button class="tile" data-i="${i}">${esc(ex.options[i])}</button>`).join('')}</div>
       <div class="grow"></div>`;
-    $$('.tile', root).forEach((b) => b.addEventListener('click', () => {
+    const blank = $('[data-blank]', root);
+    selectThenCheck(root, '.chips .tile', (b) => {
       const i = Number(b.dataset.i);
       const ok = i === ex.answer;
       const full = before + ex.options[ex.answer] + after;
-      $('[data-blank]', root).textContent = ex.options[i];
-      $('[data-blank]', root).style.color = ok ? 'var(--good)' : 'var(--bad)';
-      $$('.tile', root).forEach((t) => (t.disabled = true));
+      blank.textContent = ex.options[i];
+      blank.style.color = ok ? 'var(--good)' : 'var(--bad)';
       say(full);
       feedback(root, {
         ok, title: ok ? pickGood() : 'Nicht ganz',
@@ -166,7 +185,7 @@ const RENDER = {
         extra: `<div class="answer-line">${playBtn(full)}<p>${esc(full)}</p></div>`,
         onNext: () => go(ok),
       });
-    }));
+    }, { onSelect: (b) => { blank.textContent = b.textContent; blank.style.color = ''; } });
   },
 
   fix(root, ex, go) {
@@ -176,11 +195,10 @@ const RENDER = {
       <p class="q">Tippe auf das Wort, das hier falsch ist.</p>
       <div class="fix-sentence">${words.map((w, i) => `<button class="tile" data-i="${i}">${esc(w)}</button>`).join('')}</div>
       <div class="grow"></div>`;
-    $$('.fix-sentence .tile', root).forEach((b) => b.addEventListener('click', () => {
+    selectThenCheck(root, '.fix-sentence .tile', (b) => {
       const i = Number(b.dataset.i);
       const ok = ex.wrong.includes(i);
       $$('.fix-sentence .tile', root).forEach((t) => {
-        t.disabled = true;
         if (ex.wrong.includes(Number(t.dataset.i))) t.classList.add('is-error');
       });
       if (!ok) b.classList.add('wrong');
@@ -191,7 +209,7 @@ const RENDER = {
         extra: `<p class="small" style="margin-top:10px"><b>Richtig:</b></p><div class="answer-line" style="margin-top:4px">${playBtn(ex.correct)}<p>${esc(ex.correct)}</p></div>`,
         onNext: () => go(ok),
       });
-    }));
+    });
   },
 
   listen(root, ex, go) {
@@ -207,7 +225,7 @@ const RENDER = {
       <div class="grow"></div>`;
     say(ex.en);
     $('[data-slow]', root).addEventListener('click', () => say(ex.en, { rate: 0.7 }));
-    $$('.option', root).forEach((b) => b.addEventListener('click', () => {
+    selectThenCheck(root, '.option', (b) => {
       const i = Number(b.dataset.i);
       const ok = i === ex.answer;
       $('.options', root).classList.add('answered');
@@ -219,7 +237,7 @@ const RENDER = {
         extra: `<p class="small" style="margin-top:10px"><b>Gehört:</b></p><div class="answer-line" style="margin-top:4px">${playBtn(ex.en)}<p>${esc(ex.en)}</p></div>`,
         onNext: () => go(ok),
       });
-    }));
+    });
   },
 
   listenbuild(root, ex, go) {
