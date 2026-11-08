@@ -13,7 +13,17 @@ export function learnedIds() {
   return Object.keys(getState().cards);
 }
 
-export function dueIds(limit = 15) {
+// Lesson words are spread over three days so a lesson day doesn't bring 20+ new cards at once.
+export function addWordCards(ids) {
+  const per = Math.ceil(ids.length / 3) || 1;
+  const cards = getState().cards;
+  ids.forEach((id, i) => {
+    if (!cards[id]) cards[id] = { due: addDays(today(), 1 + Math.floor(i / per)), interval: 0, ease: 2.5, reps: 0, lapses: 0, last: null, added: today() };
+  });
+  save();
+}
+
+export function dueIds(limit = 20) {
   const t = today();
   const cards = getState().cards;
   return Object.entries(cards)

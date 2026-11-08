@@ -1,7 +1,7 @@
 // Word lookup: she types (or highlights) a word she doesn't know and gets the German meaning in
 // context, a short explanation and an example. One tap saves it as a flashcard.
 import { esc, icon, playBtn, toast } from './ui.js';
-import { PHRASES } from '../content/index.js';
+import { PHRASES, WORDS } from '../content/index.js';
 import { lookupWord } from './ai.js';
 import { getState, today, addDays } from './store.js';
 import { addCards } from './srs.js';
@@ -17,7 +17,7 @@ function lessonMatches(word) {
   const w = word.toLowerCase().trim();
   if (w.length < 2) return [];
   const out = [];
-  for (const p of PHRASES.values()) {
+  for (const p of [...WORDS.values(), ...PHRASES.values()]) {
     if (p.en.toLowerCase().includes(w)) out.push(p);
     if (out.length >= 3) break;
   }

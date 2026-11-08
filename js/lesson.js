@@ -4,7 +4,7 @@ import { shell, summary } from './sessions.js';
 import { SPEAK, LESSONS } from '../content/index.js';
 import { renderSpeak } from './speak.js';
 import { sameSentence } from './check.js';
-import { addCards } from './srs.js';
+import { addCards, addWordCards } from './srs.js';
 import { getState, save, today, markTask, addTime } from './store.js';
 import { say, stopSpeaking } from './speech.js';
 
@@ -12,6 +12,7 @@ export function startLesson(lesson, { onExit }) {
   const started = Date.now();
   const steps = [
     ...lesson.phrases.map((p, i) => ({ type: 'phrase', p, n: i + 1, of: lesson.phrases.length })),
+    ...wordPages(lesson),
     { type: 'tip', tip: lesson.tip },
     ...lesson.exercises.map((e, i) => {
       if (e.type === 'speak') return { type: 'speak', item: SPEAK.get(e.id) };
@@ -53,19 +54,30 @@ export function startLesson(lesson, { onExit }) {
     s.lessons[lesson.id] = { done: true, date: wasDone ? s.lessons[lesson.id].date : today(), score: Math.max(score, s.lessons[lesson.id]?.score || 0) };
     save();
     addCards(lesson.phrases.map((p) => p.id));
+    addWordCards((lesson.words || []).map((w) => w.id));
     markTask('lesson');
     addTime((Date.now() - started) / 1000);
     ui.hideTop();
+    const nWords = (lesson.words || []).length;
     summary(ui.body, {
       emoji: '🎉',
       title: 'Lektion geschafft!',
-      text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} neue Ausdrücke sind jetzt in deinen Karteikarten.`}`,
-      stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke']],
+      text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} Ausdrücke und ${nWords} Wörter sind jetzt in deinen Karteikarten. Die Wörter kommen verteilt über die nächsten Tage.`}`,
+      stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke'], [String(nWords), 'Wörter']],
       onDone: onExit,
     });
   }
 
   next();
+}
+
+// Two short overview pages with the lesson's key words (they become flashcards after the lesson).
+function wordPages(lesson) {
+  const words = lesson.words || [];
+  if (!words.length) return [];
+  const half = Math.ceil(words.length / 2);
+  const pages = [words.slice(0, half), words.slice(half)].filter((p) => p.length);
+  return pages.map((list, i) => ({ type: 'words', list, n: i + 1, of: pages.length }));
 }
 
 // ---------------------------------------------------------------- mixed review
@@ -198,6 +210,23 @@ const RENDER = {
         ${p.note ? `<p class="note"><span>💡</span><span>${esc(p.note)}</span></p>` : ''}
       </div>
       <p class="small muted" style="margin-top:22px">🗣️ Hör es dir an und sprich es laut nach.</p>
+      <div class="grow"></div>
+      <div class="session-foot"><button class="btn btn-block" data-next>Weiter</button></div>`;
+    $('[data-next]', root).addEventListener('click', () => go());
+  },
+
+  words(root, { list, n, of }, go) {
+    root.innerHTML = `
+      <div class="kicker accent">Neue Wörter · ${n}/${of}</div>
+      <p class="small muted">Lies sie einmal durch und hör sie dir an – sie kommen danach als Karteikarten.</p>
+      <div class="card phrase-list word-list" style="margin-top:12px">
+        ${list.map((w) => `
+          <div class="phrase-item">
+            ${playBtn(w.en)}
+            <div class="grow"><b>${esc(w.en)}</b> <span class="word-de">${esc(w.de)}</span>
+              <span class="word-ex">${esc(w.ex)}</span></div>
+          </div>`).join('')}
+      </div>
       <div class="grow"></div>
       <div class="session-foot"><button class="btn btn-block" data-next>Weiter</button></div>`;
     $('[data-next]', root).addEventListener('click', () => go());

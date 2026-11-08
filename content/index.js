@@ -19,6 +19,7 @@ export const MODULES = [
 export const LESSONS = [];
 export const PHRASES = new Map();
 export const SPEAK = new Map();
+export const WORDS = new Map(); // single key words per lesson (flashcards)
 
 for (const m of MODULES) {
   if (!m.data) continue;
@@ -27,6 +28,7 @@ for (const m of MODULES) {
     LESSONS.push(lesson);
     for (const p of l.phrases) PHRASES.set(p.id, { ...p, lesson });
     for (const s of l.speak) SPEAK.set(s.id, { ...s, lesson });
+    for (const w of l.words || []) WORDS.set(w.id, { ...w, lesson, word: true });
   });
 }
 

@@ -2,7 +2,7 @@
 import { $, $$, esc, icon, playBtn, setSession, toast, plural } from './ui.js';
 import { MODULES, LESSONS, PHRASES, findLesson } from '../content/index.js';
 import { getState, save, today, addDays, day, streak, bestStreak, totalSeconds, isActiveDay, resetAll } from './store.js';
-import { dueCount, learnedIds } from './srs.js';
+import { dueCount, learnedIds, addWordCards } from './srs.js';
 import { startLesson, startReview, reviewPool } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
 import { startChat } from './chat.js';
@@ -249,7 +249,7 @@ function renderCards() {
     <div class="page-head"><h1 class="page-title">Karteikarten</h1></div>
     <div class="stats">
       <div class="stat"><b>${due}</b><span>heute fällig</span></div>
-      <div class="stat"><b>${ids.length}</b><span>Ausdrücke gelernt</span></div>
+      <div class="stat"><b>${ids.length}</b><span>Karten insgesamt</span></div>
     </div>
     <div class="stack" style="margin-top:14px">
       <a class="btn btn-block ${due ? '' : 'btn-soft'}" href="#/review" ${due ? '' : 'style="pointer-events:none;opacity:.5"'}>Fällige Karten lernen</a>
@@ -258,6 +258,7 @@ function renderCards() {
     <button class="btn btn-soft btn-block" data-lookup-open style="margin-top:10px">🔍 Wort nachschlagen</button>
     ${mistakesHtml(cards, t)}
     ${wordsHtml(cards, t)}
+    ${lessonWordsHtml(cards, t)}
     <a class="btn btn-ghost btn-block" href="#/speak-script" style="margin-top:6px">🎭 Geführtes Gespräch üben (Übersetzen)</a>
     <h2 class="section-title">Deine Ausdrücke</h2>
     ${ids.length ? `<div class="card phrase-list">
@@ -269,6 +270,27 @@ function renderCards() {
         </div>`).join('')}
     </div>` : `<div class="card empty"><div>🃏</div>Nach deiner ersten Lektion landen hier deine Ausdrücke.</div>`}`;
   $('[data-lookup-open]').addEventListener('click', () => openLookup());
+}
+
+// Key words from the lessons, grouped by lesson (collapsed to keep the page short).
+function lessonWordsHtml(cards, t) {
+  const groups = LESSONS.map((l) => ({ l, list: (l.words || []).filter((w) => cards[w.id]) })).filter((g) => g.list.length);
+  if (!groups.length) return '';
+  const total = groups.reduce((a, g) => a + g.list.length, 0);
+  return `
+    <h2 class="section-title">Wörter aus den Lektionen · ${total}</h2>
+    ${groups.map(({ l, list }) => `
+      <details class="card word-group">
+        <summary><b>${esc(l.title)}</b> <span class="small muted">· ${list.length} Wörter</span></summary>
+        <div class="phrase-list word-list">
+          ${list.map((w) => `
+            <div class="phrase-item">
+              ${playBtn(w.en)}
+              <div class="grow"><b>${esc(w.en)}</b> <span class="word-de">${esc(w.de)}</span></div>
+              ${cards[w.id].due <= t ? '<span class="due-dot" title="fällig"></span>' : ''}
+            </div>`).join('')}
+        </div>
+      </details>`).join('')}`;
 }
 
 function wordsHtml(cards, t) {
@@ -472,7 +494,18 @@ document.addEventListener('visibilitychange', () => {
   // a new day may have started while the app was in the background
   if (document.visibilityState === 'visible' && !document.body.classList.contains('in-session')) render();
 });
+// Lessons finished before word cards existed get their words now (spread over the next days).
+function ensureWordCards() {
+  const s = getState();
+  const missing = LESSONS.filter((l) => s.lessons[l.id]?.done)
+    .flatMap((l) => (l.words || []).map((w) => w.id))
+    .filter((id) => !s.cards[id]);
+  if (missing.length) addWordCards(missing);
+}
+
+ensureWordCards();
 render();
 initSync().then((changed) => {
+  ensureWordCards();
   if (changed && !document.body.classList.contains('in-session')) render();
 });

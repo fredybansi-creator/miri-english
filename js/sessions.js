@@ -1,6 +1,6 @@
 // Full-screen sessions: flashcards and the daily speaking set, plus shared shell and summary.
 import { $, esc, icon, playBtn, setSession, shuffle } from './ui.js';
-import { PHRASES, SPEAK, LESSONS } from '../content/index.js';
+import { PHRASES, SPEAK, LESSONS, WORDS } from '../content/index.js';
 import { dueIds, learnedIds, rate, preview, formatInterval } from './srs.js';
 import { getState, markTask, addTime } from './store.js';
 import { say, stopSpeaking } from './speech.js';
@@ -57,6 +57,7 @@ export function summary(body, { emoji = '🎉', title, text = '', stats = [], bu
 // A card is either a lesson phrase or one of her own mistakes the coach corrected.
 export function cardContent(id) {
   if (PHRASES.has(id)) return PHRASES.get(id);
+  if (WORDS.has(id)) return WORDS.get(id);
   if (id.startsWith('w-')) {
     const w = (getState().words || []).find((x) => x.id === id);
     return w ? { id, en: w.en, de: w.de, ex: w.ex, note: w.note } : null;
@@ -69,7 +70,7 @@ export function cardContent(id) {
 /** @param then optional { label, run } – offered after the cards (e.g. the mixed review) */
 export function startCards({ practice = false, onExit, then = null }) {
   const started = Date.now();
-  let queue = practice ? shuffle(learnedIds()).slice(0, 20) : dueIds(15);
+  let queue = practice ? shuffle(learnedIds()).slice(0, 20) : dueIds(20);
   queue = queue.filter((id) => cardContent(id));
   const total = queue.length;
   let done = 0, again = 0;
