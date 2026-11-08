@@ -19,6 +19,7 @@ const CONTRACTIONS = {
 export function tokens(text) {
   const cleaned = String(text || '')
     .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // café → cafe
     .replace(/[’‘`´]/g, "'")
     .replace(/[^a-z0-9' ]+/g, ' ')
     .split(/\s+/)
@@ -81,9 +82,11 @@ export function checkAnswer(item, saidList) {
   const groups = item.keywords || [];
   const missingGroups = groups.filter((g) => !g.some((alt) => hasPhrase(best.sTokens, alt)));
   const kwRatio = groups.length ? (groups.length - missingGroups.length) / groups.length : best.score;
-  const score = 0.5 * Math.max(0, best.score) + 0.5 * kwRatio;
+  // Longer replies can be phrased in many valid ways, so the key words count more than
+  // word-by-word similarity to one model answer.
+  const score = 0.35 * Math.max(0, best.score) + 0.65 * kwRatio;
 
-  let level = score >= 0.85 ? 'great' : score >= 0.5 ? 'good' : 'try';
+  let level = score >= 0.8 ? 'great' : score >= 0.5 ? 'good' : 'try';
   if (best.score >= 0.9) level = 'great';
   if (!best.sTokens.length) level = 'try';
 

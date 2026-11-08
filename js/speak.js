@@ -1,6 +1,6 @@
 // Voice translation exercise: German sentence → she says it in English → friendly feedback.
 import { esc, icon, playBtn, shuffle } from './ui.js';
-import { canListen, listen, errorMessage } from './speech.js';
+import { canListen, listen, errorMessage, say } from './speech.js';
 import { checkAnswer } from './check.js';
 import { getState, save, today, day } from './store.js';
 
@@ -26,17 +26,26 @@ function record(item, result) {
 /**
  * Render the exercise into `root` (a flex column). Calls onDone(result) when she taps "Weiter".
  */
-export function renderSpeak(root, item, { onDone, kicker = 'Sag es auf Englisch' }) {
+export function renderSpeak(root, item, { onDone, kicker, friend = 'Friend' }) {
   let mode = canListen ? 'mic' : 'type';
   let session = null;
   let tries = 0;
   let notice = canListen ? '' : errorMessage('unsupported');
+  const label = kicker || (item.they ? 'Antworte auf Englisch' : 'Sag es auf Englisch');
 
   const hints = shuffle((item.keywords || []).map((g) => g[0]));
 
   function head(small = false) {
-    return `<div class="kicker">${kicker}</div>
-      <p class="q-de" ${small ? 'style="font-size:20px"' : ''}>${esc(item.de)}</p>`;
+    const bubble = item.they
+      ? `<div class="chat">
+           <div class="bubble">
+             <span class="bubble-who">${esc(friend)}</span>
+             <div class="row" style="gap:10px;align-items:flex-start">${playBtn(item.they)}<p>${esc(item.they)}</p></div>
+           </div>
+         </div>`
+      : '';
+    return `${bubble}<div class="kicker">${label}</div>
+      <p class="q-de ${small || item.de.length > 70 ? 'q-de-sm' : ''}">${esc(item.de)}</p>`;
   }
 
   function renderPrompt() {
@@ -156,5 +165,7 @@ export function renderSpeak(root, item, { onDone, kicker = 'Sag es auf Englisch'
   }
 
   renderPrompt();
+  // Read the friend's line aloud (works when the exercise was opened by a tap).
+  if (item.they) say(item.they);
   return { destroy: stopListening };
 }

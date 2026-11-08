@@ -11,7 +11,7 @@ import { say, stopSpeaking } from './speech.js';
 export function startLesson(lesson, { onExit }) {
   const started = Date.now();
   const steps = [
-    ...lesson.phrases.map((p, i) => ({ type: 'phrase', p, n: i + 1 })),
+    ...lesson.phrases.map((p, i) => ({ type: 'phrase', p, n: i + 1, of: lesson.phrases.length })),
     { type: 'tip', tip: lesson.tip },
     ...lesson.exercises.map((e) => (e.type === 'speak' ? { type: 'speak', item: SPEAK.get(e.id) } : e)),
   ];
@@ -85,9 +85,9 @@ const pickGood = () => GOOD[Math.floor(Math.random() * GOOD.length)];
 
 // ---------------------------------------------------------------- renderers
 const RENDER = {
-  phrase(root, { p, n }, go) {
+  phrase(root, { p, n, of }, go) {
     root.innerHTML = `
-      <div class="kicker accent">Neu · ${n}/6</div>
+      <div class="kicker accent">Neu · ${n}/${of}</div>
       <div class="phrase-card">
         <div class="row">${playBtn(p.en, 'lg')}<p class="big-en grow">${esc(p.en)}</p></div>
         <p class="phrase-de">${esc(p.de)}</p>
@@ -159,6 +159,31 @@ const RENDER = {
         ok, title: ok ? pickGood() : 'Nicht ganz',
         text: esc(ex.explain || ''),
         extra: `<div class="answer-line">${playBtn(full)}<p>${esc(full)}</p></div>`,
+        onNext: () => go(ok),
+      });
+    }));
+  },
+
+  fix(root, ex, go) {
+    const words = ex.sentence.split(' ');
+    root.innerHTML = `
+      <div class="kicker">Finde den Fehler</div>
+      <p class="q">Tippe auf das Wort, das hier falsch ist.</p>
+      <div class="fix-sentence">${words.map((w, i) => `<button class="tile" data-i="${i}">${esc(w)}</button>`).join('')}</div>
+      <div class="grow"></div>`;
+    $$('.fix-sentence .tile', root).forEach((b) => b.addEventListener('click', () => {
+      const i = Number(b.dataset.i);
+      const ok = ex.wrong.includes(i);
+      $$('.fix-sentence .tile', root).forEach((t) => {
+        t.disabled = true;
+        if (ex.wrong.includes(Number(t.dataset.i))) t.classList.add('is-error');
+      });
+      if (!ok) b.classList.add('wrong');
+      say(ex.correct);
+      feedback(root, {
+        ok, title: ok ? pickGood() : 'Nicht ganz',
+        text: esc(ex.explain || ''),
+        extra: `<p class="small" style="margin-top:10px"><b>Richtig:</b></p><div class="answer-line" style="margin-top:4px">${playBtn(ex.correct)}<p>${esc(ex.correct)}</p></div>`,
         onNext: () => go(ok),
       });
     }));

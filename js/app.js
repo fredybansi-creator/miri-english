@@ -106,7 +106,7 @@ function renderToday() {
     ? 'Erledigt – stark!'
     : lesson ? `${esc(lesson.module.titleDe)} · Lektion ${lesson.index + 1}: ${esc(lesson.title)}` : 'Alle Lektionen geschafft – wiederhole eine!';
   const cardsSub = !hasCards ? 'Kommen nach deiner ersten Lektion' : d.cards ? 'Erledigt!' : due ? `${plural(due, 'Karte', 'Karten')} fällig` : 'Heute nichts fällig 🎉';
-  const speakSub = d.speaking ? 'Erledigt – super gesprochen!' : '4 Sätze laut auf Englisch sagen';
+  const speakSub = d.speaking ? 'Erledigt – super gesprochen!' : 'Ein kurzes Gespräch – antworte laut auf Englisch';
 
   const lessonHref = lesson ? `#/lesson/${lesson.id}` : '#/modules';
   const msg = doneN === 3 ? 'Tagesziel geschafft! 🎉' : doneN === 0 ? 'Dein Plan für heute' : 'Weiter so!';

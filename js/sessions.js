@@ -141,17 +141,22 @@ export function startCards({ practice = false, onExit }) {
 }
 
 // ---------------------------------------------------------------- daily speaking set
-function pickSentences(n = 4) {
+// Pick one whole conversation (all speak items of a lesson, in order):
+// the one she has practised least, preferring weaker scores and older practice.
+function pickConversation() {
   const s = getState();
   const doneLessons = LESSONS.filter((l) => s.lessons[l.id]?.done);
-  const pool = (doneLessons.length ? doneLessons : LESSONS.slice(0, 1)).flatMap((l) => l.speak.map((x) => SPEAK.get(x.id)));
-  const scored = shuffle(pool).map((item) => {
-    const st = s.speaking[item.id];
-    // never practised first, then weakest, then longest ago
-    const prio = !st ? 0 : 1 + st.best + (st.last ? Math.min(30, daysSince(st.last)) * -0.02 : 0);
-    return { item, prio };
+  const pool = doneLessons.length ? doneLessons : LESSONS.slice(0, 1);
+  const scored = shuffle(pool).map((l) => {
+    const stats = l.speak.map((x) => s.speaking[x.id]);
+    const count = stats.reduce((a, st) => a + (st?.count || 0), 0);
+    const best = stats.reduce((a, st) => a + (st?.best || 0), 0) / stats.length;
+    const age = Math.min(...stats.map((st) => (st?.last ? daysSince(st.last) : 99)));
+    return { l, prio: count * 0.5 + best * 2 - Math.min(age, 14) * 0.3 };
   });
-  return scored.sort((a, b) => a.prio - b.prio).slice(0, n).map((x) => x.item);
+  scored.sort((a, b) => a.prio - b.prio);
+  const lesson = scored[0].l;
+  return { lesson, items: lesson.speak.map((x) => SPEAK.get(x.id)) };
 }
 
 function daysSince(dateStr) {
@@ -161,7 +166,7 @@ function daysSince(dateStr) {
 
 export function startSpeaking({ onExit }) {
   const started = Date.now();
-  const items = pickSentences(4);
+  const { lesson, items } = pickConversation();
   const results = [];
   let i = 0;
   let current = null;
@@ -171,6 +176,7 @@ export function startSpeaking({ onExit }) {
     ui.progress(i, items.length);
     if (i >= items.length) return finish();
     current = renderSpeak(ui.body, items[i], {
+      kicker: `Gespräch ${i + 1}/${items.length} · Antworte auf Englisch`,
       onDone: (r) => { results.push(r); i++; next(); },
     });
   }
@@ -183,7 +189,7 @@ export function startSpeaking({ onExit }) {
     summary(ui.body, {
       emoji: '🗣️', title: 'Gut gesprochen!',
       text: 'Jeder Satz, den du laut sagst, macht das Sprechen leichter.',
-      stats: [[String(items.length), 'Sätze'], [`${good}/${items.length}`, 'gut verstanden']],
+      stats: [[String(items.length), 'Antworten'], [`${good}/${items.length}`, 'gut verstanden']],
       onDone: onExit,
     });
   }
