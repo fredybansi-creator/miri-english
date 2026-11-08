@@ -494,6 +494,21 @@ ol.plain { list-style: none; padding: 0; margin: 0; }
 @keyframes fx-nod { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(2deg) translateY(1px); } }
 @keyframes fx-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-14px); } 100% { transform: translateY(0); } }
 
+/* Word lookup */
+.lookup-btn { font-size: 20px; }
+.lookup-overlay { position: fixed; inset: 0; z-index: 40; background: rgba(20, 23, 28, .35); display: flex; align-items: flex-end; justify-content: center; animation: fade .15s ease; }
+.lookup-sheet {
+  width: 100%; max-width: 560px; max-height: 85dvh; overflow-y: auto;
+  background: var(--bg); border-radius: 22px 22px 0 0; padding: 16px 16px calc(20px + var(--safe-b));
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, .15); animation: rise .22s ease;
+}
+.lookup-sheet h3 { font-size: 19px; }
+.lookup-sheet .lookup-input { text-transform: none; font-family: var(--font); font-size: 17px; font-weight: 600; }
+.lookup-result { margin-top: 14px; padding: 16px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.lookup-word { font-family: var(--display); font-size: 24px; }
+.lookup-de { font-size: 19px; font-weight: 700; color: var(--brand); margin-top: 8px; }
+@keyframes fade { from { opacity: 0; } }
+
 /* Backup */
 .sync-code { font: 700 15px/1.2 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 12px 12px; border-radius: var(--radius-sm); background: var(--surface-2); }
 .code-input { min-width: 0; padding: 11px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font: 600 16px ui-monospace, "SF Mono", Menlo, Consolas, monospace; text-transform: uppercase; }

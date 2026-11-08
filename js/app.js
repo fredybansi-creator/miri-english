@@ -6,6 +6,7 @@ import { dueCount, learnedIds } from './srs.js';
 import { startLesson, startReview, reviewPool } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
 import { startChat } from './chat.js';
+import { openLookup, closeLookup } from './lookup.js';
 import { canListen, listen, errorMessage, say } from './speech.js';
 import { initSync, getCode, restore, normalizeCode, status, onStatus } from './sync.js';
 
@@ -45,6 +46,7 @@ function chatLesson() {
 
 // ---------------------------------------------------------------- router
 function render() {
+  closeLookup();
   const [route, arg] = location.hash.replace(/^#\/?/, '').split('/');
   const s = getState();
   if (!s.welcomed) return renderWelcome();
@@ -253,7 +255,9 @@ function renderCards() {
       <a class="btn btn-block ${due ? '' : 'btn-soft'}" href="#/review" ${due ? '' : 'style="pointer-events:none;opacity:.5"'}>Fällige Karten lernen</a>
       <a class="btn btn-line btn-block" href="#/practice" ${ids.length ? '' : 'style="pointer-events:none;opacity:.5"'}>Freies Üben (zählt nicht)</a>
     </div>
+    <button class="btn btn-soft btn-block" data-lookup-open style="margin-top:10px">🔍 Wort nachschlagen</button>
     ${mistakesHtml(cards, t)}
+    ${wordsHtml(cards, t)}
     <a class="btn btn-ghost btn-block" href="#/speak-script" style="margin-top:6px">🎭 Geführtes Gespräch üben (Übersetzen)</a>
     <h2 class="section-title">Deine Ausdrücke</h2>
     ${ids.length ? `<div class="card phrase-list">
@@ -264,6 +268,22 @@ function renderCards() {
           ${cards[p.id].due <= t ? '<span class="due-dot" title="fällig"></span>' : ''}
         </div>`).join('')}
     </div>` : `<div class="card empty"><div>🃏</div>Nach deiner ersten Lektion landen hier deine Ausdrücke.</div>`}`;
+  $('[data-lookup-open]').addEventListener('click', () => openLookup());
+}
+
+function wordsHtml(cards, t) {
+  const list = (getState().words || []).filter((w) => cards[w.id]).slice().reverse();
+  if (!list.length) return '';
+  return `
+    <h2 class="section-title">Nachgeschlagene Wörter · ${list.length}</h2>
+    <div class="card phrase-list">
+      ${list.map((w) => `
+        <div class="phrase-item">
+          ${playBtn(w.en)}
+          <div class="grow"><b>${esc(w.en)}</b><span>${esc(w.de)}</span></div>
+          ${cards[w.id].due <= t ? '<span class="due-dot" title="fällig"></span>' : ''}
+        </div>`).join('')}
+    </div>`;
 }
 
 function mistakesHtml(cards, t) {

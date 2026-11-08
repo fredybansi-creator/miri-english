@@ -20,6 +20,15 @@ async function post(payload, timeout = 30000) {
   }
 }
 
+/** Dictionary: meaning of an English word in context (German explanation). */
+export async function lookupWord(word, context = '') {
+  const d = await post({ mode: 'lookup', word, context }, 15000);
+  return {
+    word: String(d.word || word), de: String(d.de || ''), explanation: String(d.explanation || ''),
+    example: String(d.example || ''), exampleDe: String(d.exampleDe || ''), register: String(d.register || 'neutral'),
+  };
+}
+
 /** Conversation partner: Sam's next line. history = [{ who: 'sam'|'miri', text }] */
 export async function chatReply(scenario, history) {
   const d = await post({ mode: 'chat_reply', scenario, history }, 20000);

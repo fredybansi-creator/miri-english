@@ -13,6 +13,7 @@ const defaults = () => ({
   speaking: {},  // sentenceId -> { best, count, last }
   mistakes: [],  // coach fixes → "Meine Fehler" cards: { id, wrong, better, why, date }
   review: {},    // 'lessonId:exerciseIndex' -> { last, weak } for the mixed review
+  words: [],     // looked-up words saved as cards: { id, en, de, ex, exDe, note, date }
   sync: {},      // { code, lastPush, resetAt }
 });
 
@@ -124,6 +125,9 @@ export function mergeStates(a, b) {
     seen.add(k);
     return true;
   });
+
+  const seenWords = new Set();
+  out.words = [...(a.words || []), ...(b.words || [])].filter((w) => w.id && !seenWords.has(w.id) && seenWords.add(w.id));
 
   out.review = { ...(a.review || {}) };
   for (const [k, r] of Object.entries(b.review || {})) {

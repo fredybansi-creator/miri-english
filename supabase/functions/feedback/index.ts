@@ -50,6 +50,8 @@ const OUTPUT = `Return JSON only, with these fields:
 - betterWords: up to 4 English words/phrases that would make her reply sound more natural (not already used by her).
 - levelUp: a richer, very natural version a native speaker might say in this situation (casual, 1–3 sentences).
 - tip: one short German tip about a typical German-speaker mistake she made, or "" if none.
+Use plain, natural everyday English: NO idioms or figurative sayings (e.g. "raining cats and dogs",
+"snowed under", "on the fence", "piece of cake"). Common phrasal verbs (catch up, end up) are fine.
 Speak to her as "du". Be kind and concise.`;
 
 const systemFor = (mode: string) => {
@@ -63,7 +65,9 @@ const CHAT_REPLY = `You are Sam, Miri's friendly English-speaking friend (native
 Miri is German (about B1+) and practises having relaxed spoken conversations with friends.
 You get the scenario and the conversation so far. Write Sam's NEXT line.
 Rules:
-- 1–2 short sentences, max 25 words, natural spoken English (B1–B2 level, everyday idioms are welcome).
+- 1–2 short sentences, max 25 words, natural spoken English at B1–B2 level. Use plain everyday words:
+  NO idioms or figurative sayings (no "raining cats and dogs", "snowed under", "piece of cake").
+  Common phrasal verbs (catch up, end up, find out) are fine.
 - React to what she actually said (show interest, share a tiny bit about yourself), then ask ONE open
   follow-up question that makes her tell more (why / how / what happened / what was it like).
 - Never correct her English and never mention grammar. If you don't understand her, ask casually.
@@ -83,6 +87,28 @@ all lines). Review ONLY her lines, like a friendly coach after the conversation:
 - betterWords: up to 4 phrases that would have made her sound more natural in this conversation.
 - levelUp: her longest answer retold richer and more natural (keep her facts).
 - tip: one short German tip about her most frequent mistake pattern, or about giving longer answers.`;
+
+// ---- word lookup --------------------------------------------------------------------------------
+const LOOKUP = `You are a bilingual English–German dictionary for Miri, a German learner of English (about B1+).
+She looks up an English word or phrase she doesn't know. If a context sentence is given, explain the meaning
+IN THAT CONTEXT. Return JSON only:
+- word: the word/phrase in its base form (e.g. "ran into" -> "run into"), English.
+- de: the German translation(s) for this meaning, short (max 6 words, separate alternatives with " / ").
+- explanation: one short German sentence explaining the meaning or usage (max 20 words).
+- example: one short, natural, everyday English example sentence (no idioms).
+- exampleDe: German translation of the example.
+- register: "neutral", "umgangssprachlich" or "formell".
+If she typed German instead, give the English word in "word" and the German in "de".`;
+
+const LOOKUP_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    word: { type: "STRING" }, de: { type: "STRING" }, explanation: { type: "STRING" },
+    example: { type: "STRING" }, exampleDe: { type: "STRING" },
+    register: { type: "STRING", enum: ["neutral", "umgangssprachlich", "formell"] },
+  },
+  required: ["word", "de", "explanation", "example", "exampleDe", "register"],
+};
 
 const CHAT_SCHEMA = {
   type: "OBJECT",
@@ -118,7 +144,7 @@ function limited(ip: string): boolean {
   const list = (hits.get(ip) || []).filter((t) => now - t < 60_000);
   list.push(now);
   hits.set(ip, list);
-  return list.length > 20;
+  return list.length > 40;
 }
 
 function cors(origin: string | null) {
@@ -196,6 +222,18 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400, origin); }
+
+  // ---- word lookup
+  if (body.mode === "lookup") {
+    const word = clip(body.word, 60).trim();
+    if (!word) return json({ error: "empty" }, 400, origin);
+    try {
+      const { model, result } = await askGemini(key, { word, context: clip(body.context, 300) }, LOOKUP, LOOKUP_SCHEMA, 0.2);
+      return json({ ok: true, model, ...result }, 200, origin);
+    } catch (e) {
+      return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
+    }
+  }
 
   // ---- conversation partner
   if (body.mode === "chat_reply" || body.mode === "chat_review") {

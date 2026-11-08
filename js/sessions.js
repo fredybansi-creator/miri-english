@@ -5,6 +5,7 @@ import { dueIds, learnedIds, rate, preview, formatInterval } from './srs.js';
 import { getState, markTask, addTime } from './store.js';
 import { say, stopSpeaking } from './speech.js';
 import { renderSpeak } from './speak.js';
+import { openLookup, closeLookup } from './lookup.js';
 
 // ---------------------------------------------------------------- shell
 export function shell({ onClose, confirm: ask = true }) {
@@ -16,13 +17,16 @@ export function shell({ onClose, confirm: ask = true }) {
         <button class="icon-btn" data-close aria-label="Beenden">${icon.close}</button>
         <div class="progress"><i></i></div>
         <div class="session-count"></div>
+        <button class="icon-btn lookup-btn" data-lookup aria-label="Wort nachschlagen" title="Wort nachschlagen">🔍</button>
       </div>
       <div class="session-body"></div>
     </div>`;
   const body = $('.session-body', app);
+  $('[data-lookup]', app).addEventListener('click', () => openLookup({ context: body.innerText.replace(/\s+/g, ' ') }));
   $('[data-close]', app).addEventListener('click', () => {
     if (!ask || window.confirm('Wirklich beenden? Diese Runde wird nicht gespeichert.')) {
       stopSpeaking();
+      closeLookup();
       onClose();
     }
   });
@@ -53,6 +57,10 @@ export function summary(body, { emoji = '🎉', title, text = '', stats = [], bu
 // A card is either a lesson phrase or one of her own mistakes the coach corrected.
 export function cardContent(id) {
   if (PHRASES.has(id)) return PHRASES.get(id);
+  if (id.startsWith('w-')) {
+    const w = (getState().words || []).find((x) => x.id === id);
+    return w ? { id, en: w.en, de: w.de, ex: w.ex, note: w.note } : null;
+  }
   const m = getState().mistakes.find((x) => x.id === id);
   if (!m) return null;
   return { id, en: m.better, de: m.wrong, note: m.why, mistake: true };
