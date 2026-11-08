@@ -1,120 +1,82 @@
 # Miri English – project notes
 
-Personal web app for Miri (German, intermediate) to practise English 10 minutes a day on her iPhone.
-Claude maintains the code; this file records the decisions so any session can pick up the work.
+Personal web app for Miri (German, about B1+) to practise English every day on her iPhone (Safari).
+Claude maintains the code for Freddy (the owner). This file is the source of truth for decisions and
+the current state, so any new session can pick up the work.
 
-## Who Miri is
+**Live app:** https://fredybansi-creator.github.io/miri-english/ (GitHub Pages from `main`)
+**Repo:** https://github.com/fredybansi-creator/miri-english (public – never commit secrets)
+
+## Who Miri is and what she needs
 - Follows conversations, but misses vocabulary and gives short, simple answers.
 - Goal: relaxed, natural English with her English-speaking friends.
-- Wants to **speak**, not just study vocab lists – e.g. translate German sentences/dialogues out loud.
-- Weak spots: speaking, listening, grammar, vocabulary, confidence (all of them).
-- 10 minutes per day, iPhone (Safari).
+- Wants to **speak**, not just study vocab lists.
+- Uses an iPhone, Safari, app added to the home screen.
 
-## Decisions (2026-11-08)
-- **Hosting:** GitHub repository + GitHub Pages (free, public repo – no secrets in code).
-- **No login for Miri:** she opens the link, optionally adds it to her home screen.
-- **Speech:** Safari's built-in speech recognition / speech synthesis (free).
-- **Progress:** Supabase (free tier), separate project from Battlezone.
-- **AI checking:** via a Supabase Edge Function that holds the API key.
-  Start with Gemini free tier; switch to Claude API (~1–2 €/month) if quality is not good enough.
-- **Stack:** plain HTML/CSS/JavaScript, no build step (Node is not installed and not needed).
+## Freddy's requirements and preferences (keep following these)
+- Daily flashcards, modules with daily tasks, varied exercises, translating German → English **by voice**.
+- Spoken answers don't need to be perfect: feedback says which words make it better (encouraging).
+- Content at **B1+ → B2**; harder, conversation-like (longer replies), not trivially easy choices.
+- **No idioms / figurative sayings** (no "raining cats and dogs", "snowed under", "on the fence"…).
+  Common phrasal verbs (catch up, end up, figure out) are fine. Sam and the coach are told the same.
+- Free where possible; quality must stay good. No surprise costs (no credit cards on any service).
+- UI language: German instructions, English content.
 
-## Concept (draft – waiting for requirements)
-Daily 10 minutes:
-1. Warm-up (2 min): ~5 spaced-repetition vocab cards from words she struggled with.
-2. Speak the translation (5 min): German sentence → she says it in English → AI accepts any natural
-   answer, shows what was good, the mistake, and a "level up" version.
-3. Mini conversation (3 min): short spoken role-play; nudges her past one-word answers.
+## What the app does today (state 2026-11-09)
+- **Heute:** daily plan – lesson, flashcards (+3 mixed review exercises), chat with Sam. Streak, goal ring.
+- **Lessons** (15 so far: modules 1–3, 5 lessons each, files `content/m1.js`–`m3.js`):
+  6 phrases → 2 pages "Neue Wörter" (20 words per lesson) → tip (German) → exercises:
+  choice, gap, fix (find the mistake), build, listenbuild (dictation), listen, match, shadow,
+  speak (voice translation of a German reply in a mini conversation), free (open answer).
+  Tap exercises: select an answer, then "Prüfen".
+- **Flashcards:** spaced repetition (Nochmal/Schwer/Gut/Leicht), max 20/day. Sources: lesson phrases,
+  lesson words (spread over 3 days after the lesson), "Meine Fehler" (coach fixes, max 5 new/day),
+  looked-up words (🔍).
+- **Mixed review:** after the cards, 3 exercises from finished lessons (wrong ones first).
+- **Sam the fox** (`js/chat.js`, `js/fox.js`): endless conversation, hands-free like voice mode (mic opens
+  again after Sam speaks), correction under every message of hers, saved automatically (`state.chat`),
+  "Neues Gespräch" archives the old one (last 10). Daily goal = 3 messages.
+- **Word lookup 🔍** in every session screen and the Karten tab (AI meaning in context, save as card).
+- **Backup:** 16-character code (Fortschritt → Sicherung), automatic sync, restore on a new device.
+- Settings: accent US/UK, natural voice (Kokoro) on/off, Sam's voice ElevenLabs/Handy, Sam animation,
+  device voice picker, speech rate, reset.
 
-Content: everyday life with friends, typical German-speaker traps (false friends, since/for,
-word order, present perfect vs. past), natural phrases.
+## Voices
+- **Kokoro (free, offline, no limit)** for all fixed lesson sentences: `tools/make_audio.py` renders
+  mp3 files into `audio/<us|uk>-<main|friend>/<key>.mp3` + `audio/manifest.json`. Voices: us-main
+  af_heart, us-friend am_michael, uk-main bf_emma, uk-friend bm_george. Key = FNV-1a over code points +
+  length (`audioKey()` in `js/speech.js` must match `key()` in the script). Re-run the script after
+  adding/changing lesson sentences (existing files are skipped), then commit `audio/`.
+  Setup: `tools/.venv` (kokoro-onnx, soundfile, lameenc, json5) + model files in `tools/models/`
+  (both gitignored). ~2.5 s per sentence on Freddy's PC.
+- **ElevenLabs only for Sam** (Edge Function `tts`, voices Will (US) / George (UK), cached in Storage
+  bucket `tts`). Free plan; Sam uses roughly 15k characters/month.
+- **Device voice** for one-off texts (coach corrections, lookup examples, mistake cards) and as fallback.
+  iPhone Safari does NOT expose downloaded Premium voices (tested: Ava missing) – don't retry that.
+- iPhone quirks handled: device voice is unlocked on the first tap; 700 ms pause between speech
+  recognition and speech output; no SVG filters on the animated fox.
 
-## Requirements (from Freddy, 2026-11-08)
-1. **Daily flashcards (Karteikarten)** every day.
-2. **Modules** like a proper learning app, with **daily tasks**.
-3. **Varied exercises**, including translating a German sentence into English **by voice**.
-4. Spoken answers **don't need to be perfect**: the feedback tells her which words would make the
-   sentence better / more natural (encouraging, not strict).
-5. Use the **basic language-learning techniques** (see below).
+## Infrastructure
+- Supabase project **Miri English** (`aagbnrcsprmhcwllfmcn`, eu-central-1, free) in org "Battlezone".
+  Edge Functions are deployed with verify_jwt=false and check the Origin/Referer themselves.
+  - `feedback` – Gemini (secret `GEMINI_API_KEY`), modes: translate, free, chat_reply, chat_fix,
+    chat_review (unused now), lookup. Model order: gemini-flash-lite-latest → gemini-flash-latest →
+    gemini-3.8-flash, 10 s each.
+  - `tts` – ElevenLabs (secret `ELEVENLABS_API_KEY`), Storage bucket `tts` (public read).
+  - `progress` + table `public.progress` (RLS on, no policies – service role only). Only the SHA-256
+    of the backup code is stored.
+- Local preview: `python -m http.server 8765` (see `.claude/launch.json`).
+- After testing in a browser: clear test localStorage and delete test rows in `public.progress`
+  (only rows clearly created by tests – real rows from Freddy's/Miri's phones must stay).
 
-## App structure (v1 plan)
-
-### Screens
-- **Heute (Today):** the daily plan, ~10 min, ticked off step by step:
-  1. Due flashcards (max ~10–15, "Nochmal" cards first).
-  2. Next lesson of the current module.
-  3. One speaking set (3–5 sentences, voice translation).
-  Plus streak, daily goal ring, "noch eine Runde" for extra practice.
-- **Module:** learning path, units unlock one after the other; each shows progress.
-- **Karteikarten:** all cards, due count, practise freely.
-- **Meine Fehler / Wörterbuch:** words and phrases the AI suggested to her – each becomes a card.
-- **Fortschritt:** streak, minutes, words learned, modules done.
-
-### Module (each ~5 lessons, ~5–7 min per lesson)
-Lesson pattern: new words/phrases in context → short tip (grammar or "German trap", explained in
-German) → exercises → speaking task. Last lesson of each module = mixed review + mini conversation.
-
-Draft module list (everyday English with friends, ~B1 → B2):
-1. Small talk & getting to know people
-2. Making plans & arrangements
-3. Telling stories (past simple vs. present perfect)
-4. Opinions, agreeing & disagreeing
-5. Feelings & reactions
-6. Food, going out & ordering
-7. Travel & directions
-8. Work, study & daily life
-9. Problems, complaints & apologising
-10. Everyday phrasal verbs & idioms
-
-### Exercise types
-| Type | What she does | Skill |
-|---|---|---|
-| Voice translation | Sees German sentence, says it in English; AI accepts any natural answer and suggests better words + a "level up" version | Speaking, vocab |
-| Listen & repeat (shadowing) | Hears a natural sentence, repeats it aloud | Pronunciation, fluency |
-| Listening | Hears a sentence, picks the meaning / fills the gap | Listening |
-| Say more | Answers a question in 2+ sentences by voice; AI shows how to say more | Pushes past short answers |
-| Sentence builder | Puts word tiles in the right order | Word order, grammar |
-| Gap fill / multiple choice | Chooses the right form or word | Grammar |
-| Match pairs | Matches English ↔ German phrases | Vocab |
-| Mini conversation | Short spoken role-play, 3–5 turns | Free speaking |
-
-### Learning techniques built in
-- **Spaced repetition** (Leitner/SM-2 style: Nochmal / Schwer / Gut / Leicht) for all cards.
-- **Active recall:** she produces the English (DE → EN), not just recognises it; both directions.
-- **Chunks in context:** cards teach phrases in example sentences, not single words.
-- **Comprehensible input (i+1):** content slightly above her level, with German help when needed.
-- **Pushed output:** speaking tasks reward longer answers; "level up" versions model richer English.
-- **Shadowing** for pronunciation and rhythm.
-- **Interleaving & retrieval:** later lessons mix in material from earlier modules.
-- **Error-driven learning:** words she missed / the AI suggested become personal cards.
-- **German-speaker traps:** false friends, since/for, word order, tenses – with memory hooks.
-- **Habit:** fixed 10-minute daily plan, streak, small wins, gentle reminders.
-
-### Tech notes
-- Content (modules, cards, sentences) as JSON files in the repo – Claude writes and extends them.
-- Progress first in the browser (localStorage), then synced to Supabase.
-- Voice: Safari `webkitSpeechRecognition`; fallback = iPhone keyboard dictation. TTS: `speechSynthesis`.
-- AI feedback: Supabase Edge Function → Gemini (free). If AI is unavailable, simple offline check.
-
-## Infrastructure (as of 2026-11-08)
-- App: https://fredybansi-creator.github.io/miri-english/ (GitHub Pages from `main`)
-- Supabase project **Miri English** (`aagbnrcsprmhcwllfmcn`, eu-central-1, free) in org "Battlezone"
-- Edge Function `feedback` (source: `supabase/functions/feedback/index.ts`, deployed with verify_jwt=false;
-  it checks the Origin itself). Secret `GEMINI_API_KEY` (free Google AI Studio key, set by Freddy).
-  Model order: gemini-flash-lite-latest → gemini-flash-latest → gemini-3.8-flash (10 s each).
-- Edge Function `tts` (source: `supabase/functions/tts/index.ts`): ElevenLabs voices (US: Jessica + Will as
-  friend, UK: Alice + George), model eleven_flash_v2_5. Each sentence is generated once and cached in the public
-  Storage bucket `tts`; later requests redirect there. Secret `ELEVENLABS_API_KEY` (set by Freddy, free plan).
-  App falls back to an English browser voice if ElevenLabs fails (e.g. monthly credits used up).
-- Edge Function `progress` + table `public.progress` (RLS on, no policies – service role only): progress backup.
-  Miri's device gets a 16-character backup code (Fortschritt → Sicherung); only its SHA-256 hash is stored.
-  App pulls + merges on start, pushes 4 s after each change. Restore on a new device = enter the code.
-- "Meine Fehler": AI coach fixes become flashcards (max 5 new per day, first review next day).
-
-## Build phases
-1. **App shell + Today screen + flashcards (SRS) + module 1 content**, voice exercise with offline
-   check. Publish on GitHub Pages → Miri tests the microphone on her iPhone early.
-2. **AI feedback** (Supabase Edge Function + Gemini) for voice translation and "say more".
-3. **More exercise types** (listening, shadowing, sentence builder, mini conversation) + modules 2–3.
-4. **Progress sync to Supabase**, stats screen, "Meine Fehler" cards.
-5. Remaining modules, polish, reminders.
+## Open tasks
+1. **Kokoro audio:** generation was started 2026-11-09 (~2,300 files, US + UK). When `audio/` is
+   complete (manifest.json written), commit and push `audio/`. If it was interrupted, re-run
+   `tools/.venv/Scripts/python tools/make_audio.py` – it continues where it stopped.
+2. **Test on Freddy's iPhone:** hands-free mic in the Sam chat, Sam's voice on every reply.
+3. **Modules 4–10** (same format as m1–m3, 20 words per lesson, no idioms, then run make_audio.py):
+   4 Plans & arrangements (invitations, changing/cancelling plans) · 5 Feelings & reactions ·
+   6 Going out, food & ordering · 7 Travel & directions · 8 Work, study & daily life ·
+   9 Problems, complaints & apologies · 10 Everyday phrasal verbs (no idioms).
+   Ask Freddy about Miri's interests first if not known yet.
+4. Wait for Miri's feedback (level, daily load, Sam, voices) and adjust.
