@@ -13,7 +13,12 @@ export function startLesson(lesson, { onExit }) {
   const steps = [
     ...lesson.phrases.map((p, i) => ({ type: 'phrase', p, n: i + 1, of: lesson.phrases.length })),
     { type: 'tip', tip: lesson.tip },
-    ...lesson.exercises.map((e) => (e.type === 'speak' ? { type: 'speak', item: SPEAK.get(e.id) } : e)),
+    ...lesson.exercises.map((e, i) => {
+      if (e.type === 'speak') return { type: 'speak', item: SPEAK.get(e.id) };
+      if (e.type === 'free') return { type: 'speak', item: { ...lesson.free, mode: 'free' } };
+      if (e.type === 'shadow') return { type: 'speak', item: { id: `${lesson.id}-sh${i}`, mode: 'shadow', en: e.en, de: e.de } };
+      return e;
+    }),
   ];
   const baseTotal = steps.length;
   const retried = new Set();
@@ -189,19 +194,57 @@ const RENDER = {
     }));
   },
 
+  listen(root, ex, go) {
+    const order = shuffle(ex.options.map((o, i) => i));
+    root.innerHTML = `
+      <div class="kicker">🎧 Hör genau zu</div>
+      <div class="listen-box">
+        ${playBtn(ex.en, 'xl')}
+        <button class="btn btn-ghost btn-sm" data-slow>🐢 Langsamer</button>
+      </div>
+      <p class="q">${esc(ex.q)}</p>
+      <div class="options">${order.map((i) => `<button class="option" data-i="${i}">${esc(ex.options[i])}</button>`).join('')}</div>
+      <div class="grow"></div>`;
+    say(ex.en);
+    $('[data-slow]', root).addEventListener('click', () => say(ex.en, { rate: 0.7 }));
+    $$('.option', root).forEach((b) => b.addEventListener('click', () => {
+      const i = Number(b.dataset.i);
+      const ok = i === ex.answer;
+      $('.options', root).classList.add('answered');
+      b.classList.add(ok ? 'correct' : 'wrong');
+      if (!ok) $(`.option[data-i="${ex.answer}"]`, root).classList.add('correct');
+      feedback(root, {
+        ok, title: ok ? pickGood() : 'Nicht ganz',
+        text: esc(ex.explain || ''),
+        extra: `<p class="small" style="margin-top:10px"><b>Gehört:</b></p><div class="answer-line" style="margin-top:4px">${playBtn(ex.en)}<p>${esc(ex.en)}</p></div>`,
+        onNext: () => go(ok),
+      });
+    }));
+  },
+
+  listenbuild(root, ex, go) {
+    return RENDER.build(root, { ...ex, answer: ex.en, audio: true }, go);
+  },
+
   build(root, ex, go) {
     const words = ex.answer.split(' ');
     const bank = shuffle([...words, ...(ex.distractors || [])].map((w, i) => ({ w, i })));
     const chosen = [];
     root.innerHTML = `
-      <div class="kicker">Bau den Satz auf Englisch</div>
-      <p class="q-de">${esc(ex.de)}</p>
+      <div class="kicker">${ex.audio ? '🎧 Hör zu und bau den Satz' : 'Bau den Satz auf Englisch'}</div>
+      ${ex.audio
+        ? `<div class="listen-box">${playBtn(ex.answer, 'xl')}<button class="btn btn-ghost btn-sm" data-slow>🐢 Langsamer</button></div>`
+        : `<p class="q-de">${esc(ex.de)}</p>`}
       <div class="build-area" data-area></div>
       <div class="chips" data-bank>${bank.map((t) => `<button class="tile" data-i="${t.i}">${esc(t.w)}</button>`).join('')}</div>
       <div class="grow"></div>
       <div class="session-foot"><button class="btn btn-block" data-check disabled>Prüfen</button></div>`;
     const area = $('[data-area]', root);
     const checkBtn = $('[data-check]', root);
+    if (ex.audio) {
+      say(ex.answer);
+      $('[data-slow]', root).addEventListener('click', () => say(ex.answer, { rate: 0.7 }));
+    }
 
     function draw() {
       area.innerHTML = chosen.map((t) => `<button class="tile" data-i="${t.i}">${esc(t.w)}</button>`).join('');

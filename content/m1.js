@@ -47,8 +47,12 @@ export default {
         { type: 'choice', q: 'Ein Kollege fragt: „How’s work?“ Du hattest eine stressige Woche, willst aber nicht jammern. Was klingt am natürlichsten?', options: ['Pretty hectic, to be honest – but I can’t complain.', 'Quite stressful, but I don’t want to complain about.', 'It’s been a bit much stress lately.', 'Very busy, but I can’t complain myself.'], answer: 0, explain: '„much stress“ ist kein natürliches Englisch (a lot of stress), „complain about“ braucht ein Objekt, und „complain myself“ gibt es nicht.' },
         { type: 'match', pairs: [['catch up', 'sich austauschen'], ['snowed under', 'total überlastet'], ["It's been ages!", 'Ewig nicht gesehen!'], ["I can't complain.", 'Ich kann nicht klagen.']] },
         { type: 'build', de: 'Wir sollten uns bald mal richtig austauschen.', answer: 'We should catch up properly soon.', distractors: ['exchange', 'us'] },
+        { type: 'listen', en: "Sorry I've been so quiet lately – I've been completely snowed under with work, but things should calm down next month.", q: 'Warum hat sich die Person nicht gemeldet?', options: ['Sie hatte extrem viel Arbeit.', 'Sie war im Urlaub.', 'Sie war krank.', 'Sie hatte keine Lust.'], answer: 0, explain: 'snowed under with work = mit Arbeit überhäuft. calm down = ruhiger werden.' },
         { type: 'speak', id: 'm1l1s2' },
+        { type: 'shadow', en: "It's been ages! What have you been up to?", de: 'Ewig nicht gesehen! Was hast du so gemacht?' },
+        { type: 'free' },
       ],
+      free: { id: 'm1l1f', they: "So, tell me – what's new with you?", hint: 'Erzähl, was bei dir in letzter Zeit los war: Arbeit, Freizeit, Pläne. Mindestens 2–3 Sätze.', useWords: ['lately', "I've been …", 'snowed under', 'catch up'], sample: "Not much, to be honest – I've been pretty snowed under with work lately. But I've just started a yoga class, which is really fun. We should catch up properly soon!" },
     },
 
     // ------------------------------------------------------------------ 2
@@ -86,8 +90,12 @@ export default {
         { type: 'choice', q: 'Welcher Satz bedeutet „Ich bin daran gewöhnt, früh aufzustehen“?', options: ["I'm used to getting up early.", 'I used to get up early.', "I'm used to get up early.", 'I use to getting up early.'], answer: 0, explain: 'be used to + -ing = gewöhnt sein. „I used to get up early“ hieße: Früher bin ich früh aufgestanden.' },
         { type: 'match', pairs: [['end up doing', 'schließlich etwas tun'], ['used to', 'früher (mal)'], ['figure out', 'herausfinden'], ['not my thing', 'nicht mein Ding']] },
         { type: 'build', de: 'Ehrlich gesagt ist Joggen nicht so mein Ding.', answer: "To be honest, jogging isn't really my thing.", distractors: ['so', 'not'] },
+        { type: 'listen', en: "I grew up in the countryside, but I ended up moving to the city because there just weren't any jobs.", q: 'Warum ist die Person in die Stadt gezogen?', options: ['Wegen der Arbeit.', 'Wegen der Familie.', 'Weil das Land zu langweilig war.', 'Wegen des Studiums.'], answer: 0, explain: '„there weren’t any jobs“ = es gab keine Jobs. end up moving = schließlich umziehen.' },
         { type: 'speak', id: 'm1l2s2' },
+        { type: 'shadow', en: "I've been living here for about five years now, so it feels like home.", de: 'Ich wohne jetzt seit ungefähr fünf Jahren hier, also fühlt es sich wie Zuhause an.' },
+        { type: 'free' },
       ],
+      free: { id: 'm1l2f', they: 'Tell me a bit about yourself – where did you grow up?', hint: 'Erzähl, wo du aufgewachsen bist, wo du jetzt wohnst und seit wann. Mindestens 2–3 Sätze.', useWords: ['born and raised', 'ended up', "I've been living …", 'used to'], sample: "I was born and raised in a small town near Munich. I ended up moving to Hamburg for uni, and I've been living here for about six years now. I used to miss the mountains, but now I love being close to the sea." },
     },
 
     // ------------------------------------------------------------------ 3
@@ -125,8 +133,12 @@ export default {
         { type: 'fix', sentence: 'How come did you leave your job?', wrong: [2], correct: 'How come you left your job?', explain: 'Nach „How come“ steht die normale Satzstellung, ohne „did“.' },
         { type: 'match', pairs: [['get into', 'anfangen mit'], ['get used to', 'sich gewöhnen an'], ['How come?', 'Wieso denn?'], ['for a living', 'beruflich']] },
         { type: 'build', de: 'Was hat dich dazu gebracht, nach London zu ziehen?', answer: 'What made you decide to move to London?', distractors: ['did', 'moving'] },
+        { type: 'listen', en: "Honestly, what made me move was the weather – I just couldn't handle another grey winter.", q: 'Was war der Grund für den Umzug?', options: ['Das Wetter.', 'Ein neuer Job.', 'Die Familie.', 'Die hohen Kosten.'], answer: 0, explain: '„couldn’t handle“ = hätte nicht ausgehalten.' },
         { type: 'speak', id: 'm1l3s2' },
+        { type: 'shadow', en: 'What made you decide to move abroad?', de: 'Was hat dich dazu gebracht, ins Ausland zu ziehen?' },
+        { type: 'free' },
       ],
+      free: { id: 'm1l3f', they: 'I just got back from three months in Australia!', hint: 'Zeig Interesse: Stell mindestens 3 Fragen (wie es war, warum, was am besten war …).', useWords: ["What was it like …?", 'How come …?', 'What made you …?', 'Do you ever miss …?'], sample: "No way, that's amazing! What was it like? What made you decide to go there in the first place? And do you ever miss it now that you're back?" },
     },
 
     // ------------------------------------------------------------------ 4
@@ -164,8 +176,12 @@ export default {
         { type: 'choice', q: '„Eigentlich wollte ich zu Hause bleiben, aber dann bin ich doch mitgegangen.“', options: ['Actually, I wanted to stay home, but then I ended up going.', 'Currently I wanted to stay home, but then I went with anyway.', 'Actually I wanted to stay home, but then I went with.', 'Actually, I wanted to stay home, but then I have gone along.'], answer: 0, explain: '„doch mitgegangen“ → ended up going. „went with“ ohne Objekt ist Denglisch.' },
         { type: 'match', pairs: [['must have been', 'muss … gewesen sein'], ['work out', 'klappen'], ['be bound to', 'bestimmt passieren'], ['wiped out', 'total erledigt']] },
         { type: 'build', de: 'Das muss echt hart gewesen sein.', answer: 'That must have been really tough.', distractors: ['be', 'was'] },
+        { type: 'listen', en: "I didn't get the flat in the end, which is such a shame, but I'm sure something better will come along.", q: 'Wie fühlt sich die Person?', options: ['Enttäuscht, aber optimistisch.', 'Total wütend.', 'Erleichtert.', 'Gleichgültig.'], answer: 0, explain: '„such a shame“ = enttäuscht. „something better will come along“ = optimistisch.' },
         { type: 'speak', id: 'm1l4s2' },
+        { type: 'shadow', en: "That must have been really tough. I'm sure it'll work out.", de: 'Das muss echt hart gewesen sein. Ich bin sicher, das wird schon.' },
+        { type: 'free' },
       ],
+      free: { id: 'm1l4f', they: 'Ugh, I had the worst week. My laptop broke and I missed an important deadline.', hint: 'Reagiere mitfühlend und mach ihr Mut. Mindestens 2–3 Sätze.', useWords: ['That must have been …', "I'm sure it'll work out", 'such a shame', 'Is there anything I can do?'], sample: "Oh no, that must have been so stressful! I'm sure your boss will understand – these things happen to everyone. Is there anything I can do to help?" },
     },
 
     // ------------------------------------------------------------------ 5
@@ -203,8 +219,12 @@ export default {
         { type: 'fix', sentence: "I meet my sister on Saturday, but I'm free in the evening.", wrong: [1], correct: "I'm meeting my sister on Saturday, but I'm free in the evening.", explain: 'Feste Verabredung → present continuous: I’m meeting.' },
         { type: 'match', pairs: [['be up for', 'Lust haben auf'], ['give me a shout', 'melde dich'], ['after all', 'doch (nicht)'], ['make it', 'es schaffen']] },
         { type: 'build', de: 'Hast du am Samstag Lust auf einen Drink?', answer: 'Are you up for a drink on Saturday?', distractors: ['lust', 'have'] },
+        { type: 'listen', en: "I'd love to come, but I'm meeting my sister on Saturday. Could we do Sunday instead?", q: 'Was schlägt die Person vor?', options: ['Sonntag statt Samstag.', 'Samstag zusammen mit der Schwester.', 'Ein anderes Wochenende.', 'Gar nicht zu kommen.'], answer: 0, explain: '„instead“ = stattdessen.' },
         { type: 'speak', id: 'm1l5s2' },
+        { type: 'shadow', en: "I'd better get going. It was really good to catch up!", de: 'Ich sollte langsam los. Schön, dass wir uns ausgetauscht haben!' },
+        { type: 'free' },
       ],
+      free: { id: 'm1l5f', they: 'So, what are your plans for the weekend?', hint: 'Erzähl, was du am Wochenende vorhast (feste Termine + Ideen), und schlag etwas Gemeinsames vor.', useWords: ["I'm meeting …", "I'm going to …", 'Are you up for …?', 'Let me know!'], sample: "I'm meeting my parents for lunch on Saturday, and I'm going to clean my flat – exciting, I know! Are you up for a walk on Sunday? Let me know!" },
     },
   ],
 };

@@ -1,11 +1,13 @@
 // All modules. Only modules with `data` are playable; the rest show as "Kommt bald".
 import m1 from './m1.js';
+import m2 from './m2.js';
+import m3 from './m3.js';
 
 export const MODULES = [
   { id: 'm1', emoji: '👋', title: 'Small talk & getting to know people', titleDe: 'Small Talk & Leute kennenlernen', data: m1 },
-  { id: 'm2', emoji: '📅', title: 'Making plans', titleDe: 'Pläne & Verabredungen' },
-  { id: 'm3', emoji: '📖', title: 'Telling stories', titleDe: 'Geschichten erzählen' },
-  { id: 'm4', emoji: '💬', title: 'Opinions', titleDe: 'Meinungen, zustimmen & widersprechen' },
+  { id: 'm2', emoji: '📖', title: 'Telling stories', titleDe: 'Geschichten erzählen', data: m2 },
+  { id: 'm3', emoji: '💬', title: 'Opinions', titleDe: 'Meinungen, zustimmen & widersprechen', data: m3 },
+  { id: 'm4', emoji: '📅', title: 'Plans & arrangements', titleDe: 'Pläne, Einladungen & Absagen' },
   { id: 'm5', emoji: '💛', title: 'Feelings & reactions', titleDe: 'Gefühle & Reaktionen' },
   { id: 'm6', emoji: '🍝', title: 'Going out', titleDe: 'Essen, Ausgehen & Bestellen' },
   { id: 'm7', emoji: '✈️', title: 'Travel', titleDe: 'Reisen & Wege' },

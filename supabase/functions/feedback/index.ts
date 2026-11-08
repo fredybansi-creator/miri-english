@@ -16,18 +16,30 @@ const MODEL_TIMEOUT_MS = 10_000;
 const MODELS = (Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest,gemini-flash-latest,gemini-3.8-flash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
-const SYSTEM = `You are a warm, encouraging English speaking coach for Miri, a native German speaker at about B1+ level.
-She is practising casual conversations with friends. She sees a German reply and says it in English, out loud.
+const INTRO = `You are a warm, encouraging English speaking coach for Miri, a native German speaker at about B1+ level.
+She is practising casual conversations with friends.
 Her answer comes from speech recognition: ignore punctuation, capitalisation, filler words and obvious
-transcription glitches (homophones, a missing article the recogniser dropped).
+transcription glitches (homophones, a missing article the recogniser dropped).`;
 
+const TASK_TRANSLATE = `TASK: She sees a German reply and says it in English, out loud.
 Judge her answer like a friendly native speaker would:
 - It does NOT need to be a word-for-word translation. Any natural reply that gets the meaning across is fine.
 - "great": natural and complete, at most tiny slips.
 - "good": understandable, but with grammar mistakes, unnatural wording, or a missing part of the meaning.
-- "try": the meaning is mostly missing or wrong, or the answer is very short.
+- "try": the meaning is mostly missing or wrong, or the answer is very short.`;
 
-Return JSON only, with these fields:
+const TASK_FREE = `TASK: Her friend asked her something and she answers FREELY about her own life (there is no correct answer
+and no German text). The input contains the friend's line, a German hint describing what to talk about, and
+target phrases she was encouraged to use. Judge grammar, naturalness and whether she said enough:
+- "great": natural, mostly correct, at least 2-3 sentences that answer the friend.
+- "good": understandable but with mistakes, or a bit short (1-2 sentences).
+- "try": very short (under about 10 words) or hard to understand.
+In "praise" mention something specific she said. "corrected" = her answer with mistakes fixed, keeping her content.
+"levelUp" = her own story retold more richly and naturally (keep her facts, maybe use a target phrase).
+"betterWords" = useful phrases she could add next time (prefer the target phrases she did not use).
+If she said too little, the tip should encourage her (in German) to add a detail or a reason.`;
+
+const OUTPUT = `Return JSON only, with these fields:
 - level: "great" | "good" | "try"
 - praise: one short, specific, encouraging sentence in German (what she did well).
 - corrected: HER answer, minimally corrected so it is natural English. Keep her own words wherever they are fine.
@@ -39,6 +51,8 @@ Return JSON only, with these fields:
 - levelUp: a richer, very natural version a native speaker might say in this situation (casual, 1–3 sentences).
 - tip: one short German tip about a typical German-speaker mistake she made, or "" if none.
 Speak to her as "du". Be kind and concise.`;
+
+const systemFor = (mode: string) => `${INTRO}\n\n${mode === "free" ? TASK_FREE : TASK_TRANSLATE}\n\n${OUTPUT}`;
 
 const SCHEMA = {
   type: "OBJECT",
@@ -87,7 +101,7 @@ function json(body: unknown, status: number, origin: string | null) {
 
 const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
 
-async function askGemini(key: string, input: Record<string, unknown>) {
+async function askGemini(key: string, input: Record<string, unknown>, system: string) {
   let lastError = "no model available";
   const skipped: string[] = [];
   for (const model of MODELS) {
@@ -98,7 +112,7 @@ async function askGemini(key: string, input: Record<string, unknown>) {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM }] },
+          systemInstruction: { parts: [{ text: system }] },
           contents: [{ role: "user", parts: [{ text: JSON.stringify(input) }] }],
           generationConfig: { temperature: 0.3, responseMimeType: "application/json", responseSchema: SCHEMA },
         }),
@@ -147,18 +161,26 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400, origin); }
 
-  const said = clip(body.said, 600).trim();
+  const said = clip(body.said, 1200).trim();
   if (!said) return json({ error: "empty" }, 400, origin);
 
-  const input = {
-    friend_said: clip(body.they, 300),
-    german_reply_to_translate: clip(body.de, 400),
-    miri_said: said,
-    example_answers: (Array.isArray(body.answers) ? body.answers : []).slice(0, 4).map((a) => clip(a, 300)),
-  };
+  const mode = body.mode === "free" ? "free" : "translate";
+  const input = mode === "free"
+    ? {
+      friend_said: clip(body.they, 300),
+      what_to_talk_about_german_hint: clip(body.hint, 300),
+      target_phrases: (Array.isArray(body.useWords) ? body.useWords : []).slice(0, 6).map((a) => clip(a, 60)),
+      miri_said: said,
+    }
+    : {
+      friend_said: clip(body.they, 300),
+      german_reply_to_translate: clip(body.de, 400),
+      miri_said: said,
+      example_answers: (Array.isArray(body.answers) ? body.answers : []).slice(0, 4).map((a) => clip(a, 300)),
+    };
 
   try {
-    const { model, skipped, result } = await askGemini(key, input);
+    const { model, skipped, result } = await askGemini(key, input, systemFor(mode));
     return json({ ok: true, model, skipped, ...result }, 200, origin);
   } catch (e) {
     return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);

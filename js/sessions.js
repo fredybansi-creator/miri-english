@@ -156,7 +156,9 @@ function pickConversation() {
   });
   scored.sort((a, b) => a.prio - b.prio);
   const lesson = scored[0].l;
-  return { lesson, items: lesson.speak.map((x) => SPEAK.get(x.id)) };
+  const items = lesson.speak.map((x) => SPEAK.get(x.id));
+  if (lesson.free) items.push({ ...lesson.free, mode: 'free' }); // finish with a free answer
+  return { lesson, items };
 }
 
 function daysSince(dateStr) {
@@ -176,7 +178,7 @@ export function startSpeaking({ onExit }) {
     ui.progress(i, items.length);
     if (i >= items.length) return finish();
     current = renderSpeak(ui.body, items[i], {
-      kicker: `Gespräch ${i + 1}/${items.length} · Antworte auf Englisch`,
+      kicker: `Gespräch ${i + 1}/${items.length} · ${items[i].mode === 'free' ? 'Antworte frei' : 'Antworte auf Englisch'}`,
       onDone: (r) => { results.push(r); i++; next(); },
     });
   }

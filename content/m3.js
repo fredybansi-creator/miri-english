@@ -1,0 +1,217 @@
+// Module 3 – Opinions: giving, agreeing, disagreeing, hypotheticals, pros and cons (B1+ → B2).
+// Format: see m1.js.
+
+export default {
+  id: 'm3',
+  lessons: [
+    // ------------------------------------------------------------------ 1
+    {
+      id: 'm3l1',
+      title: 'If you ask me …',
+      goal: 'Locker die eigene Meinung sagen',
+      phrases: [
+        { id: 'm3l1p1', en: 'If you ask me, …', de: 'Wenn du mich fragst, …', ex: "If you ask me, it's way too expensive." },
+        { id: 'm3l1p2', en: 'I reckon …', de: 'Ich glaube / schätze …', ex: "I reckon it'll rain later.", note: 'Sehr umgangssprachlich, vor allem britisch.' },
+        { id: 'm3l1p3', en: 'To be fair, …', de: 'Fairerweise muss man sagen …', ex: 'To be fair, the food was great.' },
+        { id: 'm3l1p4', en: "I'm not a big fan of …", de: 'Ich bin kein großer Fan von …', ex: "I'm not a big fan of horror films." },
+        { id: 'm3l1p5', en: 'It depends.', de: 'Kommt drauf an.', ex: "“Do you like living in the city?” – “It depends on the day!”" },
+        { id: 'm3l1p6', en: "I'm on the fence.", de: 'Ich bin unentschlossen.', ex: "I'm still on the fence about moving." },
+      ],
+      tip: {
+        title: '„Ich finde“, „Ich meine“, „Ich bin einverstanden“',
+        body: '<ul><li>„Ich finde, …“ (Meinung) = <b>I think …</b> – nicht „I find …“ (das klingt nach einem Fund).</li><li>„Ich meine, …“ (Meinung) = <b>I think</b>. <b>I mean</b> benutzt man, um etwas zu erklären: <i>It’s expensive – I mean, really expensive.</i></li><li><b>I agree</b> – nie „I am agree“.</li><li>„according to me“ sagt man nicht – nur <i>according to him / the news</i>. Besser: <b>in my opinion</b>.</li></ul>',
+        examples: [
+          { bad: 'I am agree with you.', good: 'I agree with you.', why: 'agree ist ein Verb.' },
+          { bad: 'According to me, it was too long.', good: 'In my opinion, it was too long.', why: '„according to me“ gibt es nicht.' },
+        ],
+      },
+      speak: [
+        { id: 'm3l1s1', they: 'What do you think about social media? Is it good or bad?', de: 'Wenn du mich fragst, kommt es drauf an. Ich finde es super, um mit Freunden in Kontakt zu bleiben, aber ich verbringe viel zu viel Zeit damit.', answers: ["If you ask me, it depends. I think it's great for keeping in touch with friends, but I spend way too much time on it.", "If you ask me, it depends. It's great for staying in touch with friends, but I spend far too much time on it.", "If you ask me, it depends. I think it's great to stay in touch with friends, but I spend way too much time on it."], keywords: [['if you ask me'], ['it depends'], ['great', 'brilliant', 'really good'], ['keeping in touch', 'keep in touch', 'staying in touch', 'stay in touch'], ['way too much time', 'far too much time', 'too much time']], levelUp: "If you ask me, it depends. It's brilliant for keeping in touch with friends, but I spend way too much time scrolling.", note: '„ich finde“ = I think. „viel zu viel“ = way too much / far too much.' },
+        { id: 'm3l1s2', they: 'Same! Do you think it makes people unhappy?', de: 'Ich glaube schon. Fairerweise muss man sagen, dass es auch viele positive Seiten hat, aber man vergleicht sich ständig mit anderen.', answers: ['I reckon it does. To be fair, it also has a lot of positive sides, but you constantly compare yourself to others.', "I think so, yeah. To be fair, there are lots of positive sides too, but you're always comparing yourself with other people.", 'I reckon so. To be fair, it has a lot of good sides as well, but you constantly compare yourself to other people.'], keywords: [['i reckon', 'i think so', 'i think it does'], ['to be fair'], ['positive', 'good sides', 'upsides'], ['compare yourself', 'comparing yourself'], ['others', 'other people'], ['constantly', 'all the time', 'always']], levelUp: "I reckon it does, yeah. To be fair, it's got loads of positives too, but you end up constantly comparing yourself to everyone else.", note: '„man“ (allgemein) = you: you compare yourself.' },
+        { id: 'm3l1s3', they: 'Have you ever thought about deleting it?', de: 'Ehrlich gesagt bin ich da unentschlossen. Ich bin kein großer Fan von TikTok, aber ohne Instagram würde ich viel verpassen.', answers: ["To be honest, I'm on the fence. I'm not a big fan of TikTok, but without Instagram I would miss out on a lot.", "Honestly, I'm on the fence about it. I'm not a big fan of TikTok, but I'd miss out on a lot without Instagram.", "To be honest, I'm not sure. I'm not a huge fan of TikTok, but without Instagram I'd miss out on so much."], keywords: [['to be honest', 'honestly'], ['on the fence', 'not sure', 'undecided'], ['not a big fan', 'not a huge fan'], ['tiktok', 'tik tok'], ['without instagram'], ['miss out', 'miss a lot', 'miss so much']], levelUp: "Honestly, I'm on the fence. I'm not a big fan of TikTok, but I feel like I'd miss out on so much without Instagram.", note: '„verpassen“ (Ereignisse, Infos) = miss out (on).' },
+        { id: 'm3l1s4', they: "Fair enough. I deleted it last year and I don't miss it at all.", de: 'Echt? Respekt! Ich meine, das ist bestimmt gesünder, aber ich glaube, ich wäre zu neugierig.', answers: ["Really? Respect! I mean, it's probably healthier, but I think I'd be too curious.", "Seriously? Respect! I mean, it's definitely healthier, but I reckon I'd be too curious.", "Really? Fair play! I mean, it's probably healthier, but I think I'd be way too nosy."], keywords: [['really', 'seriously'], ['respect', 'fair play', 'good for you'], ['i mean'], ['healthier'], ["i'd be", 'i would be'], ['curious', 'nosy']], levelUp: "Really? Fair play to you! I mean, it's probably way healthier, but I reckon I'd be too nosy.", note: '„bestimmt“ (Vermutung) = probably / I bet. neugierig = curious / nosy.' },
+      ],
+      exercises: [
+        { type: 'choice', q: 'Du stimmst zu. Was ist korrekt?', options: ['I agree with you.', 'I am agree with you.', "I'm agreeing you.", 'I give you right.'], answer: 0, explain: 'agree ist ein Verb – ohne „am“. „Ich gebe dir recht“ = You’re right / I agree.' },
+        { type: 'fix', sentence: 'According to me, the film was way too long.', wrong: [0, 1, 2], correct: 'In my opinion, the film was way too long.', explain: '„according to me“ sagt man nicht – nur „according to him / the news“.' },
+        { type: 'listen', en: 'To be fair, the food was amazing, but it was way too expensive for what it was.', q: 'Was denkt die Person über das Restaurant?', options: ['Essen super, aber zu teuer.', 'Essen schlecht und teuer.', 'Günstig und lecker.', 'Zu wenig Essen.'], answer: 0, explain: '„for what it was“ = dafür, was es war.' },
+        { type: 'speak', id: 'm3l1s1' },
+        { type: 'gap', sentence: "I'm still on the ___ about moving to Berlin.", options: ['fence', 'wall', 'edge', 'border'], answer: 0, explain: 'be on the fence = unentschlossen sein.' },
+        { type: 'match', pairs: [['I reckon', 'ich schätze'], ['on the fence', 'unentschlossen'], ['to be fair', 'fairerweise'], ['miss out', 'etwas verpassen']] },
+        { type: 'listenbuild', en: "I'm not a big fan of social media, to be honest.", distractors: ['huge', 'from'] },
+        { type: 'speak', id: 'm3l1s2' },
+        { type: 'shadow', en: "If you ask me, it depends. I'm not a big fan of it.", de: 'Wenn du mich fragst, kommt es drauf an. Ich bin kein großer Fan davon.' },
+        { type: 'free' },
+      ],
+      free: { id: 'm3l1f', they: "What's your opinion on working from home?", hint: 'Sag deine Meinung (3–4 Sätze) – mit einem Vorteil und einem Nachteil.', useWords: ['If you ask me …', 'It depends', 'To be fair …', "I'm not a big fan of …"], sample: "If you ask me, it depends on the job. To be fair, it saves loads of time because you don't have to commute. But I'm not a big fan of being alone all day – I miss my colleagues." },
+    },
+
+    // ------------------------------------------------------------------ 2
+    {
+      id: 'm3l2',
+      title: 'Fair point!',
+      goal: 'Zustimmen – und „ich auch / ich auch nicht“',
+      phrases: [
+        { id: 'm3l2p1', en: "I couldn't agree more.", de: 'Da stimme ich dir voll zu.', ex: "“This city is too expensive.” – “I couldn't agree more.”" },
+        { id: 'm3l2p2', en: 'Fair point.', de: 'Guter Punkt. / Da hast du recht.', ex: 'Fair point – I hadn’t thought of that.' },
+        { id: 'm3l2p3', en: "You've got a point.", de: 'Da ist was dran.', ex: "You've got a point – it is pretty far away." },
+        { id: 'm3l2p4', en: "That's so true.", de: 'Das stimmt total.', ex: "That's so true – nobody calls anymore." },
+        { id: 'm3l2p5', en: 'So do I. / So am I.', de: 'Ich auch.', ex: "“I love this song.” – “So do I!”", note: 'Das Hilfsverb passt sich an: I’m tired → So am I. I can swim → So can I.' },
+        { id: 'm3l2p6', en: 'Neither can I. / Me neither.', de: 'Ich auch nicht.', ex: "“I can't stand the cold.” – “Neither can I.”" },
+      ],
+      tip: {
+        title: '„Ich auch“ und „Ich auch nicht“',
+        body: '<p>Im Englischen wiederholt man das <b>Hilfsverb</b> des anderen:</p><ul><li>I’m tired. → <b>So am I.</b> · I love it. → <b>So do I.</b> · I’ve been there. → <b>So have I.</b></li><li>I can’t sleep. → <b>Neither can I.</b> · I don’t like it. → <b>Neither do I.</b></li></ul><p>Ganz locker geht auch: <b>Me too</b> / <b>Me neither</b>. Aber nie „Me too not“!</p>',
+        examples: [
+          { bad: "“I don't like coffee.” – “Me too not.”", good: "“I don't like coffee.” – “Me neither.”", why: 'Verneint → me neither / neither do I.' },
+          { bad: "“I'm so tired.” – “So do I.”", good: "“I'm so tired.” – “So am I.”", why: 'I’m → so am I.' },
+        ],
+      },
+      speak: [
+        { id: 'm3l2s1', they: 'I think living in a big city is overrated.', de: 'Da stimme ich dir voll zu! Alles ist so teuer, und man findet kaum eine bezahlbare Wohnung.', answers: ["I couldn't agree more! Everything is so expensive, and you can hardly find an affordable flat.", "I couldn't agree more! Everything's so expensive and it's almost impossible to find an affordable apartment.", 'I totally agree! Everything is so expensive, and you can barely find an affordable flat.'], keywords: [["couldn't agree more", 'totally agree', 'completely agree'], ['so expensive'], ['hardly', 'barely', 'almost impossible'], ['affordable'], ['flat', 'apartment']], levelUp: "I couldn't agree more! Everything's ridiculously expensive, and finding an affordable flat is almost impossible.", note: '„kaum“ = hardly / barely. bezahlbar = affordable.' },
+        { id: 'm3l2s2', they: "Exactly. And it's so loud all the time.", de: 'Das stimmt total. Ich kann wegen meiner Nachbarn nachts kaum schlafen.', answers: ["That's so true. I can hardly sleep at night because of my neighbours.", 'So true. I can barely sleep at night because of my neighbours.', "That's so true. I can hardly sleep at night because of my neighbors."], keywords: [['so true'], ['hardly sleep', 'barely sleep', "can't sleep"], ['at night'], ['because of'], ['neighbours', 'neighbors']], levelUp: "That's so true – I can barely sleep at night because of my neighbours.", note: '„wegen“ = because of.' },
+        { id: 'm3l2s3', they: "But to be fair, there's so much more to do in a city.", de: 'Da ist was dran. Ich gehe oft ins Theater, und das würde ich auf dem Land echt vermissen.', answers: ["You've got a point. I often go to the theatre, and I would really miss that in the countryside.", "Fair point. I go to the theatre a lot, and I'd really miss that in the country.", "You've got a point there. I often go to the theater, and I'd really miss it in the countryside."], keywords: [["you've got a point", 'fair point', 'good point'], ['theatre', 'theater'], ['often', 'a lot'], ['really miss'], ['countryside', 'the country']], levelUp: "Fair point. I go to the theatre quite a lot, and I'd genuinely miss that if I lived in the countryside.", note: '„auf dem Land“ = in the countryside / in the country.' },
+        { id: 'm3l2s4', they: "I don't think I could ever live in a village, though.", de: 'Ich auch nicht! Ich wäre nach einer Woche gelangweilt.', answers: ["Neither could I! I'd be bored after a week.", 'Me neither! I would be bored after a week.', "Neither could I. I'd get bored after a week."], keywords: [['neither could i', 'me neither', 'nor could i'], ['bored'], ['after a week', 'within a week', 'after one week']], levelUp: "Neither could I! I'd be bored out of my mind within a week.", note: '„Ich auch nicht“ auf „I couldn’t“ → Neither could I / Me neither. Gefühl → bored.' },
+      ],
+      exercises: [
+        { type: 'choice', q: '„I’m really tired today.“ – Dir geht es genauso. Was sagst du?', options: ['So am I.', 'So do I.', 'Neither am I.', 'Me too not.'], answer: 0, explain: 'I’m → So am I.' },
+        { type: 'choice', q: '„I can’t stand cold weather.“ – Du auch nicht.', options: ['Neither can I.', 'Me too not.', "So can't I.", 'Neither do I.'], answer: 0, explain: 'can’t → Neither can I.' },
+        { type: 'fix', sentence: 'I give you right, the city is far too loud.', wrong: [1, 2, 3], correct: "You're right, the city is far too loud.", explain: '„Ich gebe dir recht“ = You’re right / I agree.' },
+        { type: 'speak', id: 'm3l2s1' },
+        { type: 'listen', en: "You've got a point, but I still think it's worth paying a bit more to live near the centre.", q: 'Was meint die Person?', options: ['Sie stimmt teilweise zu, findet die zentrale Lage aber das Geld wert.', 'Sie stimmt völlig zu.', 'Sie will aufs Land ziehen.', 'Sie findet das Zentrum zu teuer.'], answer: 0, explain: 'worth paying = es wert, dafür zu zahlen.' },
+        { type: 'match', pairs: [['fair point', 'guter Punkt'], ['overrated', 'überbewertet'], ['affordable', 'bezahlbar'], ['hardly', 'kaum']] },
+        { type: 'gap', sentence: "I couldn't agree ___!", options: ['more', 'better', 'most', 'less'], answer: 0, explain: 'Feste Wendung: I couldn’t agree more.' },
+        { type: 'speak', id: 'm3l2s2' },
+        { type: 'shadow', en: "I couldn't agree more! Everything is so expensive.", de: 'Da stimme ich dir voll zu! Alles ist so teuer.' },
+        { type: 'free' },
+      ],
+      free: { id: 'm3l2f', they: 'Do you prefer living in the city or in the countryside? Why?', hint: 'Sag, was du lieber magst und warum (3–4 Sätze). Stimm dem Freund in einem Punkt zu.', useWords: ["I couldn't agree more", "You've got a point", 'That’s so true', 'I’d rather …'], sample: "Honestly, I'd rather live in the city. You've got a point that it's loud and expensive, but there's always something going on. In the countryside I'd be bored within a week!" },
+    },
+
+    // ------------------------------------------------------------------ 3
+    {
+      id: 'm3l3',
+      title: 'I see what you mean, but …',
+      goal: 'Höflich widersprechen',
+      phrases: [
+        { id: 'm3l3p1', en: 'I see what you mean, but …', de: 'Ich verstehe, was du meinst, aber …', ex: "I see what you mean, but I don't think it's that simple." },
+        { id: 'm3l3p2', en: "I'm not so sure about that.", de: 'Da bin ich mir nicht so sicher.', ex: "Hmm, I'm not so sure about that." },
+        { id: 'm3l3p3', en: 'Not necessarily.', de: 'Nicht unbedingt.', ex: "Expensive doesn't necessarily mean better." },
+        { id: 'm3l3p4', en: "I'd say …", de: 'Ich würde sagen …', ex: "I'd say it's more about luck." },
+        { id: 'm3l3p5', en: "That's not really how I see it.", de: 'So sehe ich das eigentlich nicht.', ex: "That's not really how I see it, to be honest." },
+        { id: 'm3l3p6', en: "Let's agree to disagree.", de: 'Wir sind uns eben nicht einig.', ex: "Okay, let's just agree to disagree!" },
+      ],
+      tip: {
+        title: 'Weichmacher: nicht zu direkt',
+        body: '<p>Deutsch ist oft direkt: „Das ist falsch.“ Auf Englisch klingt das schnell unhöflich. Man polstert ab:</p><ul><li><b>I’m not sure that’s quite right.</b></li><li><b>I’d say …</b> / <b>I’m not so sure about that.</b></li><li><b>a bit</b>, <b>kind of</b>, <b>maybe</b>: <i>It’s a bit expensive.</i></li></ul><p>Und Vorsicht: „You are false“ heißt „Du bist falsch/unehrlich“! Sag <b>You’re wrong</b> – oder besser weicher.</p>',
+        examples: [
+          { bad: "That's wrong.", good: "Hmm, I'm not sure that's quite right.", why: 'Weicher – gleiche Botschaft.' },
+          { bad: 'You are false.', good: "I don't think that's right.", why: '„false“ für Personen = unehrlich.' },
+        ],
+      },
+      speak: [
+        { id: 'm3l3s1', they: 'Honestly, I think money makes people happy.', de: 'Ich verstehe, was du meinst, aber da bin ich mir nicht so sicher. Geld hilft natürlich, aber es ist nicht alles.', answers: ["I see what you mean, but I'm not so sure about that. Money helps, of course, but it isn't everything.", "I see what you mean, but I'm not so sure. Of course money helps, but it's not everything.", "I know what you mean, but I'm not so sure about that. Money obviously helps, but it's not everything."], keywords: [['see what you mean', 'know what you mean'], ['not so sure'], ['of course', 'obviously'], ['money helps'], ['not everything']], levelUp: "I see what you mean, but I'm not so sure. Money definitely helps, but it's not everything.", note: 'Erst Verständnis zeigen, dann widersprechen – klingt freundlich.' },
+        { id: 'm3l3s2', they: "Really? I'd be much happier with a bigger salary.", de: 'Nicht unbedingt. Ich würde sagen, Zeit mit Freunden und ein Job, der Spaß macht, sind viel wichtiger.', answers: ["Not necessarily. I'd say time with friends and a job you enjoy are much more important.", "Not necessarily. I'd say spending time with friends and having a job you enjoy is far more important.", 'Not necessarily. I would say time with friends and a fun job are a lot more important.'], keywords: [['not necessarily'], ["i'd say", 'i would say'], ['time with friends'], ['job you enjoy', 'job that you enjoy', 'fun job', 'job you like'], ['more important']], levelUp: "Not necessarily. I'd say having time for your friends and a job you actually enjoy matters way more.", note: '„ein Job, der Spaß macht“ = a job you enjoy (nicht „a job that makes fun“).' },
+        { id: 'm3l3s3', they: 'Easy to say if you can pay your rent!', de: 'Okay, guter Punkt. Aber so sehe ich das eigentlich nicht – ab einem gewissen Punkt macht mehr Geld nicht glücklicher.', answers: ["Okay, fair point. But that's not really how I see it – after a certain point, more money doesn't make you happier.", "Okay, fair point. But that's not really how I see it. Beyond a certain point, more money doesn't make you any happier.", "Okay, fair enough. But that's not really how I see it – after a certain point, more money doesn't make people happier."], keywords: [['fair point', 'fair enough', 'good point'], ['not really how i see it'], ['after a certain point', 'beyond a certain point', 'at a certain point'], ['more money'], ["doesn't make"], ['happier']], levelUp: "Okay, fair point. But that's not really how I see it – beyond a certain point, more money doesn't make you any happier." },
+        { id: 'm3l3s4', they: "Hmm, I don't think we'll agree on this one.", de: 'Wahrscheinlich nicht! Lass uns einfach festhalten, dass wir uns nicht einig sind – und noch ein Bier bestellen.', answers: ["Probably not! Let's just agree to disagree and order another beer.", "Probably not! Let's agree to disagree – and order another beer.", "Probably not. Let's just agree to disagree and get another beer."], keywords: [['probably not'], ['agree to disagree'], ['another beer', 'another round', 'one more beer'], ['order', 'get']], levelUp: "Probably not! Let's just agree to disagree – and order another round." },
+      ],
+      exercises: [
+        { type: 'choice', q: 'Ein Kollege sagt etwas, das du für falsch hältst. Was klingt höflich, aber klar?', options: ["I'm not sure that's quite right.", "That's wrong.", 'No, you are false.', 'This is not correct what you say.'], answer: 0, explain: 'Englisch mag Weichmacher. „You are false“ heißt „Du bist unehrlich“.' },
+        { type: 'fix', sentence: 'I see it completely different.', wrong: [4], correct: 'I see it completely differently.', explain: 'Wie man etwas sieht → Adverb: differently.' },
+        { type: 'gap', sentence: "Rich people aren't ___ happier.", options: ['necessarily', 'needfully', 'unconditionally', 'obligatory'], answer: 0, explain: 'nicht unbedingt = not necessarily.' },
+        { type: 'speak', id: 'm3l3s1' },
+        { type: 'listen', en: "I see where you're coming from, but I'm not convinced that banning cars from the city centre would actually work.", q: 'Was denkt die Person über das Autoverbot?', options: ['Sie zweifelt, dass es funktionieren würde.', 'Sie ist begeistert dafür.', 'Sie sagt, es gibt es schon.', 'Sie hat keine Meinung.'], answer: 0, explain: 'I see where you’re coming from = ich verstehe, warum du das denkst. convinced = überzeugt.' },
+        { type: 'match', pairs: [['not necessarily', 'nicht unbedingt'], ['agree to disagree', 'sich uneinig bleiben'], ['convinced', 'überzeugt'], ['salary', 'Gehalt']] },
+        { type: 'listenbuild', en: "That's not really how I see it.", distractors: ['what', 'different'] },
+        { type: 'speak', id: 'm3l3s2' },
+        { type: 'shadow', en: "I see what you mean, but I'm not so sure about that.", de: 'Ich verstehe, was du meinst, aber da bin ich mir nicht so sicher.' },
+        { type: 'free' },
+      ],
+      free: { id: 'm3l3f', they: 'I think everyone should learn to cook. Do you agree?', hint: 'Stimm teilweise zu und widersprich dann höflich (3–4 Sätze).', useWords: ['I see what you mean, but …', 'Not necessarily', "I'd say …", "That's not really how I see it"], sample: "I see what you mean, but not necessarily. I'd say it's useful to know the basics, but not everyone enjoys cooking. Some people would rather spend their time on other things, and that's fine too." },
+    },
+
+    // ------------------------------------------------------------------ 4
+    {
+      id: 'm3l4',
+      title: 'If I were you …',
+      goal: 'Ratschläge geben und „was wäre, wenn“ besprechen',
+      phrases: [
+        { id: 'm3l4p1', en: "If I were you, I'd …", de: 'Wenn ich du wäre, würde ich …', ex: "If I were you, I'd take the job." },
+        { id: 'm3l4p2', en: "I'd rather …", de: 'Ich würde lieber …', ex: "I'd rather stay in tonight." },
+        { id: 'm3l4p3', en: 'What would you do if …?', de: 'Was würdest du tun, wenn …?', ex: 'What would you do if you won the lottery?' },
+        { id: 'm3l4p4', en: 'I wish I could …', de: 'Ich wünschte, ich könnte …', ex: 'I wish I could speak Spanish.' },
+        { id: 'm3l4p5', en: 'In an ideal world, …', de: 'In einer idealen Welt …', ex: "In an ideal world, I'd only work four days a week." },
+        { id: 'm3l4p6', en: 'Go for it!', de: 'Mach es einfach! / Trau dich!', ex: "You want to apply? Go for it!" },
+      ],
+      tip: {
+        title: 'Kein „would“ im if-Satz!',
+        body: '<p>Im Deutschen sagt man oft „Wenn ich mehr Geld <b>hätte</b> / haben <b>würde</b> …“. Im Englischen gilt: im <b>if</b>-Teil die Vergangenheitsform, im anderen Teil <b>would</b>:</p><p><b>If I had</b> more money, <b>I’d travel</b> more.</p><p>Bei „sein“ sagt man gern <b>were</b>: <b>If I were you …</b></p>',
+        examples: [
+          { bad: 'If I would have more time, I would travel.', good: "If I had more time, I'd travel.", why: 'Kein would im if-Satz.' },
+          { bad: "If I would be you, I'd go.", good: "If I were you, I'd go.", why: 'If I were you – feste Wendung.' },
+        ],
+      },
+      speak: [
+        { id: 'm3l4s1', they: "I got a job offer in Barcelona, but I'm not sure if I should take it.", de: 'Wow! Wenn ich du wäre, würde ich es machen. So eine Chance bekommt man nicht oft.', answers: ["Wow! If I were you, I'd do it. You don't get a chance like that very often.", "Wow! If I were you, I would take it. You don't get an opportunity like that often.", "Wow! If I were you, I'd go for it. Chances like that don't come along very often."], keywords: [['if i were you'], ["i'd do it", 'i would do it', "i'd take it", 'i would take it', "i'd go for it"], ['chance', 'opportunity'], ['often']], levelUp: "Wow! If I were you, I'd go for it – opportunities like that don't come along every day.", note: 'bekommen = get. „so eine Chance“ = a chance like that.' },
+        { id: 'm3l4s2', they: "But what if I don't make any friends there?", de: 'Ich bin sicher, dass du schnell Leute kennenlernen würdest. Und wenn es dir nicht gefällt, könntest du ja zurückkommen.', answers: ["I'm sure you'd meet people quickly. And if you didn't like it, you could always come back.", "I'm sure you would get to know people quickly. And if you don't like it, you can always come back.", "I'm sure you'd make friends quickly. And if you didn't like it, you could just come back."], keywords: [["i'm sure"], ['meet people', 'get to know people', 'make friends'], ['quickly', 'fast', 'in no time'], ["if you didn't like it", "if you don't like it"], ['come back']], levelUp: "I'm sure you'd make friends in no time. And if you didn't like it, you could always come back.", note: '„Leute kennenlernen“ = meet people. „ja“ hier = always / just.' },
+        { id: 'm3l4s3', they: 'True. What would you do if you could live anywhere?', de: 'Gute Frage! Ich würde lieber am Meer wohnen als in einer Großstadt. In einer idealen Welt hätte ich ein kleines Haus in Portugal.', answers: ["Good question! I'd rather live by the sea than in a big city. In an ideal world, I'd have a little house in Portugal.", 'Good question! I would rather live by the sea than in a city. In an ideal world I would have a small house in Portugal.', "Good question! I'd rather live near the sea than in a big city. In an ideal world, I'd have a little house in Portugal."], keywords: [['good question'], ["i'd rather", 'i would rather'], ['by the sea', 'near the sea', 'on the coast'], ['than'], ['in an ideal world'], ['little house', 'small house'], ['portugal']], levelUp: "Ooh, good question! I'd much rather live by the sea than in a big city – in an ideal world, I'd have a little place on the coast in Portugal.", note: '„lieber … als“ = rather … than.' },
+        { id: 'm3l4s4', they: "That sounds amazing. Why don't you do it?", de: 'Ich wünschte, ich könnte! Aber im Moment wäre es wegen meiner Arbeit zu kompliziert.', answers: ['I wish I could! But at the moment it would be too complicated because of my job.', 'I wish I could! But right now it would be too complicated because of work.', "I wish I could, but at the moment it'd be too complicated because of my job."], keywords: [['i wish i could'], ['at the moment', 'right now', 'currently'], ['too complicated'], ['because of', 'with'], ['job', 'work']], levelUp: "I wish I could! But right now it'd be way too complicated with my job." },
+      ],
+      exercises: [
+        { type: 'choice', q: '„Wenn ich mehr Zeit hätte, würde ich reisen.“', options: ["If I had more time, I'd travel.", "If I would have more time, I'd travel.", 'If I have more time, I would travel.', 'When I would have more time, I travel.'], answer: 0, explain: 'Kein would im if-Satz: If I had …, I’d …' },
+        { type: 'fix', sentence: "If I would be you, I'd take the job.", wrong: [2, 3], correct: "If I were you, I'd take the job.", explain: 'Feste Wendung: If I were you.' },
+        { type: 'gap', sentence: "I'd ___ stay at home tonight, to be honest.", options: ['rather', 'prefer', 'better', 'like'], answer: 0, explain: 'I’d rather + Grundform. (I’d prefer TO stay ginge auch – mit „to“.)' },
+        { type: 'speak', id: 'm3l4s1' },
+        { type: 'listen', en: "If I were in your shoes, I'd talk to your manager before making any big decisions.", q: 'Was rät die Person?', options: ['Erst mit dem Chef sprechen, dann entscheiden.', 'Sofort kündigen.', 'Neue Schuhe kaufen.', 'Gar nichts tun.'], answer: 0, explain: 'in your shoes = an deiner Stelle.' },
+        { type: 'match', pairs: [['if I were you', 'wenn ich du wäre'], ["I'd rather", 'ich würde lieber'], ['in your shoes', 'an deiner Stelle'], ['go for it', 'trau dich']] },
+        { type: 'listenbuild', en: "I wish I could, but it would be too complicated.", distractors: ['would', 'can'] },
+        { type: 'speak', id: 'm3l4s2' },
+        { type: 'shadow', en: "If I were you, I'd go for it.", de: 'Wenn ich du wäre, würde ich es machen.' },
+        { type: 'free' },
+      ],
+      free: { id: 'm3l4f', they: 'If you won a million euros, what would you do?', hint: 'Erzähl, was du tun würdest (3–4 Sätze) – mit I’d, I’d rather, If I …', useWords: ["I'd …", "I'd rather …", 'If I had …', 'In an ideal world …'], sample: "First, I'd pay off my parents' house. Then I'd travel around South America for a few months. I'd rather not quit my job completely, but in an ideal world I'd only work three days a week." },
+    },
+
+    // ------------------------------------------------------------------ 5
+    {
+      id: 'm3l5',
+      title: 'Is it worth it?',
+      goal: 'Vor- und Nachteile abwägen',
+      phrases: [
+        { id: 'm3l5p1', en: 'On the one hand … on the other hand …', de: 'Einerseits … andererseits …', ex: "On the one hand it's cheap, on the other hand it's really far away." },
+        { id: 'm3l5p2', en: 'The upside is …', de: 'Der Vorteil ist …', ex: 'The upside is that it’s really central.' },
+        { id: 'm3l5p3', en: 'The downside is …', de: 'Der Nachteil ist …', ex: 'The downside is the noise.' },
+        { id: 'm3l5p4', en: "It's worth it.", de: 'Es lohnt sich.', ex: 'It’s expensive, but it’s totally worth it.' },
+        { id: 'm3l5p5', en: "It's not worth the hassle.", de: 'Der Aufwand lohnt sich nicht.', ex: "Driving into town? It's not worth the hassle." },
+        { id: 'm3l5p6', en: 'At the end of the day, …', de: 'Letztendlich …', ex: "At the end of the day, it's your decision." },
+      ],
+      tip: {
+        title: '„Es lohnt sich“ = it’s worth it',
+        body: '<ul><li><b>It’s worth it.</b> = Es lohnt sich.</li><li><b>It’s worth + -ing</b>: <i>The museum is worth visiting.</i> · <i>It’s worth trying.</i></li><li><b>It’s (not) worth the money / the hassle / the time.</b></li></ul><p>Nie „worth to …“ und nie „it worths“ – worth ist kein Verb.</p>',
+        examples: [
+          { bad: "It's worth to visit the museum.", good: 'The museum is worth visiting.', why: 'worth + -ing.' },
+          { bad: "It doesn't worth it.", good: "It's not worth it.", why: 'worth ist kein Verb → be worth.' },
+        ],
+      },
+      speak: [
+        { id: 'm3l5s1', they: "I'm thinking about buying a car. What do you think?", de: 'Einerseits ist es praktisch, andererseits ist es echt teuer. Der Nachteil ist, dass man in der Stadt nie einen Parkplatz findet.', answers: ["On the one hand it's practical, on the other hand it's really expensive. The downside is that you never find a parking space in the city.", "On the one hand, it's convenient, but on the other hand it's really expensive. The downside is you can never find a parking spot in the city.", "On the one hand it's practical, but on the other it's really expensive. The downside is that you can never find parking in the city."], keywords: [['on the one hand'], ['on the other'], ['practical', 'convenient', 'handy'], ['expensive'], ['the downside'], ['parking space', 'parking spot', 'parking']], levelUp: "On the one hand it's super convenient, but on the other it's really expensive – and the downside is you can never find a parking space in the city.", note: '„Parkplatz“ (einzelner) = parking space / parking spot.' },
+        { id: 'm3l5s2', they: "True. But I'd be so much more flexible.", de: 'Das stimmt, das ist der Vorteil. Aber lohnt es sich wirklich, nur für die paar Ausflüge am Wochenende?', answers: ["That's true, that's the upside. But is it really worth it just for a few trips at the weekend?", 'True, that’s the upside. But is it really worth it just for a few weekend trips?', "That's true, that's the advantage. But is it really worth it for a couple of trips on the weekend?"], keywords: [['true'], ['upside', 'advantage'], ['really worth it', 'worth it'], ['a few', 'a couple of'], ['trips', 'outings'], ['weekend']], levelUp: 'True, that’s the upside. But is it really worth it just for a few weekend trips?', note: '„sich lohnen“ = be worth it.' },
+        { id: 'm3l5s3', they: 'Hmm. Car sharing could be an option, I guess.', de: 'Genau! Es lohnt sich, das mal auszuprobieren. Dann musst du dich nicht um Versicherung und Reparaturen kümmern.', answers: ["Exactly! It's worth trying that. Then you don't have to worry about insurance and repairs.", "Exactly! It's worth giving it a try. Then you don't have to deal with insurance and repairs.", "Exactly! It's definitely worth trying. Then you don't need to worry about insurance and repairs."], keywords: [['exactly'], ['worth trying', 'worth giving it a try', 'worth a try'], ["don't have to", "don't need to"], ['worry about', 'deal with', 'take care of'], ['insurance'], ['repairs']], levelUp: "Exactly! It's definitely worth giving it a try – then you don't have to deal with insurance or repairs.", note: '„es lohnt sich, … zu tun“ = it’s worth + -ing.' },
+        { id: 'm3l5s4', they: 'Yeah, owning a car sounds like a lot of hassle.', de: 'Letztendlich musst du das selbst entscheiden. Aber wenn du mich fragst, lohnt sich der Aufwand nicht.', answers: ["At the end of the day, you have to decide for yourself. But if you ask me, it's not worth the hassle.", "At the end of the day it's your decision. But if you ask me, it isn't worth the hassle.", "At the end of the day, you have to decide yourself. But if you ask me, it's not worth the trouble."], keywords: [['at the end of the day'], ['decide', 'decision', 'your call'], ['if you ask me'], ['not worth', "isn't worth"], ['hassle', 'trouble', 'effort']], levelUp: "At the end of the day, it's your call – but if you ask me, it's just not worth the hassle.", note: '„your call“ = deine Entscheidung (umgangssprachlich).' },
+      ],
+      exercises: [
+        { type: 'choice', q: '„Es lohnt sich, das Museum zu besuchen.“', options: ['The museum is worth visiting.', "It's worth to visit the museum.", 'The museum lohnt itself.', 'It worths visiting the museum.'], answer: 0, explain: 'worth + -ing. „worth to“ und „it worths“ gibt es nicht.' },
+        { type: 'fix', sentence: "It's not worth to wait for the bus.", wrong: [3, 4], correct: "It's not worth waiting for the bus.", explain: 'worth + -ing: worth waiting.' },
+        { type: 'gap', sentence: "On the one hand it's cheap, on the ___ hand it's really far away.", options: ['other', 'second', 'another', 'different'], answer: 0, explain: 'Feste Wendung: on the one hand … on the other hand.' },
+        { type: 'speak', id: 'm3l5s1' },
+        { type: 'listen', en: "The upside is the money's great; the downside is I'd hardly ever see my family.", q: 'Was ist der Nachteil?', options: ['Sie würde ihre Familie kaum sehen.', 'Das Geld ist schlecht.', 'Der Job ist langweilig.', 'Sie müsste umziehen.'], answer: 0, explain: 'hardly ever = fast nie.' },
+        { type: 'match', pairs: [['upside', 'Vorteil'], ['downside', 'Nachteil'], ['hassle', 'Aufwand, Stress'], ["it's your call", 'deine Entscheidung']] },
+        { type: 'listenbuild', en: "At the end of the day, it's not worth the hassle.", distractors: ['worths', 'to'] },
+        { type: 'speak', id: 'm3l5s2' },
+        { type: 'shadow', en: "On the one hand it's practical, but on the other it's really expensive.", de: 'Einerseits ist es praktisch, andererseits ist es echt teuer.' },
+        { type: 'free' },
+      ],
+      free: { id: 'm3l5f', they: 'Would you rather have a high salary or lots of free time?', hint: 'Wäge ab (3–4 Sätze): Vorteile, Nachteile und deine Entscheidung.', useWords: ['On the one hand …', 'The downside is …', "It's worth it", 'At the end of the day …'], sample: "On the one hand, a high salary would be nice – I could travel more. The downside is you usually have to work crazy hours. At the end of the day, I'd rather have more free time. Money isn't worth it if you're always stressed." },
+    },
+  ],
+};

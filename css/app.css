@@ -346,6 +346,10 @@ a.btn { text-decoration: none; }
 .fixes span { display: block; font-size: 14px; color: var(--ink-2); margin-top: 2px; }
 .example-answer { margin-top: 14px; font-size: 15px; }
 .example-answer summary { cursor: pointer; font-weight: 700; color: var(--ink-2); }
+.play.xl { width: 76px; height: 76px; }
+.play.xl svg { width: 34px; height: 34px; }
+.listen-box { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 8px 0 18px; }
+.free-hint { font-size: 18px; font-weight: 600; line-height: 1.4; }
 .q-de-sm { font-size: 21px; line-height: 1.35; }
 .fix-sentence { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .fix-sentence .tile.correct { box-shadow: inset 0 0 0 2px var(--good); background: var(--good-soft); color: var(--good); }
