@@ -11,6 +11,7 @@ Setup once:  python -m venv tools/.venv
              model files from https://github.com/thewh1teagle/kokoro-onnx/releases (model-files-v1.0)
              → tools/models/kokoro-v1.0.onnx and tools/models/voices-v1.0.bin
 """
+import gc
 import json
 import pathlib
 import re
@@ -131,7 +132,17 @@ def main():
             if not out.exists():
                 try:
                     samples, rate = kokoro.create(text, voice=voice, speed=1.0, lang=lang)
-                    out.write_bytes(to_mp3(samples, rate))
+                    data = to_mp3(samples, rate)
+                    del samples
+                    for attempt in range(5):  # Windows sometimes reports WinError 1450 (no resources)
+                        try:
+                            out.write_bytes(data)
+                            break
+                        except OSError:
+                            if attempt == 4:
+                                raise
+                            gc.collect()
+                            time.sleep(2 * (attempt + 1))
                     made += 1
                 except Exception as e:  # keep going – the app falls back to the device voice
                     print("  failed:", vset, text[:50], e)
