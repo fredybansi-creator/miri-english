@@ -5,7 +5,7 @@ import { SPEAK, LESSONS } from '../content/index.js';
 import { renderSpeak } from './speak.js';
 import { sameSentence } from './check.js';
 import { addCards, addWordCards } from './srs.js';
-import { getState, save, today, markTask, addTime } from './store.js';
+import { getState, save, today, addDays, markTask, addTime } from './store.js';
 import { say, stopSpeaking } from './speech.js';
 
 export function startLesson(lesson, { onExit }) {
@@ -26,6 +26,16 @@ export function startLesson(lesson, { onExit }) {
   let pos = 0;
   let correct = 0, answered = 0;
   let current = null;
+  // Miri (2026-11): a reload or leaving the app started the lesson again at step 1 → resume where she was.
+  const run = getState().lessonRun;
+  if (run?.id === lesson.id && run.total === baseTotal && run.pos > 0 && run.pos < baseTotal && run.date >= addDays(today(), -2)) {
+    ({ pos, correct, answered } = run);
+  }
+  const keepPlace = () => {
+    const s = getState();
+    s.lessonRun = pos < baseTotal ? { id: lesson.id, pos, total: baseTotal, correct, answered, date: today() } : null;
+    save();
+  };
 
   const ui = shell({ onClose: () => { current?.destroy?.(); onExit(); } });
 
@@ -41,6 +51,7 @@ export function startLesson(lesson, { onExit }) {
       // wrong answers come back once at the end of the lesson
       if (ok === false && !retried.has(step) && step.type !== 'match') { retried.add(step); steps.push(step); }
       pos++;
+      keepPlace();
       next();
     };
     const R = RENDER[step.type];
@@ -49,6 +60,7 @@ export function startLesson(lesson, { onExit }) {
 
   function finish() {
     const s = getState();
+    s.lessonRun = null;
     const wasDone = s.lessons[lesson.id]?.done;
     const score = answered ? Math.round((correct / answered) * 100) : 100;
     s.lessons[lesson.id] = { done: true, date: wasDone ? s.lessons[lesson.id].date : today(), score: Math.max(score, s.lessons[lesson.id]?.score || 0) };
@@ -59,11 +71,13 @@ export function startLesson(lesson, { onExit }) {
     addTime((Date.now() - started) / 1000);
     ui.hideTop();
     const nWords = (lesson.words || []).length;
+    const shown = Math.min(nWords, WORDS_SHOWN);
+    const wordText = nWords > shown ? `${nWords} Wörter (${shown} davon hast du heute gesehen)` : `${nWords} Wörter`;
     summary(ui.body, {
       emoji: '🎉',
       title: 'Lektion geschafft!',
-      text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} Ausdrücke und ${nWords} Wörter sind jetzt in deinen Karteikarten. Die Wörter kommen verteilt über die nächsten Tage.`}`,
-      stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke'], [String(nWords), 'Wörter']],
+      text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} Ausdrücke und ${wordText} sind jetzt in deinen Karteikarten. Die Wörter kommen verteilt über die nächsten Tage.`}`,
+      stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke'], [String(shown), 'neue Wörter']],
       onDone: onExit,
     });
   }

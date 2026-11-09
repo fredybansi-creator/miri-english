@@ -12,7 +12,7 @@ import { LESSONS, findLesson } from '../content/index.js';
 import { getState, save, today, day, markTask, addTime } from './store.js';
 
 const DAILY_GOAL = 3;       // her messages per day that complete the "Plaudern" task
-const HISTORY_FOR_AI = 16;  // last lines Raluca sees
+const HISTORY_FOR_AI = 60;  // last lines Raluca sees (older lines of Miri's go along as "facts")
 const ARCHIVE_SIZE = 10;
 
 export function scenarioFor(lesson) {
@@ -258,10 +258,16 @@ export function startChat({ pickLesson, onExit }) {
     btn.after(done);
     // throttle live-text updates (each update re-lays out the page)
     let pending = '', raf = 0;
+    // Hands-free: after she has said something and then is quiet for a while, send it by itself
+    // (long enough to think in the middle of a sentence). Tap-to-talk waits for "Fertig".
+    const free = handsFree();
+    if (free) $('[data-label]', main).textContent = 'Ich höre zu – nach einer längeren Pause schicke ich es ab (oder tippe „Fertig“).';
+    let quiet = 0;
     // keeps listening through pauses until she taps "Fertig"
     const current = listen({ untilStopped: true, onInterim: (t) => {
       pending = t;
       if (!raf) raf = requestAnimationFrame(() => { raf = 0; live.textContent = pending ? `„${pending}“` : ''; });
+      if (free && t.trim()) { clearTimeout(quiet); quiet = setTimeout(() => { if (session === current) finishTalking(); }, 3500); }
     } });
     session = current;
     const safety = setTimeout(() => { if (session === current) finishTalking(); }, 120000);
@@ -286,6 +292,7 @@ export function startChat({ pickLesson, onExit }) {
       })
       .finally(() => {
         clearTimeout(safety);
+        clearTimeout(quiet);
         if (session === current) session = null;
         // stopped without a result (e.g. after a tap on stop) → make sure the button is back to normal
         if (!closed && !waiting) {
@@ -327,7 +334,9 @@ export function startChat({ pickLesson, onExit }) {
     render();
     try {
       const history = chat.msgs.slice(-HISTORY_FOR_AI).map((m) => ({ who: m.who, text: m.text }));
-      const { reply } = await chatReply(scenario, history);
+      // so Raluca doesn't forget what Miri told her long ago in a long chat
+      const facts = chat.msgs.slice(0, -HISTORY_FOR_AI).filter((m) => m.who === 'miri').map((m) => m.text).slice(-30);
+      const { reply } = await chatReply(scenario, history, facts);
       chat.msgs.push({ who: 'sam', text: reply });
       save();
       waiting = false;

@@ -237,7 +237,11 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
       return { level, score: AI_SCORE[level], said, words, used, answer: item.answers[0] || '', missing: [], marked: [] };
     }
     const r = checkAnswer(item, saidList);
-    if (kind === 'shadow') r.missing = [];
+    if (kind === 'shadow') {
+      // repeating only half of the sentence is not "good" yet
+      r.missing = [];
+      r.level = r.score >= 0.9 ? 'great' : r.score >= 0.75 ? 'good' : 'try';
+    }
     return r;
   }
 

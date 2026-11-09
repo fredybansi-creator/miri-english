@@ -45,8 +45,8 @@ export async function lookupWord(word, context = '') {
 }
 
 /** Conversation partner: Raluca's next line. history = [{ who: 'sam'|'miri', text }] */
-export async function chatReply(scenario, history) {
-  const d = await post({ mode: 'chat_reply', scenario, history }, 20000);
+export async function chatReply(scenario, history, facts = []) {
+  const d = await post({ mode: 'chat_reply', scenario, history, facts }, 20000);
   return { reply: String(d.reply || ''), done: !!d.done };
 }
 
