@@ -130,7 +130,7 @@ function kokoroUrl(text, role) {
 
 function elevenUrl(text) {
   if (getState().settings.samVoice === false || elevenFailures >= 3) return null;
-  return `${TTS_URL}?v=${accentKey()}&r=friend&t=${encodeURIComponent(normText(text))}`;
+  return `${TTS_URL}?v=${accentKey()}&r=main&t=${encodeURIComponent(normText(text))}`;
 }
 
 // Tells listeners (e.g. Raluca the fox) when something is being read aloud.
@@ -204,56 +204,124 @@ export function stopSpeaking() {
 }
 
 /**
- * Start listening. Returns { promise, stop }.
+ * Start listening. Returns { promise, stop, abort }.
  * promise resolves { text, alternatives } or rejects with { code }:
  * 'not-allowed' | 'service-not-allowed' | 'no-speech' | 'network' | 'audio-capture' | 'aborted' | 'unsupported'
+ *
+ * untilStopped: keep listening through pauses until stop() is called. iPhone Safari ends a recognition
+ * at the first short pause, so we quietly start a new one and glue the pieces together. Without it,
+ * listening ends at the first pause (old behaviour).
  */
-export function listen({ onInterim } = {}) {
+export function listen({ onInterim, untilStopped = false } = {}) {
   if (!SR) {
-    return { promise: Promise.reject(Object.assign(new Error('unsupported'), { code: 'unsupported' })), stop() {} };
+    return { promise: Promise.reject(Object.assign(new Error('unsupported'), { code: 'unsupported' })), stop() {}, abort() {} };
   }
   stopSpeaking();
-  const rec = new SR();
-  rec.lang = getState().settings.accent;
-  rec.interimResults = true;
-  rec.maxAlternatives = 3;
-  rec.continuous = false;
 
-  let finals = [];
-  let interim = '';
+  const parts = [];        // finished pieces (one per recognition run)
+  let partAlts = null;     // alternatives of the first piece (only used when there is one piece)
+  let finals = [];         // current run: final results (each = list of alternatives)
+  let interim = '';        // current run: words not final yet
   let error = null;
+  let settled = false;
+  let stopping = false;
+  let restarts = 0;
+  let rec = null;
+  let finish = () => {};
+  const timers = [];
+  const FATAL = ['not-allowed', 'service-not-allowed', 'audio-capture', 'network'];
+
+  const current = () => (finals.length ? finals.map((a) => a[0]).join(' ') : interim).trim();
+  // Move what the current run heard into parts.
+  const commit = () => {
+    const t = current();
+    if (t) {
+      if (!parts.length && finals.length === 1) partAlts = finals[0];
+      parts.push(t);
+    }
+    finals = [];
+    interim = '';
+  };
+  const liveText = () => [...parts, (finals.map((a) => a[0]).join(' ') + ' ' + interim).trim()].filter(Boolean).join(' ');
 
   const promise = new Promise((resolve, reject) => {
-    rec.onresult = (e) => {
-      const fin = [];
-      interim = '';
-      for (let i = 0; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) fin.push(Array.from(r).map((a) => a.transcript.trim()));
-        else interim += r[0].transcript;
+    // Settles exactly once – from onend, or forced when iPhone Safari never sends onend.
+    finish = (forceCode) => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      if (rec) rec.onresult = rec.onerror = rec.onend = null;
+      if (forceCode === 'aborted') {
+        reject(Object.assign(new Error('aborted'), { code: 'aborted' }));
+        return;
       }
-      finals = fin;
-      onInterim?.((fin.map((a) => a[0]).join(' ') + ' ' + interim).trim());
-    };
-    rec.onerror = (e) => { error = e.error; };
-    rec.onend = () => {
-      if (finals.length) {
-        const text = finals.map((a) => a[0]).join(' ').trim();
-        const alternatives = finals.length === 1 ? finals[0] : [text];
-        resolve({ text, alternatives });
-      } else if (interim.trim()) {
-        resolve({ text: interim.trim(), alternatives: [interim.trim()] });
+      commit();
+      if (parts.length) {
+        const text = parts.join(' ').trim();
+        resolve({ text, alternatives: parts.length === 1 && partAlts ? partAlts : [text] });
       } else {
-        const code = error || 'no-speech';
+        const code = error || forceCode || 'no-speech';
         reject(Object.assign(new Error(code), { code }));
       }
     };
   });
 
-  try { rec.start(); } catch (e) {
-    return { promise: Promise.reject(Object.assign(new Error('start-failed'), { code: 'start-failed' })), stop() {} };
+  function run() {
+    const r = new SR();
+    rec = r;
+    r.lang = getState().settings.accent;
+    r.interimResults = true;
+    r.maxAlternatives = 3;
+    r.continuous = false;
+    r.onresult = (e) => {
+      const fin = [];
+      interim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const res = e.results[i];
+        if (res.isFinal) fin.push(Array.from(res).map((a) => a.transcript.trim()));
+        else interim += res[0].transcript;
+      }
+      finals = fin;
+      onInterim?.(liveText());
+    };
+    r.onerror = (e) => {
+      // a pause without words is fine while we keep listening
+      if (untilStopped && !stopping && (e.error === 'no-speech' || e.error === 'aborted')) return;
+      error = e.error;
+    };
+    r.onend = () => {
+      if (rec !== r) return;
+      if (untilStopped && !stopping && !settled && !FATAL.includes(error) && restarts < 60) {
+        commit();
+        restarts++;
+        try { run(); return; } catch { /* fall through */ }
+      }
+      finish();
+    };
+    r.start();
   }
-  return { promise, stop: () => { try { rec.stop(); } catch { /* ignore */ } } };
+
+  try { run(); } catch (e) {
+    return { promise: Promise.reject(Object.assign(new Error('start-failed'), { code: 'start-failed' })), stop() {}, abort() {} };
+  }
+
+  // iPhone Safari sometimes ignores stop() and never fires onend – the mic then stays on forever.
+  // So: stop() → abort() after a moment → give up waiting and settle the promise ourselves.
+  const stop = () => {
+    if (settled || stopping) return;
+    stopping = true;
+    try { rec.stop(); } catch { /* ignore */ }
+    timers.push(setTimeout(() => { try { rec.abort(); } catch { /* ignore */ } }, 1200));
+    timers.push(setTimeout(() => finish(), 2500));
+  };
+  // Throw away what was heard (leaving the screen) – settles right away.
+  const abort = () => {
+    if (settled) return;
+    stopping = true;
+    try { rec.abort(); } catch { /* ignore */ }
+    finish('aborted');
+  };
+  return { promise, stop, abort };
 }
 
 export function errorMessage(code) {

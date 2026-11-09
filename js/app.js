@@ -2,7 +2,7 @@
 import { $, $$, esc, icon, playBtn, setSession, toast, plural } from './ui.js';
 import { MODULES, LESSONS, PHRASES, findLesson } from '../content/index.js';
 import { getState, save, today, addDays, day, streak, bestStreak, totalSeconds, isActiveDay, resetAll } from './store.js';
-import { dueCount, learnedIds, addWordCards } from './srs.js';
+import { dueToday, dueCount, learnedIds, practisedCount, addWordCards } from './srs.js';
 import { startLesson, startReview, reviewPool } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
 import { startChat } from './chat.js';
@@ -90,7 +90,7 @@ function renderWelcome() {
       <div class="center">
         <div class="celebrate">👋</div>
         <h1 class="summary-title">Hi Miri!</h1>
-        <p class="muted" style="margin-top:8px">Willkommen bei <b>Miri English</b>. Jeden Tag ca. 15 Minuten – und du sprichst Englisch, statt nur Vokabeln zu pauken.</p>
+        <p class="muted" style="margin-top:8px">Willkommen bei <b>Miri English</b>. Jeden Tag ca. 20 Minuten – und du sprichst Englisch, statt nur Vokabeln zu pauken.</p>
       </div>
       <ol class="plain welcome-steps">
         <li><div class="task-icon">📘</div><div><b>Lektion</b><p class="small muted">Neue Ausdrücke, ein kurzer Tipp und Übungen.</p></div></li>
@@ -114,6 +114,7 @@ function renderWelcome() {
   $('[data-start]').addEventListener('click', () => {
     getState().welcomed = true;
     save();
+    startSync();
     go('today');
     render();
   });
@@ -124,7 +125,7 @@ function renderToday() {
   const d = day();
   const s = getState();
   const lesson = nextLesson();
-  const due = dueCount();
+  const due = dueToday();
   const hasCards = learnedIds().length > 0;
   const cardsDone = d.cards || (hasCards && due === 0);
   const tasks = [d.lesson, cardsDone, d.speaking];
@@ -162,7 +163,7 @@ function renderToday() {
       </div>
       <div>
         <h2>${msg}</h2>
-        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 15 Minuten · Lektion, Karten, Plaudern mit Raluca'}</p>
+        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 20 Minuten · Lektion, Karten, Plaudern mit Raluca'}</p>
       </div>
     </div>
 
@@ -242,13 +243,14 @@ function renderModules() {
 // ---------------------------------------------------------------- cards
 function renderCards() {
   const ids = learnedIds();
-  const due = dueCount();
+  const due = dueToday();
+  const dueMore = dueCount() - due;
   const cards = getState().cards;
   const t = today();
   app.innerHTML = `
     <div class="page-head"><h1 class="page-title">Karteikarten</h1></div>
     <div class="stats">
-      <div class="stat"><b>${due}</b><span>heute fällig</span></div>
+      <div class="stat"><b>${due}</b><span>heute fällig${dueMore > 0 ? ` (+${dueMore} später)` : ''}</span></div>
       <div class="stat"><b>${ids.length}</b><span>Karten insgesamt</span></div>
     </div>
     <div class="stack" style="margin-top:14px">
@@ -345,7 +347,7 @@ function renderProgress() {
     <div class="stats" style="margin-top:10px">
       <div class="stat"><b>🔥 ${streak()}</b><span>Tage in Folge (Rekord: ${bestStreak()})</span></div>
       <div class="stat"><b>${minutes}</b><span>Minuten geübt</span></div>
-      <div class="stat"><b>${learnedIds().length}</b><span>Ausdrücke gelernt</span></div>
+      <div class="stat"><b>${practisedCount()}</b><span>Karten geübt (von ${learnedIds().length})</span></div>
       <div class="stat"><b>${spoken}</b><span>Sätze gesprochen</span></div>
       <div class="stat"><b>${lessonsDone}</b><span>Lektionen geschafft</span></div>
       <div class="stat"><b>${Math.round(day().seconds / 60)}</b><span>Minuten heute</span></div>
@@ -537,6 +539,7 @@ async function restoreFlow(input) {
   if (!code) { toast('Der Code hat 16 Zeichen, z. B. ABCD-EFGH-JKLM-NPQR.'); return; }
   try {
     await restore(code);
+    startSync();
     toast('Fortschritt geholt! 🎉');
     go('today');
     render();
@@ -573,7 +576,14 @@ function applyFoxSetting() {
 ensureWordCards();
 applyFoxSetting();
 render();
-initSync().then((changed) => {
-  ensureWordCards();
-  if (changed && !document.body.classList.contains('in-session')) render();
-});
+// The online backup starts only once she has started (no empty backup rows from just opening the app).
+let syncStarted = false;
+function startSync() {
+  if (syncStarted) return;
+  syncStarted = true;
+  initSync().then((changed) => {
+    ensureWordCards();
+    if (changed && !document.body.classList.contains('in-session')) render();
+  });
+}
+if (getState().welcomed) startSync();

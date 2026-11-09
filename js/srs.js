@@ -41,6 +41,17 @@ export function dueCount() {
   return Object.values(getState().cards).filter((c) => c.due <= t).length;
 }
 
+// One card session plays at most 20 cards, so screens show at most that.
+export const SESSION_CARDS = 20;
+export function dueToday() {
+  return Math.min(dueCount(), SESSION_CARDS);
+}
+
+// Cards she has actually practised at least once.
+export function practisedCount() {
+  return Object.values(getState().cards).filter((c) => c.reps > 0 || c.last).length;
+}
+
 // Interval (in days) that a grade would give – used for the button labels.
 export function preview(card, grade) {
   const i = card.interval;

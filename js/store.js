@@ -4,6 +4,7 @@ const KEY = 'miri-english-v1';
 const defaults = () => ({
   version: 1,
   welcomed: false,
+  lessonRun: null,   // where she left an unfinished lesson (resumes there)
   created: today(),
   updatedAt: 0,  // ms timestamp of the last local change
   settings: { accent: 'en-US', rate: 0.95 },

@@ -5,7 +5,7 @@ import { SPEAK, LESSONS } from '../content/index.js';
 import { renderSpeak } from './speak.js';
 import { sameSentence } from './check.js';
 import { addCards, addWordCards } from './srs.js';
-import { getState, save, today, markTask, addTime } from './store.js';
+import { getState, save, today, addDays, markTask, addTime } from './store.js';
 import { say, stopSpeaking } from './speech.js';
 
 export function startLesson(lesson, { onExit }) {
@@ -14,7 +14,7 @@ export function startLesson(lesson, { onExit }) {
     ...lesson.phrases.map((p, i) => ({ type: 'phrase', p, n: i + 1, of: lesson.phrases.length })),
     ...wordPages(lesson),
     { type: 'tip', tip: lesson.tip },
-    ...lesson.exercises.map((e, i) => {
+    ...shortExercises(lesson).map(({ e, i }) => {
       if (e.type === 'speak') return { type: 'speak', item: SPEAK.get(e.id) };
       if (e.type === 'free') return { type: 'speak', item: { ...lesson.free, mode: 'free' } };
       if (e.type === 'shadow') return { type: 'speak', item: { id: `${lesson.id}-sh${i}`, mode: 'shadow', en: e.en, de: e.de } };
@@ -26,6 +26,16 @@ export function startLesson(lesson, { onExit }) {
   let pos = 0;
   let correct = 0, answered = 0;
   let current = null;
+  // Miri (2026-11): a reload or leaving the app started the lesson again at step 1 → resume where she was.
+  const run = getState().lessonRun;
+  if (run?.id === lesson.id && run.total === baseTotal && run.pos > 0 && run.pos < baseTotal && run.date >= addDays(today(), -2)) {
+    ({ pos, correct, answered } = run);
+  }
+  const keepPlace = () => {
+    const s = getState();
+    s.lessonRun = pos < baseTotal ? { id: lesson.id, pos, total: baseTotal, correct, answered, date: today() } : null;
+    save();
+  };
 
   const ui = shell({ onClose: () => { current?.destroy?.(); onExit(); } });
 
@@ -41,6 +51,7 @@ export function startLesson(lesson, { onExit }) {
       // wrong answers come back once at the end of the lesson
       if (ok === false && !retried.has(step) && step.type !== 'match') { retried.add(step); steps.push(step); }
       pos++;
+      keepPlace();
       next();
     };
     const R = RENDER[step.type];
@@ -49,6 +60,7 @@ export function startLesson(lesson, { onExit }) {
 
   function finish() {
     const s = getState();
+    s.lessonRun = null;
     const wasDone = s.lessons[lesson.id]?.done;
     const score = answered ? Math.round((correct / answered) * 100) : 100;
     s.lessons[lesson.id] = { done: true, date: wasDone ? s.lessons[lesson.id].date : today(), score: Math.max(score, s.lessons[lesson.id]?.score || 0) };
@@ -59,11 +71,13 @@ export function startLesson(lesson, { onExit }) {
     addTime((Date.now() - started) / 1000);
     ui.hideTop();
     const nWords = (lesson.words || []).length;
+    const shown = Math.min(nWords, WORDS_SHOWN);
+    const wordText = nWords > shown ? `${nWords} Wörter (${shown} davon hast du heute gesehen)` : `${nWords} Wörter`;
     summary(ui.body, {
       emoji: '🎉',
       title: 'Lektion geschafft!',
-      text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} Ausdrücke und ${nWords} Wörter sind jetzt in deinen Karteikarten. Die Wörter kommen verteilt über die nächsten Tage.`}`,
-      stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke'], [String(nWords), 'Wörter']],
+      text: `<b>${esc(lesson.title)}</b><br>${wasDone ? 'Gut wiederholt!' : `${lesson.phrases.length} Ausdrücke und ${wordText} sind jetzt in deinen Karteikarten. Die Wörter kommen verteilt über die nächsten Tage.`}`,
+      stats: [[`${score}%`, 'richtig'], [String(lesson.phrases.length), 'Ausdrücke'], [String(shown), 'neue Wörter']],
       onDone: onExit,
     });
   }
@@ -71,9 +85,31 @@ export function startLesson(lesson, { onExit }) {
   next();
 }
 
+// Miri (2026-11): lessons were too long (30 min instead of 15). A lesson now plays about 8 exercises:
+// one of each tap type, two speaking tasks, one listening task and the shadowing. The other exercises
+// stay in the content and still come back in the mixed review. Open speaking ("free") happens in the
+// daily chat with Raluca instead.
+const SKIP_IN_LESSON = new Set(['free']);
+function shortExercises(lesson) {
+  const all = lesson.exercises.map((e, i) => ({ e, i }));
+  const hasListen = all.some(({ e }) => e.type === 'listen' || e.type === 'listenbuild');
+  const seen = {};
+  return all.filter(({ e }) => {
+    if (SKIP_IN_LESSON.has(e.type)) return false;
+    if (e.type === 'build' && hasListen) return false;
+    const group = e.type === 'listenbuild' ? 'listen' : e.type;
+    seen[group] = (seen[group] || 0) + 1;
+    return seen[group] <= (group === 'speak' ? 2 : 1);
+  });
+}
+
+// Words shown on the overview pages; all of the lesson's words still become flashcards afterwards
+// (spread over the next days).
+const WORDS_SHOWN = 10;
+
 // Two short overview pages with the lesson's key words (they become flashcards after the lesson).
 function wordPages(lesson) {
-  const words = lesson.words || [];
+  const words = (lesson.words || []).slice(0, WORDS_SHOWN);
   if (!words.length) return [];
   const half = Math.ceil(words.length / 2);
   const pages = [words.slice(0, half), words.slice(half)].filter((p) => p.length);

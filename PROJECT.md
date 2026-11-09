@@ -50,7 +50,8 @@ the current state, so any new session can pick up the work.
   adding/changing lesson sentences (existing files are skipped), then commit `audio/`.
   Setup: `tools/.venv` (kokoro-onnx, soundfile, lameenc, json5) + model files in `tools/models/`
   (both gitignored). ~2.5 s per sentence on Freddy's PC.
-- **ElevenLabs only for Raluca** (Edge Function `tts`, voices Will (US) / George (UK), cached in Storage
+- **ElevenLabs only for Raluca** (Edge Function `tts`, female voices Jessica (US) / Alice (UK) = role `main`
+  since 2026-11-09 (was male Will/George = role `friend`), cached in Storage
   bucket `tts`). Free plan; Raluca uses roughly 15k characters/month.
 - **Device voice** for one-off texts (coach corrections, lookup examples, mistake cards) and as fallback.
   iPhone Safari does NOT expose downloaded Premium voices (tested: Ava missing) – don't retry that.
@@ -72,10 +73,21 @@ the current state, so any new session can pick up the work.
 
 ## Open tasks
 1. **Kokoro audio:** done 2026-11-09 – all 2,282 files (US + UK) committed. Re-run make_audio.py after content changes.
-2. **Raluca's voice:** ElevenLabs voices are still male (Will/George) – ask Freddy whether to switch to a female voice to match the new name.
+2. **Raluca's voice:** done 2026-11-09 – female (Jessica/Alice).
 3. **Modules 4–10** – ON HOLD (Freddy, 2026-11-09): first Miri does a few modules and says what she wants changed; then write 4–10 with her feedback. Ask about her interests then (same format as m1–m3, 20 words per lesson, no idioms, then run make_audio.py):
    4 Plans & arrangements (invitations, changing/cancelling plans) · 5 Feelings & reactions ·
    6 Going out, food & ordering · 7 Travel & directions · 8 Work, study & daily life ·
    9 Problems, complaints & apologies · 10 Everyday phrasal verbs (no idioms).
    Ask Freddy about Miri's interests first if not known yet.
-4. Wait for Miri's feedback (level, daily load, Raluca, voices) and adjust.
+4. Miri's first feedback (2026-11-09) is handled in PR #2 – see "Miri's feedback" below. Ask again after she has used it.
+
+## Miri's feedback (2026-11-09) and what changed
+- Speaking tasks had too many sentences → 33 of 60 cut to 1–2 sentences. Keep new ones short (max ~2 short sentences).
+- Mic stopped at her first pause → `listen({ untilStopped })` keeps going until she taps the green "Fertig".
+- Stop button froze → PR #1 fix (abort/forced settle) + lessons abort the mic when leaving.
+- End-to-end test (same day): 72/100 → 88/100 after fixes. Raluca gets the last 60 lines + Miri's older lines as `facts`; lessons resume after reload (`state.lessonRun`); online backup starts only after "Los geht's"; hands-free chat sends after 3.5 s of quiet. When testing with Playwright, fake `functions/v1/progress` so no backup rows are created.
+- Raluca sounded male → female ElevenLabs voices. Raluca's prompt: always English, talks like a friend.
+- Corrections in German → prompts say corrections are always English; `looksGerman()` in `js/ai.js` drops German ones.
+- 30 min instead of 15 → lessons play ~8 exercises (`shortExercises()` in `js/lesson.js`: no "free", no "build"
+  when there is a listening task, one per type, 2 speak), overview pages show 10 words (all 20 still become cards).
+  App now says "ca. 20 Minuten".
