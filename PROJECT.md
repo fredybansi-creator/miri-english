@@ -85,6 +85,7 @@ the current state, so any new session can pick up the work.
 - Speaking tasks had too many sentences → 33 of 60 cut to 1–2 sentences. Keep new ones short (max ~2 short sentences).
 - Mic stopped at her first pause → `listen({ untilStopped })` keeps going until she taps the green "Fertig".
 - Stop button froze → PR #1 fix (abort/forced settle) + lessons abort the mic when leaving.
+- End-to-end test (same day): 72/100 → 88/100 after fixes. Raluca gets the last 60 lines + Miri's older lines as `facts`; lessons resume after reload (`state.lessonRun`); online backup starts only after "Los geht's"; hands-free chat sends after 3.5 s of quiet. When testing with Playwright, fake `functions/v1/progress` so no backup rows are created.
 - Raluca sounded male → female ElevenLabs voices. Raluca's prompt: always English, talks like a friend.
 - Corrections in German → prompts say corrections are always English; `looksGerman()` in `js/ai.js` drops German ones.
 - 30 min instead of 15 → lessons play ~8 exercises (`shortExercises()` in `js/lesson.js`: no "free", no "build"
