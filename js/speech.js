@@ -130,7 +130,7 @@ function kokoroUrl(text, role) {
 
 function elevenUrl(text) {
   if (getState().settings.samVoice === false || elevenFailures >= 3) return null;
-  return `${TTS_URL}?v=${accentKey()}&r=friend&t=${encodeURIComponent(normText(text))}`;
+  return `${TTS_URL}?v=${accentKey()}&r=main&t=${encodeURIComponent(normText(text))}`;
 }
 
 // Tells listeners (e.g. Raluca the fox) when something is being read aloud.
