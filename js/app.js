@@ -90,7 +90,7 @@ function renderWelcome() {
       <div class="center">
         <div class="celebrate">👋</div>
         <h1 class="summary-title">Hi Miri!</h1>
-        <p class="muted" style="margin-top:8px">Willkommen bei <b>Miri English</b>. Jeden Tag ca. 15 Minuten – und du sprichst Englisch, statt nur Vokabeln zu pauken.</p>
+        <p class="muted" style="margin-top:8px">Willkommen bei <b>Miri English</b>. Jeden Tag ca. 20 Minuten – und du sprichst Englisch, statt nur Vokabeln zu pauken.</p>
       </div>
       <ol class="plain welcome-steps">
         <li><div class="task-icon">📘</div><div><b>Lektion</b><p class="small muted">Neue Ausdrücke, ein kurzer Tipp und Übungen.</p></div></li>
@@ -162,7 +162,7 @@ function renderToday() {
       </div>
       <div>
         <h2>${msg}</h2>
-        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 15 Minuten · Lektion, Karten, Plaudern mit Raluca'}</p>
+        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 20 Minuten · Lektion, Karten, Plaudern mit Raluca'}</p>
       </div>
     </div>
 

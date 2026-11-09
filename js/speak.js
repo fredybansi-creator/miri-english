@@ -176,23 +176,43 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
     });
   }
 
+  // Leaving the exercise: throw away what was heard and switch the mic off.
   function stopListening() {
-    if (session) { session.stop(); session = null; }
+    if (session) { session.abort(); session = null; }
+  }
+
+  // She is done talking: show at once that the mic is off (iPhone can take a moment to hand over the text).
+  function finishTalking() {
+    if (!session || session.stopping) return;
+    session.stopping = true;
+    session.stop();
+    const btn = root.querySelector('[data-act="mic"]');
+    if (btn) { btn.classList.remove('listening'); btn.innerHTML = icon.mic; btn.disabled = true; }
+    const lbl = root.querySelector('[data-label]');
+    if (lbl) lbl.textContent = 'Mikro aus …';
+    root.querySelector('[data-act="done"]')?.remove();
   }
 
   function toggleMic() {
     const btn = root.querySelector('[data-act="mic"]');
     const lbl = root.querySelector('[data-label]');
     const live = root.querySelector('[data-live]');
-    if (session) { session.stop(); return; }
+    if (session) { finishTalking(); return; }
 
     btn.classList.add('listening');
     btn.innerHTML = icon.stop;
-    lbl.textContent = 'Ich höre zu … tippe zum Beenden';
+    lbl.textContent = 'Ich höre zu – nimm dir ruhig Zeit zum Nachdenken.';
     live.textContent = '';
-    const current = listen({ onInterim: (t) => { live.textContent = t ? `„${t}“` : ''; } });
+    const done = document.createElement('button');
+    done.className = 'btn btn-done';
+    done.dataset.act = 'done';
+    done.textContent = '✓ Fertig';
+    done.addEventListener('click', finishTalking);
+    btn.parentElement.appendChild(done);
+    // keeps listening through pauses until she taps "Fertig"
+    const current = listen({ untilStopped: true, onInterim: (t) => { live.textContent = t ? `„${t}“` : ''; } });
     session = current;
-    const safety = setTimeout(() => current.stop(), kind === 'free' ? 45000 : 20000);
+    const safety = setTimeout(() => finishTalking(), kind === 'free' ? 120000 : 60000);
 
     current.promise
       .then((res) => { evaluate(res.alternatives.length ? res.alternatives : [res.text]); })

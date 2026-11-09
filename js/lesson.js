@@ -14,7 +14,7 @@ export function startLesson(lesson, { onExit }) {
     ...lesson.phrases.map((p, i) => ({ type: 'phrase', p, n: i + 1, of: lesson.phrases.length })),
     ...wordPages(lesson),
     { type: 'tip', tip: lesson.tip },
-    ...lesson.exercises.map((e, i) => {
+    ...shortExercises(lesson).map(({ e, i }) => {
       if (e.type === 'speak') return { type: 'speak', item: SPEAK.get(e.id) };
       if (e.type === 'free') return { type: 'speak', item: { ...lesson.free, mode: 'free' } };
       if (e.type === 'shadow') return { type: 'speak', item: { id: `${lesson.id}-sh${i}`, mode: 'shadow', en: e.en, de: e.de } };
@@ -71,9 +71,31 @@ export function startLesson(lesson, { onExit }) {
   next();
 }
 
+// Miri (2026-11): lessons were too long (30 min instead of 15). A lesson now plays about 8 exercises:
+// one of each tap type, two speaking tasks, one listening task and the shadowing. The other exercises
+// stay in the content and still come back in the mixed review. Open speaking ("free") happens in the
+// daily chat with Raluca instead.
+const SKIP_IN_LESSON = new Set(['free']);
+function shortExercises(lesson) {
+  const all = lesson.exercises.map((e, i) => ({ e, i }));
+  const hasListen = all.some(({ e }) => e.type === 'listen' || e.type === 'listenbuild');
+  const seen = {};
+  return all.filter(({ e }) => {
+    if (SKIP_IN_LESSON.has(e.type)) return false;
+    if (e.type === 'build' && hasListen) return false;
+    const group = e.type === 'listenbuild' ? 'listen' : e.type;
+    seen[group] = (seen[group] || 0) + 1;
+    return seen[group] <= (group === 'speak' ? 2 : 1);
+  });
+}
+
+// Words shown on the overview pages; all of the lesson's words still become flashcards afterwards
+// (spread over the next days).
+const WORDS_SHOWN = 10;
+
 // Two short overview pages with the lesson's key words (they become flashcards after the lesson).
 function wordPages(lesson) {
-  const words = lesson.words || [];
+  const words = (lesson.words || []).slice(0, WORDS_SHOWN);
   if (!words.length) return [];
   const half = Math.ceil(words.length / 2);
   const pages = [words.slice(0, half), words.slice(half)].filter((p) => p.length);

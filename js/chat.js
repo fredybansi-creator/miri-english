@@ -200,20 +200,22 @@ export function startChat({ pickLesson, onExit }) {
     samSays(lesson.free.they);
   }
 
+  // She is done talking: show at once that the mic is off – iPhone can take a moment to hand over the text.
+  function finishTalking() {
+    if (!session || session.stopping) return;
+    session.stopping = true;
+    session.stop();
+    const btn = $('[data-act="mic"]', main);
+    if (btn) { btn.classList.remove('listening'); btn.innerHTML = icon.mic; }
+    const label = $('[data-label]', main);
+    if (label) label.textContent = 'Mikro aus …';
+    $('[data-act="done"]', main)?.remove();
+    fox('idle');
+  }
+
   function toggleMic() {
     if (waiting) return;
-    if (session) {
-      if (session.stopping) return;
-      session.stopping = true;
-      session.stop();
-      // show at once that the mic is off – iPhone can take a moment to hand over the text
-      const btn = $('[data-act="mic"]', main);
-      if (btn) { btn.classList.remove('listening'); btn.innerHTML = icon.mic; }
-      const label = $('[data-label]', main);
-      if (label) label.textContent = 'Mikro aus …';
-      fox('idle');
-      return;
-    }
+    if (session) { finishTalking(); return; }
     startListening();
   }
 
@@ -246,16 +248,23 @@ export function startChat({ pickLesson, onExit }) {
     btn.innerHTML = icon.stop;
     stopSpeaking();
     fox('listening');
-    $('[data-label]', main).textContent = 'Ich höre zu … tippe zum Beenden';
+    $('[data-label]', main).textContent = 'Ich höre zu – nimm dir ruhig Zeit zum Nachdenken.';
     live.textContent = '';
+    const done = document.createElement('button');
+    done.className = 'btn btn-done';
+    done.dataset.act = 'done';
+    done.textContent = '✓ Fertig';
+    done.addEventListener('click', finishTalking);
+    btn.after(done);
     // throttle live-text updates (each update re-lays out the page)
     let pending = '', raf = 0;
-    const current = listen({ onInterim: (t) => {
+    // keeps listening through pauses until she taps "Fertig"
+    const current = listen({ untilStopped: true, onInterim: (t) => {
       pending = t;
       if (!raf) raf = requestAnimationFrame(() => { raf = 0; live.textContent = pending ? `„${pending}“` : ''; });
     } });
     session = current;
-    const safety = setTimeout(() => current.stop(), 45000);
+    const safety = setTimeout(() => { if (session === current) finishTalking(); }, 120000);
     current.promise
       .then((r) => { if (!closed) send(r.text); })
       .catch((err) => {
@@ -281,7 +290,7 @@ export function startChat({ pickLesson, onExit }) {
         // stopped without a result (e.g. after a tap on stop) → make sure the button is back to normal
         if (!closed && !waiting) {
           const btn = $('[data-act="mic"]', main);
-          if (btn?.classList.contains('listening') || current.stopping) render();
+          if (btn?.classList.contains('listening') || current.stopping || $('[data-act="done"]', main)) render();
         }
       });
   }

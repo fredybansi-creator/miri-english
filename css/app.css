@@ -380,7 +380,10 @@ a.btn { text-decoration: none; }
   70% { box-shadow: 0 0 0 22px transparent; }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
-.mic-label { font-weight: 700; color: var(--ink-2); font-size: 15px; }
+.mic-label { font-weight: 700; color: var(--ink-2); font-size: 15px; text-align: center; }
+.mic[disabled] { opacity: .5; }
+/* "Fertig" while listening: the mic stays on through pauses until she taps this */
+.btn-done { min-width: 200px; background: var(--good); color: #fff; }
 .live { min-height: 52px; text-align: center; font-size: 19px; font-style: italic; color: var(--ink-2); padding: 0 8px; }
 .type-area { width: 100%; min-height: 96px; margin-top: 16px; padding: 14px; border-radius: 16px; border: 2px solid var(--line); background: var(--surface); resize: vertical; font-size: 18px; }
 .type-area:focus { outline: none; border-color: var(--brand); }
