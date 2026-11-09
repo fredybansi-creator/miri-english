@@ -1,4 +1,4 @@
-// Endless conversation with Sam the fox. He reacts to what she says and keeps asking; every message
+// Endless conversation with Raluca the fox. She reacts to what Miri says and keeps asking; every message
 // she sends gets a short correction right below it. The conversation is saved automatically – next
 // time she continues where she stopped, or starts a new one.
 import { $, esc, icon, playBtn } from './ui.js';
@@ -12,13 +12,13 @@ import { LESSONS, findLesson } from '../content/index.js';
 import { getState, save, today, day, markTask, addTime } from './store.js';
 
 const DAILY_GOAL = 3;       // her messages per day that complete the "Plaudern" task
-const HISTORY_FOR_AI = 16;  // last lines Sam sees
+const HISTORY_FOR_AI = 16;  // last lines Raluca sees
 const ARCHIVE_SIZE = 10;
 
 export function scenarioFor(lesson) {
   const words = (lesson.free?.useWords || []).join(', ');
   return `Two friends chatting. Start topic from Miri's lesson: "${lesson.title}" – ${lesson.goal} (German description). `
-    + `Sam opened with: "${lesson.free?.they}". Phrases she practised: ${words}. The chat can move on to other everyday topics.`;
+    + `Raluca opened with: "${lesson.free?.they}". Phrases she practised: ${words}. The chat can move on to other everyday topics.`;
 }
 
 function newChat(lesson) {
@@ -51,11 +51,11 @@ export function startChat({ pickLesson, onExit }) {
 
   let mode = canListen ? 'mic' : 'type';
   let session = null;
-  let waiting = false;   // Sam is writing
-  let speaking = false;  // Sam is talking
+  let waiting = false;   // Raluca is writing
+  let speaking = false;  // Raluca is talking
   let notice = canListen ? '' : errorMessage('unsupported');
   let closed = false;
-  // Hands-free (like a voice call): after Sam has finished talking, the mic opens by itself.
+  // Hands-free (like a voice call): after Raluca has finished talking, the mic opens by itself.
   const handsFree = () => canListen && mode === 'mic' && getState().settings.handsFree !== false;
 
   const ui = shell({ onClose: leave, confirm: false });
@@ -65,7 +65,7 @@ export function startChat({ pickLesson, onExit }) {
   let foxBase = 'idle';
   const fox = (state) => { foxBase = state; setFoxState(stage, state); };
   const onTts = (e) => {
-    if (e.detail.role === 'main') return; // only Sam's own lines
+    if (e.detail.role === 'main') return; // only Raluca's own lines
     setFoxState(stage, e.detail.state === 'start' ? 'talking' : foxBase);
   };
   window.addEventListener('tts', onTts);
@@ -103,13 +103,13 @@ export function startChat({ pickLesson, onExit }) {
     const n = myCount();
     ui.progress(Math.min(day().chatMsgs || 0, DAILY_GOAL), DAILY_GOAL);
     const log = chat.msgs.map((m) => (m.who === 'sam'
-      ? `<div class="msg sam"><span class="bubble-who">Sam 🦊</span>
+      ? `<div class="msg sam"><span class="bubble-who">Raluca 🦊</span>
            <div class="row" style="gap:8px;align-items:flex-start">${playBtn(m.text, '', 'sam')}<p>${esc(m.text)}</p></div></div>`
       : `<div class="msg miri"><p>${esc(m.text)}</p></div>${fixHtml(m)}`)).join('');
     const typing = waiting ? '<div class="msg sam typing"><span></span><span></span><span></span></div>' : '';
     const needsReply = !waiting && chat.msgs[chat.msgs.length - 1]?.who === 'miri';
 
-    const label = waiting ? 'Sam schreibt …' : speaking ? 'Sam spricht …' : handsFree() ? 'Freihändig – sprich einfach los, wenn das Mikro leuchtet' : 'Tippen und antworten';
+    const label = waiting ? 'Raluca schreibt …' : speaking ? 'Raluca spricht …' : handsFree() ? 'Freihändig – sprich einfach los, wenn das Mikro leuchtet' : 'Tippen und antworten';
     const input = mode === 'mic'
       ? `<div class="chat-input">
            <div class="live" data-live>${notice ? `<span class="small">${esc(notice)}</span>` : ''}</div>
@@ -124,12 +124,12 @@ export function startChat({ pickLesson, onExit }) {
 
     main.innerHTML = `
       <div class="chat-head">
-        <div class="kicker" style="margin:0">💬 Plaudern mit Sam</div>
+        <div class="kicker" style="margin:0">💬 Plaudern mit Raluca</div>
         <button class="btn btn-ghost btn-sm" data-act="new">＋ Neues Gespräch</button>
       </div>
       <p class="small muted" style="text-align:center">${n ? `${n} ${n === 1 ? 'Nachricht' : 'Nachrichten'} · ` : ''}Erzähl so viel du magst – du kannst jederzeit aufhören, alles wird gespeichert.</p>
       <div class="chatlog" data-log>${log}${typing}</div>
-      ${needsReply ? '<button class="btn btn-soft btn-sm" data-act="retry" style="align-self:flex-start;margin-top:8px">🔄 Sam antworten lassen</button>' : ''}
+      ${needsReply ? '<button class="btn btn-soft btn-sm" data-act="retry" style="align-self:flex-start;margin-top:8px">🔄 Raluca antworten lassen</button>' : ''}
       <div class="grow"></div>
       ${input}
       <div class="links session-foot">
@@ -157,7 +157,7 @@ export function startChat({ pickLesson, onExit }) {
   }
 
   function startNew() {
-    if (myCount() && !window.confirm('Neues Gespräch mit Sam beginnen? Das jetzige wird gespeichert.')) return;
+    if (myCount() && !window.confirm('Neues Gespräch mit Raluca beginnen? Das jetzige wird gespeichert.')) return;
     session?.stop();
     stopSpeaking();
     archive(chat);
@@ -183,13 +183,13 @@ export function startChat({ pickLesson, onExit }) {
     startListening();
   }
 
-  // Sam has finished talking → open the mic by itself (hands-free).
+  // Raluca has finished talking → open the mic by itself (hands-free).
   function autoListen() {
     if (closed || !handsFree() || session || waiting) return;
     setTimeout(() => { if (!closed && handsFree() && !session && !waiting && !speaking) startListening(true); }, 450);
   }
 
-  // Speak one of Sam's lines; afterwards the mic opens again in hands-free mode.
+  // Speak one of Raluca's lines; afterwards the mic opens again in hands-free mode.
   function samSays(text, delay = 0) {
     setTimeout(() => {
       if (closed) return;
@@ -255,7 +255,7 @@ export function startChat({ pickLesson, onExit }) {
     save();
     if (d.chatMsgs >= DAILY_GOAL && !d.speaking) markTask('speaking');
 
-    // correction for this message (runs in parallel with Sam's reply)
+    // correction for this message (runs in parallel with Raluca's reply)
     chatFix(lastSamBefore(index), text)
       .then((f) => {
         msg.fix = f;
@@ -282,17 +282,17 @@ export function startChat({ pickLesson, onExit }) {
       if (closed) return;
       render();
       // iPhone: going straight from speech recognition to speech output can hang Safari –
-      // give the audio system a moment to switch back before Sam talks.
+      // give the audio system a moment to switch back before Raluca talks.
       samSays(reply, 700);
     } catch {
       waiting = false;
       fox('idle');
-      notice = 'Sam ist gerade nicht erreichbar – tippe gleich auf „Sam antworten lassen“.';
+      notice = 'Raluca ist gerade nicht erreichbar – tippe gleich auf „Raluca antworten lassen“.';
       if (!closed) render();
     }
   }
 
   render();
-  // a brand-new chat: Sam says hello (then the mic opens); a continued chat starts quietly
+  // a brand-new chat: Raluca says hello (then the mic opens); a continued chat starts quietly
   if (!chat.msgs.some((m) => m.who === 'miri')) samSays(chat.msgs[0].text);
 }

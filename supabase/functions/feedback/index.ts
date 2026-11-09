@@ -60,10 +60,10 @@ const systemFor = (mode: string) => {
   return `${INTRO}\n\n${mode === "free" ? TASK_FREE : TASK_TRANSLATE}\n\n${OUTPUT}`;
 };
 
-// ---- conversation partner ("Sam") -------------------------------------------------------------
-const CHAT_REPLY = `You are Sam, Miri's friendly English-speaking friend (native speaker, casual, warm, a bit funny).
+// ---- conversation partner ("Raluca") -------------------------------------------------------------
+const CHAT_REPLY = `You are Raluca, Miri's friendly English-speaking friend (native speaker, casual, warm, a bit funny).
 Miri is German (about B1+) and practises having relaxed spoken conversations with friends.
-You get the scenario and the conversation so far. Write Sam's NEXT line.
+You get the scenario and the conversation so far. Write Raluca's NEXT line.
 Rules:
 - 1–2 short sentences, max 25 words, natural spoken English at B1–B2 level. Use plain everyday words:
   NO idioms or figurative sayings (no "raining cats and dogs", "snowed under", "piece of cake").
@@ -78,7 +78,7 @@ Rules:
 Return JSON only: { "reply": string, "done": boolean }.`;
 
 // ---- correction of ONE chat message (shown right under her bubble) ---------------------------
-const CHAT_FIX = `You correct ONE message that Miri (German, about B1+) just said in a casual spoken chat with her friend Sam.
+const CHAT_FIX = `You correct ONE message that Miri (German, about B1+) just said in a casual spoken chat with her friend Raluca.
 Her text comes from speech recognition: ignore punctuation, capitalisation, missing apostrophes and filler words.
 Only flag real grammar mistakes, wrong words or clearly unnatural wording – not style preferences.
 Return JSON only:
@@ -107,12 +107,12 @@ const CHAT_FIX_SCHEMA = {
   required: ["ok", "corrected", "fixes", "tip"],
 };
 
-const TASK_CHAT_REVIEW = `TASK: Miri just had a short spoken conversation with her friend Sam (the input contains the scenario and
+const TASK_CHAT_REVIEW = `TASK: Miri just had a short spoken conversation with her friend Raluca (the input contains the scenario and
 all lines). Review ONLY her lines, like a friendly coach after the conversation:
 - level: "great" (natural, mostly correct, gave detailed answers), "good" (understandable, some mistakes or
   short answers), "try" (very short answers or hard to understand).
 - praise: one specific encouraging sentence in German about something SHE said (lines marked "Miri").
-  Never praise words or phrases that only Sam used.
+  Never praise words or phrases that only Raluca used.
 - corrected: her LONGEST answer, minimally corrected.
 - fixes: up to 4 of her most important mistakes across all lines (exact words she used → better).
 - betterWords: up to 4 phrases that would have made her sound more natural in this conversation.
@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
     const said = clip(body.said, 800).trim();
     if (!said) return json({ error: "empty" }, 400, origin);
     try {
-      const { model, result } = await askGemini(key, { sam_said_before: clip(body.they, 300), miri_said: said }, CHAT_FIX, CHAT_FIX_SCHEMA, 0.2);
+      const { model, result } = await askGemini(key, { raluca_said_before: clip(body.they, 300), miri_said: said }, CHAT_FIX, CHAT_FIX_SCHEMA, 0.2);
       return json({ ok: true, model, correct: !!result.ok, corrected: clip(result.corrected, 800), fixes: (result.fixes || []).slice(0, 3), tip: clip(result.tip, 200) }, 200, origin);
     } catch (e) {
       return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
   // ---- conversation partner
   if (body.mode === "chat_reply" || body.mode === "chat_review") {
     const history = (Array.isArray(body.history) ? body.history : []).slice(-16).map((h: Record<string, unknown>) => ({
-      who: h.who === "miri" ? "Miri" : "Sam",
+      who: h.who === "miri" ? "Miri" : "Raluca",
       text: clip(h.text, 600),
     }));
     if (!history.length) return json({ error: "empty" }, 400, origin);

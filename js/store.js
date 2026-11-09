@@ -14,7 +14,7 @@ const defaults = () => ({
   mistakes: [],  // coach fixes → "Meine Fehler" cards: { id, wrong, better, why, date }
   review: {},    // 'lessonId:exerciseIndex' -> { last, weak } for the mixed review
   words: [],     // looked-up words saved as cards: { id, en, de, ex, exDe, note, date }
-  chat: null,    // current conversation with Sam: { id, lessonId, started, msgs: [{ who, text, fix }] }
+  chat: null,    // current conversation with Raluca: { id, lessonId, started, msgs: [{ who, text, fix }] }
   chatArchive: [], // up to 10 earlier conversations
   sync: {},      // { code, lastPush, resetAt }
 });
@@ -138,7 +138,7 @@ export function mergeStates(a, b) {
     if (!o || (r.last || '') > (o.last || '')) out.review[k] = r;
   }
 
-  // conversation with Sam: keep the one with more messages
+  // conversation with Raluca: keep the one with more messages
   const ca = a.chat, cb = b.chat;
   out.chat = !ca ? cb || null : !cb ? ca : ((cb.msgs?.length || 0) > (ca.msgs?.length || 0) ? cb : ca);
   const seenChats = new Set();

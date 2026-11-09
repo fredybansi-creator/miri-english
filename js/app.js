@@ -66,7 +66,7 @@ function render() {
   }
   if (route === 'practice') return startCards({ practice: true, onExit: () => go('cards') });
   if (route === 'speak') {
-    // Daily speaking = an open conversation with Sam (saved, continues next time).
+    // Daily speaking = an open conversation with Raluca (saved, continues next time).
     return startChat({ pickLesson: chatLesson, onExit: () => { go('today'); render(); } });
   }
   if (route === 'speak-script') return startSpeaking({ onExit: () => go('today') });
@@ -95,7 +95,7 @@ function renderWelcome() {
       <ol class="plain welcome-steps">
         <li><div class="task-icon">📘</div><div><b>Lektion</b><p class="small muted">Neue Ausdrücke, ein kurzer Tipp und Übungen.</p></div></li>
         <li><div class="task-icon">🧠</div><div><b>Karteikarten & Wiederholung</b><p class="small muted">Kommen genau dann wieder, wenn du sie sonst vergessen würdest – auch deine eigenen Fehler.</p></div></li>
-        <li><div class="task-icon">🦊</div><div><b>Plaudern mit Sam</b><p class="small muted">Ein echtes Gespräch: Sam reagiert auf das, was du sagst, und fragt nach. Danach bekommst du Tipps.</p></div></li>
+        <li><div class="task-icon">🦊</div><div><b>Plaudern mit Raluca</b><p class="small muted">Ein echtes Gespräch: Raluca reagiert auf das, was du sagst, und fragt nach. Danach bekommst du Tipps.</p></div></li>
       </ol>
       <div class="card" style="margin-top:22px">
         <b>📱 Tipp: Als App speichern</b>
@@ -141,7 +141,7 @@ function renderToday() {
     ? 'Erledigt – du kannst trotzdem weiterplaudern!'
     : s.chat?.msgs?.some((m) => m.who === 'miri')
       ? `Weiterplaudern – noch ${chatGoal} ${chatGoal === 1 ? 'Nachricht' : 'Nachrichten'} fürs Tagesziel`
-      : `Plaudere mit Sam 🦊 – ${chatGoal} Nachrichten fürs Tagesziel`;
+      : `Plaudere mit Raluca 🦊 – ${chatGoal} Nachrichten fürs Tagesziel`;
 
   const lessonHref = lesson ? `#/lesson/${lesson.id}` : '#/modules';
   const msg = doneN === 3 ? 'Tagesziel geschafft! 🎉' : doneN === 0 ? 'Dein Plan für heute' : 'Weiter so!';
@@ -162,14 +162,14 @@ function renderToday() {
       </div>
       <div>
         <h2>${msg}</h2>
-        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 15 Minuten · Lektion, Karten, Plaudern mit Sam'}</p>
+        <p class="small muted" style="margin-top:4px">${doneN === 3 ? 'Du kannst trotzdem weiterüben, wenn du Lust hast.' : 'Ca. 15 Minuten · Lektion, Karten, Plaudern mit Raluca'}</p>
       </div>
     </div>
 
     <h2 class="section-title">Heute</h2>
     ${taskHtml({ href: lessonHref, emoji: '📘', title: 'Lektion', sub: lessonSub, done: d.lesson })}
     ${taskHtml({ href: '#/review', emoji: '🧠', title: 'Karteikarten', sub: cardsSub, done: cardsDone, disabled: !hasCards })}
-    ${taskHtml({ href: '#/speak', emoji: '🦊', title: 'Plaudern mit Sam', sub: speakSub, done: d.speaking })}
+    ${taskHtml({ href: '#/speak', emoji: '🦊', title: 'Plaudern mit Raluca', sub: speakSub, done: d.speaking })}
 
     ${phraseOfTheDay()}
   `;
@@ -380,7 +380,7 @@ function renderProgress() {
 
     <h2 class="section-title">Stimme des Handys</h2>
     <div class="card">
-      <p class="small muted">Für Sam, Korrekturen – und alles, wenn die natürliche Stimme aus ist. Tippe ▶ zum Anhören, dann auf den Namen zum Auswählen.</p>
+      <p class="small muted">Für Raluca, Korrekturen – und alles, wenn die natürliche Stimme aus ist. Tippe ▶ zum Anhören, dann auf den Namen zum Auswählen.</p>
       <div data-voices style="margin-top:10px"></div>
       <details class="example-answer" style="margin-top:12px">
         <summary>Bessere Stimme aufs iPhone holen</summary>
@@ -405,14 +405,14 @@ function renderProgress() {
         </div>
       </div>
       <div class="setting">
-        <div><b>Sams Stimme</b><p class="small muted">ElevenLabs (kostenloses Kontingent) oder die Stimme des Handys</p></div>
+        <div><b>Ralucas Stimme</b><p class="small muted">ElevenLabs (kostenloses Kontingent) oder die Stimme des Handys</p></div>
         <div class="seg" data-setting="samVoice">
           <button data-v="on" aria-pressed="${s.settings.samVoice !== false}">ElevenLabs</button>
           <button data-v="off" aria-pressed="${s.settings.samVoice === false}">Handy</button>
         </div>
       </div>
       <div class="setting">
-        <div><b>Sam animieren</b><p class="small muted">Aus, falls das Gespräch auf deinem Handy ruckelt</p></div>
+        <div><b>Raluca animieren</b><p class="small muted">Aus, falls das Gespräch auf deinem Handy ruckelt</p></div>
         <div class="seg" data-setting="foxAnim">
           <button data-v="on" aria-pressed="${s.settings.foxAnim !== false}">An</button>
           <button data-v="off" aria-pressed="${s.settings.foxAnim === false}">Aus</button>
@@ -440,7 +440,7 @@ function renderProgress() {
     save();
     $$('button', seg).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     if (key === 'foxAnim') { applyFoxSetting(); return; }
-    if (key === 'samVoice') { say("Hey, it's Sam! This is how I sound.", { role: 'sam' }); return; }
+    if (key === 'samVoice') { say("Hey, it's Raluca! This is how I sound.", { role: 'sam' }); return; }
     say(key === 'rate' ? 'This is how fast I will speak.' : 'Hello Miri! This is how I sound.');
   }));
 

@@ -18,12 +18,13 @@ the current state, so any new session can pick up the work.
 - Spoken answers don't need to be perfect: feedback says which words make it better (encouraging).
 - Content at **B1+ → B2**; harder, conversation-like (longer replies), not trivially easy choices.
 - **No idioms / figurative sayings** (no "raining cats and dogs", "snowed under", "on the fence"…).
-  Common phrasal verbs (catch up, end up, figure out) are fine. Sam and the coach are told the same.
+  Common phrasal verbs (catch up, end up, figure out) are fine. Raluca and the coach are told the same.
 - Free where possible; quality must stay good. No surprise costs (no credit cards on any service).
 - UI language: German instructions, English content.
 
 ## What the app does today (state 2026-11-09)
-- **Heute:** daily plan – lesson, flashcards (+3 mixed review exercises), chat with Sam. Streak, goal ring.
+- iPhone tests passed 2026-11-09: hands-free mic, voice on every reply, Kokoro voices.
+- **Heute:** daily plan – lesson, flashcards (+3 mixed review exercises), chat with Raluca. Streak, goal ring.
 - **Lessons** (15 so far: modules 1–3, 5 lessons each, files `content/m1.js`–`m3.js`):
   6 phrases → 2 pages "Neue Wörter" (20 words per lesson) → tip (German) → exercises:
   choice, gap, fix (find the mistake), build, listenbuild (dictation), listen, match, shadow,
@@ -33,12 +34,12 @@ the current state, so any new session can pick up the work.
   lesson words (spread over 3 days after the lesson), "Meine Fehler" (coach fixes, max 5 new/day),
   looked-up words (🔍).
 - **Mixed review:** after the cards, 3 exercises from finished lessons (wrong ones first).
-- **Sam the fox** (`js/chat.js`, `js/fox.js`): endless conversation, hands-free like voice mode (mic opens
-  again after Sam speaks), correction under every message of hers, saved automatically (`state.chat`),
+- **Raluca the fox** (was "Sam" until 2026-11-09; internal ids like `samVoice`, role `sam` and css class `.sam` kept the old name) (`js/chat.js`, `js/fox.js`): endless conversation, hands-free like voice mode (mic opens
+  again after Raluca speaks), correction under every message of hers, saved automatically (`state.chat`),
   "Neues Gespräch" archives the old one (last 10). Daily goal = 3 messages.
 - **Word lookup 🔍** in every session screen and the Karten tab (AI meaning in context, save as card).
 - **Backup:** 16-character code (Fortschritt → Sicherung), automatic sync, restore on a new device.
-- Settings: accent US/UK, natural voice (Kokoro) on/off, Sam's voice ElevenLabs/Handy, Sam animation,
+- Settings: accent US/UK, natural voice (Kokoro) on/off, Raluca's voice ElevenLabs/Handy, Raluca animation,
   device voice picker, speech rate, reset.
 
 ## Voices
@@ -49,8 +50,8 @@ the current state, so any new session can pick up the work.
   adding/changing lesson sentences (existing files are skipped), then commit `audio/`.
   Setup: `tools/.venv` (kokoro-onnx, soundfile, lameenc, json5) + model files in `tools/models/`
   (both gitignored). ~2.5 s per sentence on Freddy's PC.
-- **ElevenLabs only for Sam** (Edge Function `tts`, voices Will (US) / George (UK), cached in Storage
-  bucket `tts`). Free plan; Sam uses roughly 15k characters/month.
+- **ElevenLabs only for Raluca** (Edge Function `tts`, voices Will (US) / George (UK), cached in Storage
+  bucket `tts`). Free plan; Raluca uses roughly 15k characters/month.
 - **Device voice** for one-off texts (coach corrections, lookup examples, mistake cards) and as fallback.
   iPhone Safari does NOT expose downloaded Premium voices (tested: Ava missing) – don't retry that.
 - iPhone quirks handled: device voice is unlocked on the first tap; 700 ms pause between speech
@@ -70,13 +71,13 @@ the current state, so any new session can pick up the work.
   (only rows clearly created by tests – real rows from Freddy's/Miri's phones must stay).
 
 ## Open tasks
-1. **Kokoro audio:** generation was started 2026-11-09 (~2,300 files, US + UK). When `audio/` is
+1. **Kokoro audio:** generation was started 2026-11-09 (restarted once after it stopped at 863 files) (~2,300 files, US + UK). When `audio/` is
    complete (manifest.json written), commit and push `audio/`. If it was interrupted, re-run
    `tools/.venv/Scripts/python tools/make_audio.py` – it continues where it stopped.
-2. **Test on Freddy's iPhone:** hands-free mic in the Sam chat, Sam's voice on every reply.
+2. **Raluca's voice:** ElevenLabs voices are still male (Will/George) – ask Freddy whether to switch to a female voice to match the new name.
 3. **Modules 4–10** (same format as m1–m3, 20 words per lesson, no idioms, then run make_audio.py):
    4 Plans & arrangements (invitations, changing/cancelling plans) · 5 Feelings & reactions ·
    6 Going out, food & ordering · 7 Travel & directions · 8 Work, study & daily life ·
    9 Problems, complaints & apologies · 10 Everyday phrasal verbs (no idioms).
    Ask Freddy about Miri's interests first if not known yet.
-4. Wait for Miri's feedback (level, daily load, Sam, voices) and adjust.
+4. Wait for Miri's feedback (level, daily load, Raluca, voices) and adjust.

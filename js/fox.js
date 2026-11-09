@@ -1,11 +1,11 @@
-// Sam the fox – an animated SVG character with soft shading for a 3D look.
+// Raluca the fox – an animated SVG character with soft shading for a 3D look.
 // Performance note: no SVG filters (Safari on iPhone re-renders them every animation frame),
 // the idle bob moves the whole <svg> (GPU-friendly), inner animations are small and cheap.
 // States (CSS classes on .fox): idle (default), talking, thinking, listening, happy.
 
 export function foxSVG() {
   return `
-  <svg class="fox" viewBox="0 0 200 200" role="img" aria-label="Sam, der Fuchs">
+  <svg class="fox" viewBox="0 0 200 200" role="img" aria-label="Raluca, die Füchsin">
     <defs>
       <radialGradient id="fx-fur" cx="38%" cy="30%" r="80%">
         <stop offset="0" stop-color="#ffb06a"/>
