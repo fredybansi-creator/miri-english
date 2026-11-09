@@ -71,12 +71,9 @@ the current state, so any new session can pick up the work.
   (only rows clearly created by tests – real rows from Freddy's/Miri's phones must stay).
 
 ## Open tasks
-1. **Kokoro audio:** generation restarted 2026-11-09 ~01:05 (the first run stopped at 863 files with
-   WinError 1450; the script now retries writes). At 01:18: us-main + us-friend complete, uk-main 46/1066,
-   uk-friend 0/75, no errors. Next morning: check `audio/manifest.json` exists, else re-run
-   `tools/.venv/Scripts/python tools/make_audio.py` (skips existing files); then commit + push `audio/`.
+1. **Kokoro audio:** done 2026-11-09 – all 2,282 files (US + UK) committed. Re-run make_audio.py after content changes.
 2. **Raluca's voice:** ElevenLabs voices are still male (Will/George) – ask Freddy whether to switch to a female voice to match the new name.
-3. **Modules 4–10** (not started; ask Freddy about Miri's hobbies/interests first) (same format as m1–m3, 20 words per lesson, no idioms, then run make_audio.py):
+3. **Modules 4–10** – ON HOLD (Freddy, 2026-11-09): first Miri does a few modules and says what she wants changed; then write 4–10 with her feedback. Ask about her interests then (same format as m1–m3, 20 words per lesson, no idioms, then run make_audio.py):
    4 Plans & arrangements (invitations, changing/cancelling plans) · 5 Feelings & reactions ·
    6 Going out, food & ordering · 7 Travel & directions · 8 Work, study & daily life ·
    9 Problems, complaints & apologies · 10 Everyday phrasal verbs (no idioms).
