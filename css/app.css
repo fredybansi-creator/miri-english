@@ -240,7 +240,13 @@ a.btn { text-decoration: none; }
 
 /* ---------- Session (lesson, cards, speaking) ---------- */
 .session { display: flex; flex-direction: column; min-height: calc(100dvh - var(--safe-t) - var(--safe-b) - 36px); }
-.session-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+/* sticky, so the close button (the only way out in the home-screen app) never scrolls away */
+.session-top {
+  display: flex; align-items: center; gap: 10px;
+  position: sticky; top: 0; z-index: 3; background: var(--bg);
+  margin: calc(-1 * (var(--safe-t) + 20px)) -16px 18px;
+  padding: calc(var(--safe-t) + 12px) 16px 8px;
+}
 .progress { flex: 1; height: 12px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
 .progress > i { display: block; height: 100%; width: 0; background: var(--brand); border-radius: 99px; transition: width .35s ease; }
 .session-count { font-size: 14px; font-weight: 700; color: var(--ink-2); min-width: 44px; text-align: right; }
@@ -471,7 +477,7 @@ ol.plain { list-style: none; padding: 0; margin: 0; }
 .chat-input .live { min-height: 28px; font-size: 17px; }
 
 /* Raluca the fox */
-.fox-stage { display: flex; justify-content: center; margin: -6px -16px 2px; padding-top: 2px; position: sticky; top: 0; z-index: 2; background: var(--bg); contain: layout paint; }
+.fox-stage { display: flex; justify-content: center; margin: -6px -16px 2px; padding-top: 2px; position: sticky; top: calc(var(--safe-t) + 64px); z-index: 2; background: var(--bg); contain: layout paint; }
 .fox { width: 104px; height: 104px; overflow: visible; animation: fx-bob 3.4s ease-in-out infinite; will-change: transform; }
 .fox .fx-head { transform-box: view-box; transform-origin: 100px 150px; transition: transform .4s ease; }
 .fox .fx-eye { transform-box: fill-box; transform-origin: center; animation: fx-blink 4.6s infinite; }

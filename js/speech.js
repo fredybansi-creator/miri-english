@@ -204,13 +204,13 @@ export function stopSpeaking() {
 }
 
 /**
- * Start listening. Returns { promise, stop }.
+ * Start listening. Returns { promise, stop, abort }.
  * promise resolves { text, alternatives } or rejects with { code }:
  * 'not-allowed' | 'service-not-allowed' | 'no-speech' | 'network' | 'audio-capture' | 'aborted' | 'unsupported'
  */
 export function listen({ onInterim } = {}) {
   if (!SR) {
-    return { promise: Promise.reject(Object.assign(new Error('unsupported'), { code: 'unsupported' })), stop() {} };
+    return { promise: Promise.reject(Object.assign(new Error('unsupported'), { code: 'unsupported' })), stop() {}, abort() {} };
   }
   stopSpeaking();
   const rec = new SR();
@@ -222,8 +222,30 @@ export function listen({ onInterim } = {}) {
   let finals = [];
   let interim = '';
   let error = null;
+  let settled = false;
+  let finish = () => {};
+  const timers = [];
 
   const promise = new Promise((resolve, reject) => {
+    // Settles exactly once – from onend, or forced when iPhone Safari never sends onend.
+    finish = (forceCode) => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      rec.onresult = rec.onerror = rec.onend = null;
+      if (forceCode === 'aborted') {
+        reject(Object.assign(new Error('aborted'), { code: 'aborted' }));
+      } else if (finals.length) {
+        const text = finals.map((a) => a[0]).join(' ').trim();
+        const alternatives = finals.length === 1 ? finals[0] : [text];
+        resolve({ text, alternatives });
+      } else if (interim.trim()) {
+        resolve({ text: interim.trim(), alternatives: [interim.trim()] });
+      } else {
+        const code = error || forceCode || 'no-speech';
+        reject(Object.assign(new Error(code), { code }));
+      }
+    };
     rec.onresult = (e) => {
       const fin = [];
       interim = '';
@@ -236,24 +258,30 @@ export function listen({ onInterim } = {}) {
       onInterim?.((fin.map((a) => a[0]).join(' ') + ' ' + interim).trim());
     };
     rec.onerror = (e) => { error = e.error; };
-    rec.onend = () => {
-      if (finals.length) {
-        const text = finals.map((a) => a[0]).join(' ').trim();
-        const alternatives = finals.length === 1 ? finals[0] : [text];
-        resolve({ text, alternatives });
-      } else if (interim.trim()) {
-        resolve({ text: interim.trim(), alternatives: [interim.trim()] });
-      } else {
-        const code = error || 'no-speech';
-        reject(Object.assign(new Error(code), { code }));
-      }
-    };
+    rec.onend = () => finish();
   });
 
   try { rec.start(); } catch (e) {
-    return { promise: Promise.reject(Object.assign(new Error('start-failed'), { code: 'start-failed' })), stop() {} };
+    return { promise: Promise.reject(Object.assign(new Error('start-failed'), { code: 'start-failed' })), stop() {}, abort() {} };
   }
-  return { promise, stop: () => { try { rec.stop(); } catch { /* ignore */ } } };
+
+  // iPhone Safari sometimes ignores stop() and never fires onend – the mic then stays on forever.
+  // So: stop() → abort() after a moment → give up waiting and settle the promise ourselves.
+  let stopping = false;
+  const stop = () => {
+    if (settled || stopping) return;
+    stopping = true;
+    try { rec.stop(); } catch { /* ignore */ }
+    timers.push(setTimeout(() => { try { rec.abort(); } catch { /* ignore */ } }, 1200));
+    timers.push(setTimeout(() => finish(), 2500));
+  };
+  // Throw away what was heard (leaving the screen) – settles right away.
+  const abort = () => {
+    if (settled) return;
+    try { rec.abort(); } catch { /* ignore */ }
+    finish('aborted');
+  };
+  return { promise, stop, abort };
 }
 
 export function errorMessage(code) {

@@ -70,14 +70,37 @@ export function startChat({ pickLesson, onExit }) {
   };
   window.addEventListener('tts', onTts);
 
-  function leave() {
+  // Leaving must always work, even if the mic is still on: throw away what was heard and close.
+  function cleanup() {
+    if (closed) return false;
     closed = true;
-    session?.stop();
+    session?.abort();
+    session = null;
     stopSpeaking();
     window.removeEventListener('tts', onTts);
+    window.removeEventListener('hashchange', onRouteChange);
+    document.removeEventListener('visibilitychange', onHidden);
+    window.removeEventListener('pagehide', onHidden);
     addTime((Date.now() - started) / 1000);
-    onExit();
+    return true;
   }
+  function leave() {
+    if (cleanup()) onExit();
+  }
+  // Navigated away some other way (e.g. back gesture) → switch the mic off.
+  function onRouteChange() {
+    if (location.hash !== '#/speak') cleanup();
+  }
+  // App sent to the background → switch the mic off (iPhone keeps it on otherwise).
+  function onHidden(e) {
+    if (e.type === 'pagehide' || document.visibilityState === 'hidden') {
+      if (session) { session.abort(); session = null; if (!closed) render(); }
+      stopSpeaking();
+    }
+  }
+  window.addEventListener('hashchange', onRouteChange);
+  document.addEventListener('visibilitychange', onHidden);
+  window.addEventListener('pagehide', onHidden);
 
   const myCount = () => chat.msgs.filter((m) => m.who === 'miri').length;
   const lastSamBefore = (i) => { for (let j = i - 1; j >= 0; j--) if (chat.msgs[j].who === 'sam') return chat.msgs[j].text; return ''; };
@@ -179,7 +202,18 @@ export function startChat({ pickLesson, onExit }) {
 
   function toggleMic() {
     if (waiting) return;
-    if (session) { session.stop(); return; }
+    if (session) {
+      if (session.stopping) return;
+      session.stopping = true;
+      session.stop();
+      // show at once that the mic is off – iPhone can take a moment to hand over the text
+      const btn = $('[data-act="mic"]', main);
+      if (btn) { btn.classList.remove('listening'); btn.innerHTML = icon.mic; }
+      const label = $('[data-label]', main);
+      if (label) label.textContent = 'Mikro aus …';
+      fox('idle');
+      return;
+    }
     startListening();
   }
 
@@ -223,8 +257,9 @@ export function startChat({ pickLesson, onExit }) {
     session = current;
     const safety = setTimeout(() => current.stop(), 45000);
     current.promise
-      .then((r) => send(r.text))
+      .then((r) => { if (!closed) send(r.text); })
       .catch((err) => {
+        if (closed) return;
         fox('idle');
         if (err.code === 'aborted') { render(); return; }
         if (auto && ['not-allowed', 'service-not-allowed', 'start-failed'].includes(err.code)) {
@@ -240,10 +275,19 @@ export function startChat({ pickLesson, onExit }) {
         }
         render();
       })
-      .finally(() => { clearTimeout(safety); if (session === current) session = null; });
+      .finally(() => {
+        clearTimeout(safety);
+        if (session === current) session = null;
+        // stopped without a result (e.g. after a tap on stop) → make sure the button is back to normal
+        if (!closed && !waiting) {
+          const btn = $('[data-act="mic"]', main);
+          if (btn?.classList.contains('listening') || current.stopping) render();
+        }
+      });
   }
 
   function send(text) {
+    if (closed) return;
     notice = '';
     const msg = { who: 'miri', text, fix: 'pending' };
     chat.msgs.push(msg);
