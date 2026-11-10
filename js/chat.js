@@ -56,7 +56,10 @@ export function startChat({ pickLesson, onExit }) {
   let notice = canListen ? '' : errorMessage('unsupported');
   let closed = false;
   // Hands-free (like a voice call): after Raluca has finished talking, the mic opens by itself.
-  const handsFree = () => canListen && mode === 'mic' && getState().settings.handsFree !== false;
+  // micDeaf: the mic opened by itself but heard nothing (happens on iPhone after Raluca talked) →
+  // she taps the mic herself for the rest of this chat; a tap always works.
+  let micDeaf = false;
+  const handsFree = () => canListen && mode === 'mic' && !micDeaf && getState().settings.handsFree !== false;
 
   const ui = shell({ onClose: leave, confirm: false });
   ui.body.innerHTML = `<div class="fox-stage">${foxSVG()}</div><div class="chat-main" data-chat></div>`;
@@ -222,7 +225,7 @@ export function startChat({ pickLesson, onExit }) {
   // Raluca has finished talking → open the mic by itself (hands-free).
   function autoListen() {
     if (closed || !handsFree() || session || waiting) return;
-    setTimeout(() => { if (!closed && handsFree() && !session && !waiting && !speaking) startListening(true); }, 450);
+    setTimeout(() => { if (!closed && handsFree() && !session && !waiting && !speaking) startListening(true); }, 900);
   }
 
   // Speak one of Raluca's lines; afterwards the mic opens again in hands-free mode.
@@ -263,10 +266,21 @@ export function startChat({ pickLesson, onExit }) {
     const free = handsFree();
     if (free) $('[data-label]', main).textContent = 'Ich höre zu – nach einer längeren Pause schicke ich es ab (oder tippe „Fertig“).';
     let quiet = 0;
+    let heard = false;
+    // Mic on but no words at all after 12 s: on iPhone the mic can stay "deaf" after Raluca's voice.
+    // Stop it and ask her to tap the mic (a tap starts it reliably).
+    const deaf = setTimeout(() => {
+      if (session !== current || heard) return;
+      if (auto) micDeaf = true;
+      notice = 'Ich habe nichts gehört 🤔 Tippe aufs Mikro und sprich dann.';
+      current.stopping = true;
+      current.abort();
+    }, 12000);
     // keeps listening through pauses until she taps "Fertig"
     const current = listen({ untilStopped: true, onInterim: (t) => {
       pending = t;
       if (!raf) raf = requestAnimationFrame(() => { raf = 0; live.textContent = pending ? `„${pending}“` : ''; });
+      if (t.trim()) heard = true;
       if (free && t.trim()) { clearTimeout(quiet); quiet = setTimeout(() => { if (session === current) finishTalking(); }, 3500); }
     } });
     session = current;
@@ -293,6 +307,7 @@ export function startChat({ pickLesson, onExit }) {
       .finally(() => {
         clearTimeout(safety);
         clearTimeout(quiet);
+        clearTimeout(deaf);
         if (session === current) session = null;
         // stopped without a result (e.g. after a tap on stop) → make sure the button is back to normal
         if (!closed && !waiting) {
