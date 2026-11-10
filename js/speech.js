@@ -159,7 +159,7 @@ function sayInner(text, { rate, role = 'main' } = {}) {
       if (isSam) elevenFailures++;
       browserSay(text, { rate }).then(resolve);
     };
-    audio.onended = () => resolve();
+    audio.onended = () => { releaseAudio(); resolve(); };
     audio.onerror = fallback;
     audio.src = url;
     // slow button passes ~0.7; the "langsam" setting is 0.8
@@ -196,6 +196,13 @@ function browserSay(text, { rate } = {}) {
     u.onend = u.onerror = () => resolve();
     synth.speak(u);
   });
+}
+
+// iPhone: an <audio> element that still holds a finished sound can keep the audio system in "playback"
+// mode, and the next speech recognition then hears nothing. Emptying it hands the audio system back.
+function releaseAudio() {
+  if (!audio) return;
+  try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch { /* ignore */ }
 }
 
 export function stopSpeaking() {
