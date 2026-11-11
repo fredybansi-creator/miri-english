@@ -65,6 +65,9 @@ the current state, so any new session can pick up the work.
     chat_review (unused now), lookup. Model order: gemini-flash-lite-latest → gemini-flash-latest →
     gemini-3.8-flash, 10 s each.
   - `tts` – ElevenLabs (secret `ELEVENLABS_API_KEY`), Storage bucket `tts` (public read).
+  - `transcribe` – Gemini (same `GEMINI_API_KEY`): base64 audio (16 kHz mono WAV made in the browser) → exact
+    text, mistakes kept. Used by `mic-test.html` (step 0 of the rebuild, 2026-11-11). Replaces Safari speech
+    recognition, which never worked on Miri's iPhone.
   - `progress` + table `public.progress` (RLS on, no policies – service role only). Only the SHA-256
     of the backup code is stored.
 - Local preview: `python -m http.server 8765` (see `.claude/launch.json`).
