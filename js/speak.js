@@ -327,7 +327,7 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
             <b class="small">Diese Wörter machen deinen Satz noch besser:</b>
             <div class="better-words">${missing.map((w) => `<span>${esc(w)}</span>`).join('')}</div>
           </div>` : ''}
-        ${levelUpHtml(item.levelUp)}
+        ${result.level === 'great' ? levelUpHtml(item.levelUp) : ''}
         ${item.note ? `<p class="note"><span>💡</span><span>${esc(item.note)}</span></p>` : ''}`;
     }
 
@@ -365,7 +365,7 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
             <b class="small">${kind === 'free' ? 'Damit kannst du noch mehr sagen:' : 'Diese Wörter machen deinen Satz noch besser:'}</b>
             <div class="better-words">${ai.betterWords.map((w) => `<span>${esc(w)}</span>`).join('')}</div>
           </div>` : ''}
-        ${ai.levelUp ? levelUpHtml(ai.levelUp, undefined, 'coach') : levelUpHtml(item.levelUp)}
+        ${ai.levelUp ? levelUpHtml(ai.levelUp, undefined, 'coach') : result.level === 'great' ? levelUpHtml(item.levelUp) : ''}
         ${ai.tip ? `<p class="note"><span>💡</span><span>${esc(ai.tip)}</span></p>` : ''}
         ${example ? `
           <details class="example-answer">

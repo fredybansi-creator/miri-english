@@ -4,7 +4,7 @@
 import { $, esc, icon, playBtn } from './ui.js';
 import { shell } from './sessions.js';
 import { canListen, listen, errorMessage, say, stopSpeaking, micLog } from './speech.js';
-import { chatReply, chatFix } from './ai.js';
+import { chatReply, chatFix, translateLine } from './ai.js';
 import { addMistakeCards } from './speak.js';
 import { markAnswer, tokens } from './check.js';
 import { foxSVG, setFoxState } from './fox.js';
@@ -128,9 +128,10 @@ export function startChat({ pickLesson, onExit }) {
   function render() {
     const n = myCount();
     ui.progress(Math.min(day().chatMsgs || 0, DAILY_GOAL), DAILY_GOAL);
-    const log = chat.msgs.map((m) => (m.who === 'sam'
+    const log = chat.msgs.map((m, i) => (m.who === 'sam'
       ? `<div class="msg sam"><span class="bubble-who">Raluca 🦊</span>
-           <div class="row" style="gap:8px;align-items:flex-start">${playBtn(m.text, '', 'sam')}<p>${esc(m.text)}</p></div></div>`
+           <div class="row" style="gap:8px;align-items:flex-start">${playBtn(m.text, '', 'sam')}<p>${esc(m.text)}</p></div>
+           ${m.de ? `<p class="msg-de">🇩🇪 ${esc(m.de)}</p>` : `<button class="msg-de-btn" data-de="${i}">🇩🇪 Auf Deutsch?</button>`}</div>`
       : `<div class="msg miri"><p>${esc(m.text)}</p></div>${fixHtml(m)}`)).join('');
     const typing = waiting ? '<div class="msg sam typing"><span></span><span></span><span></span></div>' : '';
     const needsReply = !waiting && chat.msgs[chat.msgs.length - 1]?.who === 'miri';
@@ -172,6 +173,20 @@ export function startChat({ pickLesson, onExit }) {
     $('[data-act="type"]', main)?.addEventListener('click', () => { session?.stop(); mode = 'type'; render(); });
     $('[data-act="micmode"]', main)?.addEventListener('click', () => { mode = 'mic'; notice = ''; render(); });
     $('[data-act="retry"]', main)?.addEventListener('click', askSam);
+    // she doesn't understand Raluca → German translation under the bubble
+    main.querySelectorAll('[data-de]').forEach((b) => b.addEventListener('click', async () => {
+      const m = chat.msgs[+b.dataset.de];
+      b.disabled = true;
+      b.textContent = '🇩🇪 …';
+      try {
+        m.de = await translateLine(m.text);
+        save();
+      } catch {
+        b.textContent = '🇩🇪 Gerade nicht möglich';
+        return;
+      }
+      if (!closed) render();
+    }));
     $('[data-act="hands"]', main)?.addEventListener('click', () => {
       const s = getState();
       s.settings.handsFree = s.settings.handsFree === false;

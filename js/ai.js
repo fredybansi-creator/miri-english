@@ -50,11 +50,17 @@ export async function chatReply(scenario, history, facts = []) {
   return { reply: String(d.reply || ''), done: !!d.done };
 }
 
+/** German translation of one of Raluca's lines. */
+export async function translateLine(text) {
+  const d = await post({ mode: 'translate_line', text }, 15000);
+  return String(d.de || '');
+}
+
 /** Correction of one chat message: { correct, corrected, fixes[], tip } */
 export async function chatFix(they, said) {
   const d = await post({ mode: 'chat_fix', they, said }, 20000);
   const corrected = String(d.corrected || said);
-  const fixes = englishFixes(Array.isArray(d.fixes) ? d.fixes.slice(0, 3) : []);
+  const fixes = englishFixes(Array.isArray(d.fixes) ? d.fixes.slice(0, 2) : []);
   const germanCorrected = looksGerman(corrected) && !looksGerman(said);
   return {
     correct: !!d.correct || (!fixes.length && germanCorrected),
