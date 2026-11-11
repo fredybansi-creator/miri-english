@@ -570,3 +570,7 @@ body.in-session .toast { bottom: auto; top: calc(var(--safe-t) + 56px); }
 /* mic diary (settings) */
 .miclog summary { cursor: pointer; }
 .miclog pre { margin-top: 10px; font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow: auto; }
+
+/* German translation of Raluca's line */
+.msg-de-btn { margin-top: 6px; background: none; border: 0; padding: 4px 0; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; }
+.msg-de { margin-top: 6px; font-size: 14px; color: var(--muted); font-style: italic; }

@@ -215,8 +215,8 @@ export function stopSpeaking() {
  * promise resolves { text, alternatives } or rejects with { code }:
  * 'not-allowed' | 'service-not-allowed' | 'no-speech' | 'network' | 'audio-capture' | 'aborted' | 'unsupported'
  *
- * untilStopped: keep listening through pauses until stop() is called (continuous recognition; if iPhone
- * still ends it at a pause, the same recognizer is started again and the pieces are glued together).
+ * untilStopped: keep listening through pauses until stop() is called (iPhone ends a recognition at each
+ * pause, so the same recognizer is started again and the pieces are glued together).
  * Without it, listening ends at the first pause.
  *
  * iPhone (2026-11): with a new recognizer for every turn, a recognizer that iPhone never really stopped
@@ -356,7 +356,13 @@ export function listen({ onInterim, untilStopped = false } = {}) {
     r.lang = getState().settings.accent;
     r.interimResults = true;
     r.maxAlternatives = 3;
-    r.continuous = untilStopped;
+    // iPhone (iOS 18, 2026-11-11): with continuous = true Safari started but never delivered a single word –
+    // so always one phrase per run; "until Fertig" glues the runs together (restart below).
+    r.continuous = false;
+    r.onaudiostart = () => mine() && micLog('audio start');
+    r.onsoundstart = () => mine() && micLog('sound');
+    r.onspeechstart = () => mine() && micLog('speech');
+    r.onnomatch = () => mine() && micLog('no match');
     r.onresult = (e) => {
       if (!mine()) return;
       const fin = [];

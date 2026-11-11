@@ -16,8 +16,9 @@ const MODEL_TIMEOUT_MS = 10_000;
 const MODELS = (Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest,gemini-flash-latest,gemini-3.8-flash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
-const INTRO = `You are a warm, encouraging English speaking coach for Miri, a native German speaker at about B1+ level.
-She is practising casual conversations with friends.
+const INTRO = `You are a warm, encouraging English speaking coach for Miri, a native German speaker at about B1 level.
+She is practising casual conversations with friends. English is still hard for her, so be gentle: a simple answer
+that is correct and gets the meaning across is "great" – she does not need fancy words.
 Her answer comes from speech recognition: ignore punctuation, capitalisation, filler words and obvious
 transcription glitches (homophones, a missing article the recogniser dropped).`;
 
@@ -44,11 +45,13 @@ const OUTPUT = `Return JSON only, with these fields:
 - praise: one short, specific, encouraging sentence in German (what she did well).
 - corrected: HER answer, minimally corrected so it is natural English. Keep her own words wherever they are fine.
   If her answer is already natural, repeat it.
-- fixes: up to 3 items { wrong, better, why } – wrong = the exact words she used, better = what to say instead,
-  why = a very short German explanation (max 15 words). Only real mistakes or clearly unnatural wording,
-  most important first. Empty if none.
-- betterWords: up to 4 English words/phrases that would make her reply sound more natural (not already used by her).
-- levelUp: a richer, very natural version a native speaker might say in this situation (casual, 1–3 sentences).
+- fixes: up to 2 items { wrong, better, why } – wrong = the exact words she used, better = what to say instead,
+  why = a very short German explanation (max 15 words). Only real mistakes that matter (wrong meaning, wrong
+  tense, German word order, calques) – skip small slips like a missing article. Most important first. Empty if none.
+- betterWords: up to 3 simple, common English words/phrases that would help her reply (not already used by her).
+- levelUp: her answer made just a little better – the same simple sentences with one or two improvements. Max 20 words,
+  everyday words a B1 learner knows. No slang or British/US colloquialisms (no "loads", "brilliant", "reckon",
+  "bumped into", "a bit of a").
 - tip: one short German tip about a typical German-speaker mistake she made, or "" if none. It must agree with
   the fixes.
 Never flag punctuation, capital letters or sentence breaks (speech recognition decides those), and never flag
@@ -74,9 +77,11 @@ You get the scenario and the conversation so far. Write Raluca's NEXT line.
 Rules:
 - ALWAYS write in English, never in German – even if Miri uses German words. If she used a German word because she
   didn't know the English one, just use the English word naturally in your reply (no comment about it).
-- 1–2 short sentences, max 25 words, natural spoken English at B1–B2 level. Use plain everyday words:
-  NO idioms or figurative sayings (no "raining cats and dogs", "snowed under", "piece of cake").
-  Common phrasal verbs (catch up, end up, find out) are fine.
+- Miri finds English hard: speak SIMPLE English (A2–B1). 1–2 short sentences, max 18 words in total, each sentence
+  short. Use only very common everyday words and simple tenses (present, past, going to, will). NO idioms, NO slang,
+  NO phrasal verbs except very common ones (get up, go out, find out). Ask simple questions she can answer easily.
+- If she seems lost (very short answer like "what?", "sorry?", "I don't understand", German words, or an answer
+  that doesn't fit your question), say your last idea again in even simpler words.
 - If Miri asks YOU something (your opinion, your life, "and you?"), answer it FIRST with a short, honest personal
   answer – never dodge it or turn it straight back to her.
 - Talk like a real friend, not like a teacher or an interviewer: first react to what she actually said
@@ -100,7 +105,9 @@ Return JSON only: { "reply": string, "done": boolean }.`;
 // ---- correction of ONE chat message (shown right under her bubble) ---------------------------
 const CHAT_FIX = `You correct ONE message that Miri (German, about B1+) just said in a casual spoken chat with her friend Raluca.
 Her text comes from speech recognition: ignore punctuation, capitalisation, missing apostrophes and filler words.
-Only flag real grammar mistakes, wrong words or clearly unnatural wording – not style preferences.
+Only flag real grammar mistakes, wrong words or clearly unnatural wording – not style preferences. She is still
+learning (about B1): be gentle, at most 2 fixes, only the ones that matter most; ignore small slips (a missing
+article, he/she, a/the) when the meaning is clear.
 NEVER comment on punctuation, capital letters, missing full stops or where sentences start or end: speech recognition
 decides those. If her message is correct English but could be said differently, it is ok – do not "improve" it.
 If the message makes no sense (a recognition error), set ok = true and give no fixes.
@@ -111,7 +118,7 @@ Every fix and the tip must agree with each other (same rule, same example).
 Return JSON only:
 - ok: true if the message is correct and natural enough for a friendly chat (small slips are fine).
 - corrected: her message minimally corrected (keep her words where they are fine). If ok, repeat it.
-- fixes: up to 3 items { wrong, better, why } – wrong = her exact words, better = what to say instead,
+- fixes: up to 2 items { wrong, better, why } – wrong = her exact words, better = what to say instead,
   why = very short German explanation (max 12 words). Empty if ok.
 - tip: one very short German tip, or "".
 LANGUAGE: "corrected" and every "better" are ALWAYS English – what she could have said in English, never German.
@@ -161,6 +168,11 @@ IN THAT CONTEXT. Return JSON only:
 - exampleDe: German translation of the example.
 - register: "neutral", "umgangssprachlich" or "formell".
 If she typed German instead, give the English word in "word" and the German in "de".`;
+
+// ---- German translation of one of Raluca's lines (when Miri doesn't understand) -----------------
+const TRANSLATE_LINE = `Translate this casual spoken English line from a friend into natural, casual German (du-Form).
+Keep the meaning and tone. Return JSON only: { "de": string }.`;
+const TRANSLATE_SCHEMA = { type: "OBJECT", properties: { de: { type: "STRING" } }, required: ["de"] };
 
 const LOOKUP_SCHEMA = {
   type: "OBJECT",
@@ -297,13 +309,25 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ---- German translation of one line
+  if (body.mode === "translate_line") {
+    const text = clip(body.text, 400).trim();
+    if (!text) return json({ error: "empty" }, 400, origin);
+    try {
+      const { model, result } = await askGemini(key, { text }, TRANSLATE_LINE, TRANSLATE_SCHEMA, 0.2);
+      return json({ ok: true, model, de: clip(result.de, 600) }, 200, origin);
+    } catch (e) {
+      return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
+    }
+  }
+
   // ---- correction of one chat message
   if (body.mode === "chat_fix") {
     const said = clip(body.said, 800).trim();
     if (!said) return json({ error: "empty" }, 400, origin);
     try {
       const { model, result } = await askGemini(key, { raluca_said_before: clip(body.they, 300), miri_said: said }, CHAT_FIX, CHAT_FIX_SCHEMA, 0.2);
-      return json({ ok: true, model, correct: !!result.ok, corrected: clip(result.corrected, 800), fixes: (result.fixes || []).slice(0, 3), tip: clip(result.tip, 200) }, 200, origin);
+      return json({ ok: true, model, correct: !!result.ok, corrected: clip(result.corrected, 800), fixes: (result.fixes || []).slice(0, 2), tip: clip(result.tip, 200) }, 200, origin);
     } catch (e) {
       return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
     }
