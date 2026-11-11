@@ -7,7 +7,7 @@ import { startLesson, startReview, reviewPool } from './lesson.js';
 import { startCards, startSpeaking } from './sessions.js';
 import { startChat } from './chat.js';
 import { openLookup, closeLookup } from './lookup.js';
-import { canListen, listen, errorMessage, say, englishVoices, voiceQuality, testDeviceVoice } from './speech.js';
+import { canListen, listen, errorMessage, say, englishVoices, voiceQuality, testDeviceVoice, micLogText } from './speech.js';
 import { initSync, getCode, restore, normalizeCode, status, onStatus } from './sync.js';
 
 const app = $('#app');
@@ -432,6 +432,10 @@ function renderProgress() {
         <button class="btn btn-danger btn-sm" data-reset>Löschen</button>
       </div>
     </div>
+    <details class="card miclog" style="margin-top:14px">
+      <summary class="small"><b>Mikro-Protokoll</b> <span class="muted">(für die Fehlersuche – Screenshot an Freddy)</span></summary>
+      <pre data-miclog>${esc(navigator.userAgent)}\n\n${esc(micLogText() || '(noch leer)')}</pre>
+    </details>
     <p class="small muted center" style="margin-top:20px">Miri English · Version 1 · made with 💛</p>`;
 
   $$('[data-setting]').forEach((seg) => seg.addEventListener('click', (e) => {

@@ -3,7 +3,7 @@
 // time she continues where she stopped, or starts a new one.
 import { $, esc, icon, playBtn } from './ui.js';
 import { shell } from './sessions.js';
-import { canListen, listen, errorMessage, say, stopSpeaking } from './speech.js';
+import { canListen, listen, errorMessage, say, stopSpeaking, micLog } from './speech.js';
 import { chatReply, chatFix } from './ai.js';
 import { addMistakeCards } from './speak.js';
 import { markAnswer, tokens } from './check.js';
@@ -244,6 +244,7 @@ export function startChat({ pickLesson, onExit }) {
   }
 
   function startListening(auto = false) {
+    micLog(`chat: mic ${auto ? 'opens by itself' : 'tapped'}`);
     const btn = $('[data-act="mic"]', main);
     if (!btn) return;
     const live = $('[data-live]', main);
@@ -271,6 +272,7 @@ export function startChat({ pickLesson, onExit }) {
     // Stop it and ask her to tap the mic (a tap starts it reliably).
     const deaf = setTimeout(() => {
       if (session !== current || heard) return;
+      micLog(`no words after 12 s (${auto ? 'opened by itself' : 'after a tap'})`);
       if (auto) micDeaf = true;
       notice = 'Ich habe nichts gehört 🤔 Tippe aufs Mikro und sprich dann.';
       current.stopping = true;

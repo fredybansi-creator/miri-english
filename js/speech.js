@@ -215,15 +215,80 @@ export function stopSpeaking() {
  * promise resolves { text, alternatives } or rejects with { code }:
  * 'not-allowed' | 'service-not-allowed' | 'no-speech' | 'network' | 'audio-capture' | 'aborted' | 'unsupported'
  *
- * untilStopped: keep listening through pauses until stop() is called. iPhone Safari ends a recognition
- * at the first short pause, so we quietly start a new one and glue the pieces together. Without it,
- * listening ends at the first pause (old behaviour).
+ * untilStopped: keep listening through pauses until stop() is called (continuous recognition; if iPhone
+ * still ends it at a pause, the same recognizer is started again and the pieces are glued together).
+ * Without it, listening ends at the first pause.
+ *
+ * iPhone (2026-11): with a new recognizer for every turn, a recognizer that iPhone never really stopped
+ * kept the mic, and from the second message on the new one heard nothing – even after a tap. So the app
+ * uses ONE recognizer for everything, and if it is still busy from before, it is aborted first.
  */
+// Small mic diary (last 80 events, kept on the phone) – shown under Fortschritt › Einstellungen,
+// so a screenshot tells us what the iPhone's speech recognition really did.
+const MICLOG_KEY = 'miri-miclog';
+const t0 = Date.now();
+export function micLog(msg) {
+  try {
+    const list = JSON.parse(localStorage.getItem(MICLOG_KEY) || '[]');
+    const d = new Date();
+    list.push(`${d.toTimeString().slice(0, 8)} +${((Date.now() - t0) / 1000).toFixed(1)}s ${msg}`);
+    localStorage.setItem(MICLOG_KEY, JSON.stringify(list.slice(-80)));
+  } catch { /* ignore */ }
+}
+export function micLogText() {
+  try { return JSON.parse(localStorage.getItem(MICLOG_KEY) || '[]').join('\n'); } catch { return ''; }
+}
+
+let REC = null;        // the one shared recognizer
+let recLive = false;   // started and not ended yet
+let runSeq = 0;        // which listen run owns the recognizer's events
+const recDone = [];    // callbacks waiting for the recognizer to end
+
+function sharedRec() {
+  if (!REC) {
+    REC = new SR();
+    micLog('new recognizer');
+    REC.addEventListener?.('end', () => { recLive = false; recDone.splice(0).forEach((f) => f()); });
+  }
+  return REC;
+}
+
+// Make sure the recognizer is free, then call go(). If iPhone never ends it, start over with a new one.
+function whenFree(go) {
+  if (!REC || !recLive) { go(); return; }
+  let called = false;
+  const once = () => { if (!called) { called = true; go(); } };
+  recDone.push(once);
+  micLog('mic still busy from before → abort');
+  try { REC.abort(); } catch { /* ignore */ }
+  setTimeout(() => {
+    if (called) return;
+    // still not ended: forget it and use a fresh recognizer
+    micLog('old recognizer never ended → new one');
+    try { REC.onresult = REC.onerror = REC.onend = null; } catch { /* ignore */ }
+    REC = null;
+    recLive = false;
+    once();
+  }, 700);
+}
+
+// iPhone sometimes repeats earlier final text inside a later final result – don't say things twice.
+function joinFinals(list) {
+  let out = '';
+  for (const t of list) {
+    if (!t) continue;
+    if (out && t.toLowerCase().startsWith(out.toLowerCase())) out = t;
+    else if (!out.toLowerCase().endsWith(t.toLowerCase())) out = `${out} ${t}`.trim();
+  }
+  return out;
+}
+
 export function listen({ onInterim, untilStopped = false } = {}) {
   if (!SR) {
     return { promise: Promise.reject(Object.assign(new Error('unsupported'), { code: 'unsupported' })), stop() {}, abort() {} };
   }
   stopSpeaking();
+  micLog(`listen (${untilStopped ? 'until Fertig' : 'one phrase'})`);
 
   const parts = [];        // finished pieces (one per recognition run)
   let partAlts = null;     // alternatives of the first piece (only used when there is one piece)
@@ -233,12 +298,14 @@ export function listen({ onInterim, untilStopped = false } = {}) {
   let settled = false;
   let stopping = false;
   let restarts = 0;
-  let rec = null;
+  let myRun = 0;
   let finish = () => {};
+  let fail = () => {};
   const timers = [];
   const FATAL = ['not-allowed', 'service-not-allowed', 'audio-capture', 'network'];
 
-  const current = () => (finals.length ? finals.map((a) => a[0]).join(' ') : interim).trim();
+  const finalText = () => joinFinals(finals.map((a) => a[0]));
+  const current = () => (finals.length ? finalText() : interim).trim();
   // Move what the current run heard into parts.
   const commit = () => {
     const t = current();
@@ -249,15 +316,23 @@ export function listen({ onInterim, untilStopped = false } = {}) {
     finals = [];
     interim = '';
   };
-  const liveText = () => [...parts, (finals.map((a) => a[0]).join(' ') + ' ' + interim).trim()].filter(Boolean).join(' ');
+  const liveText = () => [...parts, `${finalText()} ${interim}`.trim()].filter(Boolean).join(' ');
 
   const promise = new Promise((resolve, reject) => {
+    fail = (code) => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      micLog(`failed: ${code}`);
+      reject(Object.assign(new Error(code), { code }));
+    };
     // Settles exactly once – from onend, or forced when iPhone Safari never sends onend.
     finish = (forceCode) => {
       if (settled) return;
       settled = true;
       timers.forEach(clearTimeout);
-      if (rec) rec.onresult = rec.onerror = rec.onend = null;
+      if (runSeq === myRun) runSeq++; // ignore late events of this run
+      micLog(`done: ${forceCode || 'end'} – ${parts.length + (current() ? 1 : 0)} piece(s), ${(parts.join(' ') + ' ' + current()).trim().split(/\s+/).filter(Boolean).length} words${error ? `, error ${error}` : ''}`);
       if (forceCode === 'aborted') {
         reject(Object.assign(new Error('aborted'), { code: 'aborted' }));
         return;
@@ -274,13 +349,16 @@ export function listen({ onInterim, untilStopped = false } = {}) {
   });
 
   function run() {
-    const r = new SR();
-    rec = r;
+    const r = sharedRec();
+    const id = ++runSeq;
+    myRun = id;
+    const mine = () => runSeq === id && !settled;
     r.lang = getState().settings.accent;
     r.interimResults = true;
     r.maxAlternatives = 3;
-    r.continuous = false;
+    r.continuous = untilStopped;
     r.onresult = (e) => {
+      if (!mine()) return;
       const fin = [];
       interim = '';
       for (let i = 0; i < e.results.length; i++) {
@@ -288,44 +366,66 @@ export function listen({ onInterim, untilStopped = false } = {}) {
         if (res.isFinal) fin.push(Array.from(res).map((a) => a.transcript.trim()));
         else interim += res[0].transcript;
       }
+      if (!finals.length && !interim.trim() && (fin.length || interim)) micLog('first words heard');
       finals = fin;
       onInterim?.(liveText());
     };
     r.onerror = (e) => {
+      if (!mine()) return;
+      micLog(`error: ${e.error}`);
       // a pause without words is fine while we keep listening
       if (untilStopped && !stopping && (e.error === 'no-speech' || e.error === 'aborted')) return;
       error = e.error;
     };
     r.onend = () => {
-      if (rec !== r) return;
-      if (untilStopped && !stopping && !settled && !FATAL.includes(error) && restarts < 60) {
+      recLive = false;
+      if (!mine()) return;
+      micLog('end');
+      if (untilStopped && !stopping && !FATAL.includes(error) && restarts < 60) {
         commit();
         restarts++;
-        try { run(); return; } catch { /* fall through */ }
+        // start the same recognizer again (after its end event has been handled)
+        setTimeout(() => {
+          if (!mine()) return;
+          try { recLive = true; r.start(); micLog('restart'); } catch (err) { recLive = false; micLog(`restart failed: ${err?.name}`); finish(); }
+        }, 0);
+        return;
       }
       finish();
     };
+    recLive = true;
     r.start();
+    micLog(`start (lang ${r.lang}, continuous ${r.continuous})`);
   }
 
-  try { run(); } catch (e) {
-    return { promise: Promise.reject(Object.assign(new Error('start-failed'), { code: 'start-failed' })), stop() {}, abort() {} };
-  }
+  const begin = () => {
+    if (settled) return;
+    try { run(); } catch (err) {
+      micLog(`start failed: ${err?.name} ${err?.message || ''}`);
+      recLive = false;
+      // the shared recognizer refused to start – try once more with a fresh one
+      REC = null;
+      try { run(); } catch { recLive = false; fail('start-failed'); }
+    }
+  };
+  whenFree(begin);
 
   // iPhone Safari sometimes ignores stop() and never fires onend – the mic then stays on forever.
   // So: stop() → abort() after a moment → give up waiting and settle the promise ourselves.
   const stop = () => {
     if (settled || stopping) return;
     stopping = true;
-    try { rec.stop(); } catch { /* ignore */ }
-    timers.push(setTimeout(() => { try { rec.abort(); } catch { /* ignore */ } }, 1200));
+    micLog('stop (Fertig)');
+    try { REC?.stop(); } catch { /* ignore */ }
+    timers.push(setTimeout(() => { micLog('stop ignored → abort'); try { if (runSeq === myRun) REC?.abort(); } catch { /* ignore */ } }, 1200));
     timers.push(setTimeout(() => finish(), 2500));
   };
   // Throw away what was heard (leaving the screen) – settles right away.
   const abort = () => {
     if (settled) return;
     stopping = true;
-    try { rec.abort(); } catch { /* ignore */ }
+    micLog('abort');
+    try { if (runSeq === myRun) REC?.abort(); } catch { /* ignore */ }
     finish('aborted');
   };
   return { promise, stop, abort };
