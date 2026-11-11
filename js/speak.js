@@ -217,8 +217,9 @@ export function renderSpeak(root, rawItem, { onDone, kicker, friend = 'Friend' }
     current.promise
       .then((res) => { evaluate(res.alternatives.length ? res.alternatives : [res.text]); })
       .catch((err) => {
-        if (err.code === 'aborted') return;
-        notice = errorMessage(err.code);
+        // aborted = she left the exercise; but if she had tapped Fertig, never leave the screen stuck on "Mikro aus …"
+        if (err.code === 'aborted' && !current.stopping) return;
+        notice = errorMessage(err.code === 'aborted' ? 'no-speech' : err.code);
         if (['not-allowed', 'service-not-allowed', 'unsupported', 'audio-capture', 'start-failed'].includes(err.code)) mode = 'type';
         renderPrompt();
       })

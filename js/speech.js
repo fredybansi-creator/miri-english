@@ -342,7 +342,8 @@ export function listen({ onInterim, untilStopped = false } = {}) {
         const text = parts.join(' ').trim();
         resolve({ text, alternatives: parts.length === 1 && partAlts ? partAlts : [text] });
       } else {
-        const code = error || forceCode || 'no-speech';
+        // iPhone reports its own stop as 'aborted' – that is not "she left", it just heard nothing
+        const code = (error === 'aborted' ? null : error) || forceCode || 'no-speech';
         reject(Object.assign(new Error(code), { code }));
       }
     };
