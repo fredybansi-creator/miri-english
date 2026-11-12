@@ -1,5 +1,7 @@
 // Supabase Edge Function: turn a short voice recording into text with Gemini.
-// Used by the new app's speaking exercises (first by the mic test page, mic-test.html).
+// Used by the new app's speaking exercises (neu/) and the mic test page (mic-test.html).
+// Optional "check": { they, de, answers } – then the same Gemini call also judges her answer
+// (one trip instead of transcribe + feedback, so Miri waits about half as long).
 // The browser records with MediaRecorder, converts to 16 kHz mono WAV and sends it here as base64.
 // Secrets (Supabase dashboard → Edge Functions → Secrets):
 //   GEMINI_API_KEY   required (same key as the feedback function)
@@ -12,7 +14,8 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:8765",
 ];
 
-const MODEL_TIMEOUT_MS = 15_000;
+// Short per-model timeout: when Gemini is overloaded it hangs; better to try the next model quickly.
+const MODEL_TIMEOUT_MS = 9_000;
 const MODELS = (Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest,gemini-flash-latest,gemini-3.8-flash")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
@@ -31,6 +34,40 @@ Write down EXACTLY what she says, word for word, as she said it.
 Return JSON only: { "text": "..." }`;
 
 const SCHEMA = { type: "OBJECT", properties: { text: { type: "STRING" } }, required: ["text"] };
+
+const CHECK = `You are also her warm, encouraging English coach. She saw a German sentence and said it in English, out loud.
+The input tells you what the other person said before (friend_said), the German sentence (german), and example answers.
+First write down exactly what she said (rules above), then judge THAT text like a friendly native speaker:
+- It does NOT need to be word-for-word. Any natural reply that gets the meaning across is fine.
+- "great": natural and complete, at most tiny slips. A simple correct answer is "great" – no fancy words needed.
+- "good": understandable, but with grammar mistakes, unnatural wording, or a missing part of the meaning.
+- "try": the meaning is mostly missing or wrong, or the answer is very short, or nothing was said.
+Return JSON only:
+- text: exactly what she said (empty if nothing).
+- level: "great" | "good" | "try"
+- praise: one short, specific, encouraging sentence in German.
+- corrected: HER answer, minimally corrected to natural English (repeat it if already fine). Always English.
+- fixes: up to 2 items { wrong, better, why } – wrong = her exact words, better = English to say instead, why = very
+  short German explanation (max 15 words). Only real mistakes (wrong meaning, wrong tense, German word order, calques);
+  never punctuation or capital letters. Empty if none.
+- tip: one short German tip about a typical German-speaker mistake she made, or "".
+Use plain everyday English, no idioms. Speak to her as "du". Be kind and concise.`;
+
+const CHECK_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    text: { type: "STRING" },
+    level: { type: "STRING", enum: ["great", "good", "try"] },
+    praise: { type: "STRING" },
+    corrected: { type: "STRING" },
+    fixes: { type: "ARRAY", items: { type: "OBJECT", properties: { wrong: { type: "STRING" }, better: { type: "STRING" }, why: { type: "STRING" } }, required: ["wrong", "better", "why"] } },
+    tip: { type: "STRING" },
+  },
+  required: ["text", "level", "praise", "corrected", "fixes", "tip"],
+};
+
+type Check = { they?: string; de?: string; answers?: string[] };
+const clip = (v: unknown, n: number) => String(v ?? "").slice(0, n);
 
 const hits = new Map<string, number[]>();
 function limited(ip: string): boolean {
@@ -55,7 +92,7 @@ function json(body: unknown, status: number, origin: string | null) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors(origin), "Content-Type": "application/json" } });
 }
 
-async function transcribe(key: string, audio: string, mime: string) {
+async function transcribe(key: string, audio: string, mime: string, check: Check | null) {
   let lastError = "no model available";
   const skipped: string[] = [];
   for (const model of MODELS) {
@@ -65,12 +102,14 @@ async function transcribe(key: string, audio: string, mime: string) {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM }] },
+          systemInstruction: { parts: [{ text: check ? `${SYSTEM.replace(/Return JSON only:.*$/s, "")}\n\n${CHECK}` : SYSTEM }] },
           contents: [{ role: "user", parts: [
             { inlineData: { mimeType: mime, data: audio } },
-            { text: "Transcribe this recording exactly as spoken." },
+            { text: check
+              ? JSON.stringify({ friend_said: clip(check.they, 300), german: clip(check.de, 400), example_answers: (check.answers || []).slice(0, 4).map((a) => clip(a, 300)) })
+              : "Transcribe this recording exactly as spoken." },
           ] }],
-          generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema: SCHEMA },
+          generationConfig: { temperature: check ? 0.2 : 0, responseMimeType: "application/json", responseSchema: check ? CHECK_SCHEMA : SCHEMA },
         }),
         signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
       });
@@ -83,7 +122,10 @@ async function transcribe(key: string, audio: string, mime: string) {
       const data = await res.json();
       const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
       try {
-        return { model, skipped, text: String(JSON.parse(text).text ?? "").trim().slice(0, 2000) };
+        const r = JSON.parse(text);
+        const out: Record<string, unknown> = { model, skipped, text: String(r.text ?? "").trim().slice(0, 2000) };
+        if (check) out.check = { level: r.level, praise: r.praise, corrected: r.corrected, fixes: (r.fixes || []).slice(0, 2), tip: r.tip };
+        return out;
       } catch {
         lastError = `${model}: unreadable answer`;
         skipped.push(lastError);
@@ -112,7 +154,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "not_configured" }, 503, origin);
 
-  let body: { audio?: string; mime?: string };
+  let body: { audio?: string; mime?: string; check?: Check };
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400, origin); }
   const audio = String(body.audio || "");
   const mime = String(body.mime || "audio/wav").split(";")[0].trim().toLowerCase();
@@ -122,8 +164,9 @@ Deno.serve(async (req) => {
 
   const started = Date.now();
   try {
-    const { model, skipped, text } = await transcribe(key, audio, mime);
-    return json({ ok: true, model, skipped, text, ms: Date.now() - started }, 200, origin);
+    const check = body.check && typeof body.check === "object" ? body.check : null;
+    const result = await transcribe(key, audio, mime, check);
+    return json({ ok: true, ...result, ms: Date.now() - started }, 200, origin);
   } catch (e) {
     return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
   }
