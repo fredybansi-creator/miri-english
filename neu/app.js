@@ -436,7 +436,7 @@ function micControls(onText, check = null) {
     mic.querySelector('.ico').textContent = '⏳';
     mic.querySelector('.lbl').textContent = 'Moment …';
     status.textContent = 'Ich höre mir das an …';
-    const slow = setTimeout(() => { status.textContent = 'Google ist gerade langsam – noch einen Moment …'; }, 6000);
+    const slow = setTimeout(() => { status.textContent = 'Noch einen kleinen Moment …'; }, 7000);
     const r = await s.stop();
     clearTimeout(slow);
     busy = false;

@@ -15,9 +15,15 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:8765",
 ];
 
-// Short per-model timeout: when Gemini is overloaded it hangs; better to try the next model quickly.
-const MODEL_TIMEOUT_MS = 9_000;
-const MODELS = (Deno.env.get("GEMINI_MODEL") || "gemini-flash-lite-latest,gemini-flash-latest,gemini-3.8-flash")
+// Gemini is sometimes overloaded (HTTP 503 "high demand") or hangs. So we don't wait for one model at a time:
+// the first model starts at once, and if it has not answered after HEDGE_MS (or fails), the next one starts too.
+// The first good answer wins and the others are stopped. A 503 is usually over in a second, and the lite model
+// answers in about 1 s, so it is asked again later in the list.
+const MODEL_TIMEOUT_MS = 12_000;
+const HEDGE_MS = 2_500;
+const TOTAL_MS = 22_000;
+const MODELS = (Deno.env.get("GEMINI_MODEL") ||
+  "gemini-flash-lite-latest,gemini-flash-latest,gemini-flash-lite-latest,gemini-3.8-flash,gemini-flash-lite-latest")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 // ~90 s of 16 kHz mono 16-bit WAV is about 2.9 MB, as base64 about 3.9 MB.
@@ -93,54 +99,79 @@ function json(body: unknown, status: number, origin: string | null) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors(origin), "Content-Type": "application/json" } });
 }
 
-async function transcribe(key: string, audio: string, mime: string, check: Check | null, hint = "") {
-  let lastError = "no model available";
-  const skipped: string[] = [];
-  for (const model of MODELS) {
-    let res: Response;
-    try {
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: check ? `${SYSTEM.replace(/Return JSON only:.*$/s, "")}\n\n${CHECK}` : SYSTEM }] },
-          contents: [{ role: "user", parts: [
-            { inlineData: { mimeType: mime, data: audio } },
-            { text: check
-              ? JSON.stringify({ friend_said: clip(check.they, 300), german: clip(check.de, 400), example_answers: (check.answers || []).slice(0, 4).map((a) => clip(a, 300)) })
-              : hint ? `Transcribe this recording exactly as spoken. Context: ${hint}` : "Transcribe this recording exactly as spoken." },
-          ] }],
-          generationConfig: { temperature: check ? 0.2 : 0, responseMimeType: "application/json", responseSchema: check ? CHECK_SCHEMA : SCHEMA },
-        }),
-        signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
-      });
-    } catch {
-      lastError = `${model}: timeout`;
-      skipped.push(lastError);
-      continue;
-    }
-    if (res.ok) {
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
-      try {
-        const r = JSON.parse(text);
-        const out: Record<string, unknown> = { model, skipped, text: String(r.text ?? "").trim().slice(0, 2000) };
-        if (check) out.check = { level: r.level, praise: r.praise, corrected: r.corrected, fixes: (r.fixes || []).slice(0, 2), tip: r.tip };
-        return out;
-      } catch {
-        lastError = `${model}: unreadable answer`;
-        skipped.push(lastError);
-        continue;
-      }
-    }
-    const errText = (await res.text()).replace(/\s+/g, " ");
-    const reason = (errText.match(/"message":\s*"([^"]{0,160})/) || [])[1] || "";
-    lastError = `${model}: HTTP ${res.status} ${reason}`.trim();
-    skipped.push(lastError);
-    console.log("gemini model failed", lastError);
-    if (![404, 429, 500, 503].includes(res.status)) break;
+function request(key: string, model: string, audio: string, mime: string, check: Check | null, hint: string, signal: AbortSignal) {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: check ? `${SYSTEM.replace(/Return JSON only:.*$/s, "")}\n\n${CHECK}` : SYSTEM }] },
+      contents: [{ role: "user", parts: [
+        { inlineData: { mimeType: mime, data: audio } },
+        { text: check
+          ? JSON.stringify({ friend_said: clip(check.they, 300), german: clip(check.de, 400), example_answers: (check.answers || []).slice(0, 4).map((a) => clip(a, 300)) })
+          : hint ? `Transcribe this recording exactly as spoken. Context: ${hint}` : "Transcribe this recording exactly as spoken." },
+      ] }],
+      generationConfig: { temperature: check ? 0.2 : 0, responseMimeType: "application/json", responseSchema: check ? CHECK_SCHEMA : SCHEMA },
+    }),
+    signal,
+  });
+}
+
+/** One model: resolves with the result, or throws with a short reason. */
+async function tryModel(key: string, model: string, audio: string, mime: string, check: Check | null, hint: string, stop: AbortSignal) {
+  const signal = AbortSignal.any([stop, AbortSignal.timeout(MODEL_TIMEOUT_MS)]);
+  let res: Response;
+  try {
+    res = await request(key, model, audio, mime, check, hint, signal);
+  } catch {
+    throw new Error(`${model}: timeout`);
   }
-  throw new Error(lastError);
+  if (!res.ok) {
+    const errText = (await res.text()).replace(/\s+/g, " ");
+    const reason = (errText.match(/"message":\s*"([^"]{0,120})/) || [])[1] || "";
+    throw new Error(`${model}: HTTP ${res.status} ${reason}`.trim());
+  }
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("") || "";
+  let r;
+  try { r = JSON.parse(text); } catch { throw new Error(`${model}: unreadable answer`); }
+  const out: Record<string, unknown> = { model, text: String(r.text ?? "").trim().slice(0, 2000) };
+  if (check) out.check = { level: r.level, praise: r.praise, corrected: r.corrected, fixes: (r.fixes || []).slice(0, 2), tip: r.tip };
+  return out;
+}
+
+/** Start models one after another (every HEDGE_MS, or right away when one fails); first good answer wins. */
+function transcribe(key: string, audio: string, mime: string, check: Check | null, hint = "") {
+  const stop = new AbortController();
+  const skipped: string[] = [];
+  return new Promise<Record<string, unknown>>((resolve, reject) => {
+    let next = 0, running = 0, done = false, timer = 0;
+    const finish = (fn: () => void) => { if (done) return; done = true; clearTimeout(timer); clearTimeout(total); stop.abort(); fn(); };
+    const total = setTimeout(() => finish(() => reject(new Error(skipped.join(" | ") || "timeout"))), TOTAL_MS);
+    const launch = () => {
+      clearTimeout(timer);
+      if (done) return;
+      if (next >= MODELS.length) {
+        if (running === 0) finish(() => reject(new Error(skipped.join(" | ") || "no model available")));
+        return;
+      }
+      const model = MODELS[next++];
+      running++;
+      tryModel(key, model, audio, mime, check, hint, stop.signal).then(
+        (out) => finish(() => resolve({ ...out, skipped })),
+        (e) => {
+          running--;
+          if (done) return;
+          skipped.push(String((e as Error).message));
+          console.log("gemini model failed", (e as Error).message);
+          clearTimeout(timer);
+          timer = setTimeout(launch, 700); // try the next one after a short breath
+        },
+      );
+      timer = setTimeout(launch, HEDGE_MS); // still no answer: start the next one as well
+    };
+    launch();
+  });
 }
 
 Deno.serve(async (req) => {
