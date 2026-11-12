@@ -35,6 +35,7 @@ function fresh() {
     extras: 0,     // extra exercises done in total
     tricks: [],    // learned trick ids, in order
     cards: {},     // flip cards: sentence key → { box 1–5, due date }
+    reminder: false, // push reminder at 19:00 is on (step 4)
     updatedAt: 0,
   };
 }
