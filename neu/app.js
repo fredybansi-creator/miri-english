@@ -5,6 +5,9 @@
 import travel from './content/travel.js';
 import friends from './content/friends.js';
 import doctor from './content/doctor.js';
+import holiday from './content/holiday.js';
+import cafe from './content/cafe.js';
+import shopping from './content/shopping.js';
 import { mountFox } from './fox.js';
 import { play, playAll, stopAll, audioKey } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
@@ -15,7 +18,7 @@ import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
 // Topics in the order Miri does them; each lesson knows its topic.
-const TOPICS = [travel, friends, doctor];
+const TOPICS = [travel, friends, doctor, holiday, cafe, shopping];
 const LESSONS = TOPICS.flatMap((t) => t.lessons.map((l) => Object.assign(l, { topic: t })));
 const app = document.getElementById('app');
 
