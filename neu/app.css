@@ -1,7 +1,7 @@
 /* Miri English – new daily practice. Phone first (iPhone Safari), light and dark. */
 :root {
   --bg: #eef4ec; --card: #ffffff; --fg: #2c3328; --muted: #6a7564; --line: #d8e2d3;
-  --fox: #f07f2e; --fox-dark: #c9611a; --cream: #fff6ea; --scarf: #3f78d6;
+  --fox: #f07f2e; --fox-dark: #a94c10; --accent: #b8521a; /* --accent: filled buttons with white text (contrast 4.9) */ --cream: #fff6ea; --scarf: #3f78d6;
   --ok: #2f9a52; --ok-bg: #e3f4e8; --bad: #c8463b; --bad-bg: #fbe6e3; --mid-bg: #fff3dc;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
@@ -9,12 +9,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #1b2119; --card: #262e24; --fg: #eef2ea; --muted: #a7b2a0; --line: #384334;
-    --ok-bg: #1f3a27; --bad-bg: #432421; --mid-bg: #3d3320; color-scheme: dark;
+    --ok-bg: #1f3a27; --bad-bg: #432421; --mid-bg: #3d3320; color-scheme: dark; --fox-dark: #f4a261;
   }
 }
 :root[data-theme="dark"] {
   --bg: #1b2119; --card: #262e24; --fg: #eef2ea; --muted: #a7b2a0; --line: #384334;
-  --ok-bg: #1f3a27; --bad-bg: #432421; --mid-bg: #3d3320; color-scheme: dark;
+  --ok-bg: #1f3a27; --bad-bg: #432421; --mid-bg: #3d3320; color-scheme: dark; --fox-dark: #f4a261;
 }
 
 * { box-sizing: border-box; }
@@ -57,7 +57,7 @@ p { margin: 0; }
 .lessons li.next { border-color: var(--fox); }
 .lessons .t { flex: 1; font-weight: 600; }
 .lessons .dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 14px; background: var(--bg); color: var(--muted); flex: none; }
-.lessons li.ok .dot { background: var(--fox); color: #fff; }
+.lessons li.ok .dot { background: var(--accent); color: #fff; }
 .more { font-size: 15px; color: var(--muted); }
 .more summary { cursor: pointer; padding: 6px 0; }
 .more > * + * { margin-top: 8px; }
@@ -68,7 +68,7 @@ input { font: inherit; font-size: 17px; flex: 1; min-width: 0; padding: 10px 12p
 /* ---------- buttons */
 .btn { border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 12px 16px; font-weight: 700; cursor: pointer; }
 .btn:active { transform: translateY(1px); }
-.btn.primary { background: var(--fox); border-color: var(--fox); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.primary:disabled { opacity: .45; }
 .btn.big { padding: 16px; font-size: 19px; border-radius: 16px; }
 .btn.small { padding: 6px 10px; font-size: 14px; border-radius: 10px; }
@@ -99,10 +99,10 @@ input { font: inherit; font-size: 17px; flex: 1; min-width: 0; padding: 10px 12p
 .actions .btn + .btn { margin-top: 0; }
 .status { text-align: center; color: var(--muted); font-size: 15px; min-height: 1.4em; }
 
-.mic { align-self: center; width: 112px; height: 112px; border-radius: 50%; border: none; background: var(--fox); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 6px 0 var(--fox-dark); cursor: pointer; }
+.mic { align-self: center; width: 112px; height: 112px; border-radius: 50%; border: none; background: var(--accent); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 6px 0 #7d360b; cursor: pointer; }
 .mic .ico { font-size: 36px; line-height: 1; }
 .mic .lbl { font-weight: 800; font-size: 15px; }
-.mic:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--fox-dark); }
+.mic:active { transform: translateY(3px); box-shadow: 0 3px 0 #7d360b; }
 .mic.on { background: var(--bad); box-shadow: 0 6px 0 #8f2d25; animation: pulse 1.4s ease-in-out infinite; }
 .mic:disabled { opacity: .7; }
 @keyframes pulse { 50% { transform: scale(1.05); } }
@@ -116,7 +116,7 @@ input { font: inherit; font-size: 17px; flex: 1; min-width: 0; padding: 10px 12p
 .feedback.try { background: var(--bad-bg); }
 .verdict { font-size: 20px; font-weight: 800; }
 .said { font-style: italic; }
-.marked .miss, .small .miss { background: var(--fox); color: #fff; border-radius: 6px; padding: 0 4px; }
+.marked .miss, .small .miss { background: var(--accent); color: #fff; border-radius: 6px; padding: 0 4px; }
 .fixes { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .fixes s { color: var(--bad); }
 
@@ -140,32 +140,45 @@ input { font: inherit; font-size: 17px; flex: 1; min-width: 0; padding: 10px 12p
 .option:disabled { cursor: default; color: var(--fg); }
 .big-num { font-size: 40px; font-weight: 800; color: var(--fox-dark); }
 
-/* ---------- Raluca's moving parts (see fox.js) */
-.part { transform-box: fill-box; }
-#fox { transform-origin: 50% 100%; cursor: pointer; }
-#mover { transform-origin: 50% 100%; }
-#tail { transform-origin: 5% 90%; animation: wag 1.8s ease-in-out infinite; }
-#head { transform-origin: 50% 90%; animation: bob 3.2s ease-in-out infinite; }
-#earL { transform-origin: 70% 100%; }
-#earR { transform-origin: 30% 100%; }
-#lidL, #lidR { transform-origin: 50% 0%; transform: scaleY(0); animation: blink 4.5s infinite; }
-#legFR, #legFL { transform-origin: 50% 8%; }
-#legBR, #legBL { transform-origin: 50% 10%; }
-#torso { transform-origin: 30% 70%; }
-@keyframes wag { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-9deg); } }
-@keyframes bob { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-2.5deg); } }
-@keyframes blink { 0%, 45%, 51%, 100% { transform: scaleY(0); } 48% { transform: scaleY(1); } }
-@media (prefers-reduced-motion: reduce) { #tail, #head, #lidL, #lidR { animation: none; } }
+/* ---------- Raluca's moving parts (see fox.js). Pivots are in the SVG's own units. */
+#fox, #mover, #tail, #head, #earL, #earR, #lidL, #lidR, #legFR, #legFL, #legBR, #legBL, #torso, #ruff, #wear-neck, #wear-leash, #shadow, #browL, #browR { transform-box: view-box; }
+#fox, #mover { transform-origin: 224px 350px; }
+#fox { cursor: pointer; }
+#shadow { transform-origin: 224px 352px; }
+#tail { transform-origin: 288px 262px; animation: wag 2.2s ease-in-out infinite; }
+#head { transform-origin: 172px 234px; animation: bob 3.6s ease-in-out infinite; }
+#earL { transform-origin: 138px 128px; }
+#earR { transform-origin: 202px 128px; animation: twitch 7s ease-in-out infinite; }
+#lidL { transform-origin: 146px 144px; }
+#lidR { transform-origin: 194px 144px; }
+#lidL, #lidR { transform: scaleY(0); animation: blink 5s infinite; }
+#browL { transform-origin: 146px 140px; } #browR { transform-origin: 194px 140px; }
+#legFR { transform-origin: 201px 298px; } #legFL { transform-origin: 186px 294px; }
+#legBR { transform-origin: 288px 292px; } #legBL { transform-origin: 268px 292px; }
+#torso, #ruff, #wear-neck, #wear-leash { transform-origin: 200px 304px; }
+#torso { animation: breathe 3.6s ease-in-out infinite; }
+@keyframes wag { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-8deg); } }
+@keyframes bob { 0%, 100% { transform: rotate(0) translateY(0); } 50% { transform: rotate(-2deg) translateY(1.5px); } }
+@keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.025); } }
+@keyframes blink { 0%, 46%, 50%, 100% { transform: scaleY(0); } 48% { transform: scaleY(1); } }
+@keyframes twitch { 0%, 88%, 94%, 100% { transform: rotate(0); } 91% { transform: rotate(9deg); } }
+@media (prefers-reduced-motion: reduce) { #tail, #head, #lidL, #lidR, #torso, #earR { animation: none; } }
 
 /* ---------- Raluca's mood (fox.js setMood) */
-.mood-sad #earL { transform: rotate(-28deg); }
-.mood-sad #earR { transform: rotate(28deg); }
-.mood-sad #lidL, .mood-sad #lidR { animation: none; transform: scaleY(.5); }
-.mood-sad #tail { animation: none; transform: rotate(14deg); }
+#earL, #earR, #browL, #browR { transition: transform .5s ease; }
+.mood-sad #earL { transform: rotate(-30deg); }
+.mood-sad #earR { transform: rotate(30deg); animation: none; }
+.mood-sad #browL { transform: rotate(14deg) translateY(2px); }
+.mood-sad #browR { transform: rotate(-14deg) translateY(2px); }
+.mood-sad #lidL, .mood-sad #lidR { animation: none; transform: scaleY(.45); }
+.mood-sad #tail { animation: none; transform: rotate(16deg); }
+.mood-sad #head { animation-duration: 6s; }
 .mood-hungry #earL { transform: rotate(-12deg); }
-.mood-hungry #earR { transform: rotate(12deg); }
-.mood-hungry #tail { animation-duration: 3.6s; }
-#earL, #earR { transition: transform .4s; }
+.mood-hungry #earR { transform: rotate(12deg); animation: none; }
+.mood-hungry #browL { transform: rotate(8deg); }
+.mood-hungry #browR { transform: rotate(-8deg); }
+.mood-hungry #tail { animation-duration: 3.8s; }
+.mood-happy #tail { animation-duration: 1.1s; }
 
 /* ---------- game (step 2) */
 .hud { display: flex; gap: 8px; }
@@ -219,7 +232,7 @@ body.in-session .tabbar { display: none; }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 .cal span { padding: 6px 0; border-radius: 8px; background: var(--bg); color: var(--muted); }
 .cal .h { background: none; font-weight: 700; }
-.cal .on { background: var(--fox); color: #fff; font-weight: 800; }
+.cal .on { background: var(--accent); color: #fff; font-weight: 800; }
 .cal .now { outline: 2px solid var(--fox-dark); }
 
 .typed[hidden] { display: none; }
