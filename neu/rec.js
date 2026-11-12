@@ -19,11 +19,15 @@ function pickMime() {
 
 export const canRecord = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
-async function ensureMic() {
-  if (stream && stream.getAudioTracks().some((t) => t.readyState === 'live')) return stream;
+// A fresh mic stream for every recording, released right after it. On the iPhone a stream that stays
+// open goes silent after Raluca's voice has played a few times (recordings came back empty: "zu kurz").
+async function openMic() {
+  releaseMic();
   stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-  log('Mikro freigegeben');
   return stream;
+}
+export function releaseMic() {
+  if (stream) { stream.getTracks().forEach((t) => { try { t.stop(); } catch { /* ignore */ } }); stream = null; }
 }
 
 /**
@@ -34,13 +38,14 @@ export async function startRecording(onTick, onAutoStop) {
   try {
     if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); }
     if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
-    await ensureMic();
+    await openMic();
   } catch (e) {
     log('Mikro-Fehler: ' + (e && e.name) + ' ' + (e && e.message));
     throw new Error(e && e.name === 'NotAllowedError'
       ? 'Das Mikro ist nicht erlaubt. In Safari: aA → Website-Einstellungen → Mikrofon → Erlauben. Dann Seite neu laden.'
       : 'Das Mikro konnte nicht gestartet werden.');
   }
+  const track = stream.getAudioTracks()[0];
   const mime = pickMime();
   const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
   const chunks = [];
@@ -48,7 +53,7 @@ export async function startRecording(onTick, onAutoStop) {
   const stopped = new Promise((resolve) => { rec.onstop = resolve; });
   rec.start(500);
   const startedAt = Date.now();
-  log(`Aufnahme gestartet (${rec.mimeType || mime || 'Standard'})`);
+  log(`Aufnahme gestartet (${rec.mimeType || mime || 'Standard'}; Mikro ${track ? track.readyState + (track.muted ? ', stumm' : '') : 'fehlt'})`);
   let cancelled = false;
   const timer = setInterval(() => {
     const ms = Date.now() - startedAt;
@@ -62,16 +67,19 @@ export async function startRecording(onTick, onAutoStop) {
   }
 
   return {
-    cancel() { cancelled = true; halt(); },
+    cancel() { cancelled = true; halt(); stopped.then(releaseMic); },
     async stop() {
       halt();
       await stopped;
       const durMs = Date.now() - startedAt;
+      const muted = track && track.muted;
+      releaseMic();
       if (cancelled) return { text: '', error: 'cancelled' };
       const type = rec.mimeType || (chunks[0] && chunks[0].type) || 'audio/mp4';
       const blob = new Blob(chunks, { type });
-      log(`Aufnahme: ${(durMs / 1000).toFixed(1)} s, ${Math.round(blob.size / 1024)} KB`);
-      if (blob.size < 1000 || durMs < 600) return { text: '', error: 'Das war zu kurz. Tippe auf das Mikro und sprich etwas länger.' };
+      log(`Aufnahme: ${(durMs / 1000).toFixed(1)} s, ${blob.size} Bytes in ${chunks.length} Teilen${muted ? ', Mikro war stumm' : ''}`);
+      if (durMs < 600) return { text: '', error: 'Das war zu kurz. Tippe auf das Mikro und sprich etwas länger.' };
+      if (blob.size < 1000) return { text: '', error: 'Das Mikro hat nichts aufgenommen. Bitte noch einmal versuchen.' };
       return transcribe(blob, type);
     },
   };
