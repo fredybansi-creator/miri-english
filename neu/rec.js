@@ -34,7 +34,7 @@ export function releaseMic() {
  * Start recording. Returns { stop(): Promise<{ text, error, ms }>, cancel() } or throws with a German message.
  * onTick(seconds) is called while recording; recording stops by itself after 60 s.
  */
-export async function startRecording(onTick, onAutoStop) {
+export async function startRecording(onTick, onAutoStop, check = null) {
   try {
     if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); }
     if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
@@ -80,12 +80,12 @@ export async function startRecording(onTick, onAutoStop) {
       log(`Aufnahme: ${(durMs / 1000).toFixed(1)} s, ${blob.size} Bytes in ${chunks.length} Teilen${muted ? ', Mikro war stumm' : ''}`);
       if (durMs < 600) return { text: '', error: 'Das war zu kurz. Tippe auf das Mikro und sprich etwas länger.' };
       if (blob.size < 1000) return { text: '', error: 'Das Mikro hat nichts aufgenommen. Bitte noch einmal versuchen.' };
-      return transcribe(blob, type);
+      return transcribe(blob, type, check);
     },
   };
 }
 
-async function transcribe(blob, type) {
+async function transcribe(blob, type, check) {
   let payload;
   try {
     const wav = await toWav16k(blob);
@@ -94,9 +94,11 @@ async function transcribe(blob, type) {
     log('WAV-Umwandlung ging nicht (' + (e && e.message) + '), sende Original');
     payload = { audio: await b64(blob), mime: type.split(';')[0] };
   }
+  if (check) payload.check = check; // the server also judges the answer in the same call
   const t0 = Date.now();
   let data = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
+    const tA = Date.now();
     try {
       const res = await fetch(URL_, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -109,11 +111,12 @@ async function transcribe(blob, type) {
       log('Netzwerk-Fehler: ' + (e && e.message));
       data = { error: 'network' };
     }
+    if (Date.now() - tA > 10000) break; // a slow failure: don't make her wait twice
   }
   const ms = Date.now() - t0;
   if (data && data.ok) {
-    log(`Text nach ${(ms / 1000).toFixed(1)} s: "${data.text}"`);
-    return { text: data.text || '', ms, error: data.text ? '' : 'Ich habe nichts verstanden. Bitte noch einmal, etwas näher am Handy.' };
+    log(`Text nach ${(ms / 1000).toFixed(1)} s${data.check ? ' (mit Prüfung: ' + data.check.level + ')' : ''}: "${data.text}"`);
+    return { text: data.text || '', check: data.check || null, ms, error: data.text ? '' : 'Ich habe nichts verstanden. Bitte noch einmal, etwas näher am Handy.' };
   }
   log('Fehler: ' + JSON.stringify(data));
   return {

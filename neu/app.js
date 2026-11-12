@@ -8,7 +8,7 @@ import { play, playAll, stopAll } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
 import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
-import { aiFeedback } from '../js/ai.js';
+import { aiFeedback, looksGerman } from '../js/ai.js';
 
 const TOPIC = travel;
 const app = document.getElementById('app');
@@ -228,7 +228,7 @@ function wirePlayButtons(root = app) {
  * Mic button + "lieber tippen". Calls onText(text) with what she said.
  * Returns the element ids it uses inside #actions.
  */
-function micControls(onText) {
+function micControls(onText, check = null) {
   const actions = $('#actions');
   actions.innerHTML = `
     <p class="status" id="status">${canRecord() ? 'Tippe auf das Mikro und sprich.' : 'Dieses Handy kann hier nicht aufnehmen. Bitte tippe deine Antwort.'}</p>
@@ -250,7 +250,7 @@ function micControls(onText) {
     mic.querySelector('.lbl').textContent = 'Moment …';
     status.textContent = 'Mikro startet …';
     try {
-      session = await startRecording((s) => { status.textContent = `Jetzt sprechen! ${s} s · Tippe auf „Fertig“, wenn du fertig bist.`; }, finish);
+      session = await startRecording((s) => { status.textContent = `Jetzt sprechen! ${s} s · Tippe auf „Fertig“, wenn du fertig bist.`; }, finish, check);
     } catch (e) {
       status.textContent = e.message;
       mic.querySelector('.ico').textContent = '🎤';
@@ -271,14 +271,16 @@ function micControls(onText) {
     mic.querySelector('.ico').textContent = '⏳';
     mic.querySelector('.lbl').textContent = 'Moment …';
     status.textContent = 'Ich höre mir das an …';
+    const slow = setTimeout(() => { status.textContent = 'Google ist gerade langsam – noch einen Moment …'; }, 6000);
     const r = await s.stop();
+    clearTimeout(slow);
     busy = false;
     mic.disabled = false;
     mic.querySelector('.ico').textContent = '🎤';
     mic.querySelector('.lbl').textContent = 'Sprechen';
     if (r.error === 'cancelled') return;
     if (r.error) { status.textContent = r.error; return; }
-    onText(r.text);
+    onText(r.text, r.check);
   }
   mic.addEventListener('click', () => (session ? finish() : begin()));
   $('#typeToggle').addEventListener('click', () => { const f = $('#typed'); f.hidden = !f.hidden; if (!f.hidden) $('#typedIn').focus(); });
@@ -371,6 +373,19 @@ function exBuild(lesson, step, frame, next) {
   });
 }
 
+// The server's check of a spoken answer, in the same shape as aiFeedback(); German slips are dropped.
+function cleanCheck(c) {
+  if (!c || !['great', 'good', 'try'].includes(c.level)) return null;
+  const english = (t) => (looksGerman(t) ? '' : String(t || ''));
+  return {
+    level: c.level,
+    praise: String(c.praise || ''),
+    corrected: english(c.corrected),
+    fixes: (Array.isArray(c.fixes) ? c.fixes : []).filter((f) => f && f.better && !looksGerman(f.better)).slice(0, 2),
+    tip: String(c.tip || ''),
+  };
+}
+
 // ---------------------------------------------------------------- 3. Sag es auf Englisch
 function exSay(lesson, step, frame, next) {
   const item = lesson.say[step.i];
@@ -391,14 +406,15 @@ function exSay(lesson, step, frame, next) {
       </div>`;
 
   const ask = () => {
-    micControls(async (said) => {
-      $('#actions').innerHTML = '<p class="status">Raluca schaut sich deinen Satz an …</p>';
+    micControls(async (said, serverCheck) => {
       const local = checkAnswer(item, [said]);
-      let level = local.level, fb = null;
-      // The AI gets at most 8 seconds (Gemini is sometimes overloaded); then the offline check decides.
-      // A hard timer as well, because a hanging request must never block the lesson.
+      let level = local.level, fb = cleanCheck(serverCheck);
+      // Spoken answers come back already checked (one server call). Typed answers – or if that check is
+      // missing – ask the feedback function: at most 8 seconds (Gemini is sometimes overloaded), then the
+      // offline check decides. A hard timer as well, because a hanging request must never block the lesson.
       const t0 = Date.now();
-      fb = await Promise.race([
+      if (!fb) $('#actions').innerHTML = '<p class="status">Raluca schaut sich deinen Satz an …</p>';
+      if (!fb) fb = await Promise.race([
         aiFeedback({ they: item.they || '', de: item.de, answers: item.answers }, said, { timeout: 8000 })
           .catch((e) => { log('KI-Feedback ging nicht: ' + (e.code || e.message)); return null; }),
         new Promise((r) => setTimeout(() => r(null), 9000)),
@@ -421,7 +437,7 @@ function exSay(lesson, step, frame, next) {
       const again = $('#again');
       if (again) again.addEventListener('click', () => { $('#result').innerHTML = ''; ask(); });
       $('#next').addEventListener('click', () => next(level !== 'try'));
-    });
+    }, { they: item.they || '', de: item.de, answers: item.answers });
     const skip = document.createElement('button');
     skip.className = 'btn link';
     skip.textContent = 'Ich weiß es nicht – zeig mir die Lösung';
