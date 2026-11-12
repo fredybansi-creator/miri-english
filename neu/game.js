@@ -3,7 +3,7 @@
 //   coins: +10 for each day with a finished lesson, +15 extra on day 3 in a row, +50 extra on day 7 (and 14, 21 …)
 //   bowl:  fills with every exercise of the day (full after one lesson); it only shows how happy she is
 //   mood:  happy after today's lesson; hungry after 1 missed day, sad after 2 – she never runs away
-//   tricks: learned with extra exercises (5, 8, 10, 12, 15), then Miri taps Raluca and says the trick
+//   tricks: learned with extra exercises (5, 8, 10, 12, 15; ball tricks 15, 18, 20 need the ball), then Miri taps Raluca and says the trick
 
 import { getState, update, today, streak, daysSinceLast } from './store.js';
 
@@ -133,6 +133,10 @@ export const TRICKS = [
   { id: 'jump', name: 'Jump!', cost: 10, words: ['jump'] },
   { id: 'spin', name: 'Spin!', cost: 12, words: ['spin', 'turn around', 'turn'] },
   { id: 'down', name: 'Lie down!', cost: 15, words: ['lie down', 'down', 'lay down'] },
+  // ball tricks: she needs the ball from the shop first
+  { id: 'fetch', name: 'Fetch!', cost: 15, needs: 'ball', words: ['fetch', 'fetch the ball', 'get the ball', 'bring the ball', 'bring it'] },
+  { id: 'catch', name: 'Catch!', cost: 18, needs: 'ball', words: ['catch', 'catch it', 'catch the ball'] },
+  { id: 'balance', name: 'Balance!', cost: 20, needs: 'ball', words: ['balance', 'balance the ball'] },
 ];
 
 /** The next trick to learn and how many extra exercises are still missing. */
@@ -140,7 +144,10 @@ export function nextTrick() {
   const st = getState();
   let used = 0;
   for (const t of TRICKS) {
-    if (!st.tricks.includes(t.id)) return { trick: t, have: Math.max(0, st.extras - used), need: t.cost };
+    if (!st.tricks.includes(t.id)) {
+      const missing = t.needs && !st.owned.includes(t.needs) ? t.needs : null; // e.g. the ball is not bought yet
+      return { trick: t, have: Math.min(t.cost, Math.max(0, st.extras - used)), need: t.cost, missing };
+    }
     used += t.cost;
   }
   return null;
@@ -150,7 +157,17 @@ export function nextTrick() {
 export function addExtra() {
   update((s) => { s.extras++; });
   const n = nextTrick();
-  if (n && n.have >= n.need) {
+  if (n && n.have >= n.need && !n.missing) {
+    update((s) => { s.tricks.push(n.trick.id); });
+    return n.trick;
+  }
+  return null;
+}
+
+/** After buying an item: a trick that only waited for it is learned now. */
+export function checkWaitingTrick() {
+  const n = nextTrick();
+  if (n && !n.missing && n.have >= n.need) {
     update((s) => { s.tricks.push(n.trick.id); });
     return n.trick;
   }

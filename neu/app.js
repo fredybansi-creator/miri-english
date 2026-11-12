@@ -13,7 +13,7 @@ import { play, playAll, stopAll, audioKey } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
 import { reminderState, registerWorker, turnOn, turnOff, sendTest } from './reminder.js';
-import { BOWL_FULL, payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, isWorn, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
+import { BOWL_FULL, payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, isWorn, TRICKS, nextTrick, addExtra, trickFromSpeech, checkWaitingTrick } from './game.js';
 import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
@@ -338,7 +338,8 @@ function ralucaTab(cheer = false) {
         : '<p class="small muted">Raluca kann noch keine Tricks. Mit Extra-Übungen lernt sie welche.</p>'}
       ${nt ? `
         <div class="trickbar"><span>Nächster Trick: <b>${esc(nt.trick.name)}</b></span><span class="muted">${nt.have} von ${nt.need}</span></div>
-        <div class="meter"><i style="width:${Math.round((nt.have / nt.need) * 100)}%"></i></div>` : '<p class="small">Raluca kann alle Tricks! 🏆</p>'}
+        <div class="meter"><i style="width:${Math.round((nt.have / nt.need) * 100)}%"></i></div>
+        ${nt.missing ? `<p class="small">Für diesen Trick braucht Raluca zuerst: <b>${esc(itemById(nt.missing).name)}</b> aus dem Shop.</p>` : ''}` : '<p class="small">Raluca kann alle Tricks! 🏆</p>'}
       ${canExtra && !run ? '<button class="btn" id="extraEx">➕ Extra-Übung machen</button>'
         : canExtra ? '' : '<p class="small muted">Extra-Übungen gibt es nach deiner ersten Lektion.</p>'}
     </div>
@@ -365,10 +366,17 @@ function ralucaTab(cheer = false) {
   wireGo();
   const ex = $('#extraEx');
   if (ex) ex.addEventListener('click', startExtra);
-  if (cheer) setTimeout(() => fox.trick('happy'), 50);
+  if (cheer) setTimeout(() => fox.trick(typeof cheer === 'string' ? cheer : 'happy'), 50);
   const redraw = (c) => { const y = window.scrollY; ralucaTab(c); window.scrollTo(0, y); };
   app.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
-    if (buy(b.dataset.buy)) { log('Gekauft: ' + b.dataset.buy); backup(); play('Thank you, Miri! I love it!'); redraw(true); }
+    if (!buy(b.dataset.buy)) return;
+    log('Gekauft: ' + b.dataset.buy);
+    const learned = checkWaitingTrick(); // e.g. "Fetch!" was only waiting for the ball
+    if (learned) log('Trick gelernt: ' + learned.id);
+    backup();
+    play('Thank you, Miri! I love it!');
+    redraw(learned ? learned.id : true);
+    if (learned) setBubble('Neuer Trick! 🎉', `Raluca kann jetzt ${learned.name} – tippe auf sie und sag es.`);
   }));
   app.querySelectorAll('[data-on]').forEach((b) => b.addEventListener('click', () => { wear(b.dataset.on); redraw(false); }));
   app.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { takeOff(b.dataset.off); redraw(false); }));
@@ -473,7 +481,7 @@ function wireCheat() {
     taps = [];
     const box = $('#cheat');
     box.innerHTML = `<div class="card cheat"><h3>🤫 Geheim</h3>
-      <div class="row wrap"><button class="btn small" data-coins="50">+50 Münzen</button><button class="btn small" data-coins="200">+200 Münzen</button>
+      <div class="row wrap"><button class="btn small" data-coins="50">+50 Münzen</button><button class="btn small" data-coins="200">+200 Münzen</button><button class="btn small" id="cheatZero">Münzen auf 0</button>
       <button class="btn small" id="cheatExtra">+1 Extra-Übung</button><button class="btn small" id="cheatBowl">Napf füllen</button></div>
       <p class="small muted" id="cheatMsg"></p></div>`;
     const say = (t) => { $('#cheatMsg').textContent = t; };
@@ -486,6 +494,15 @@ function wireCheat() {
       const pill = app.querySelector('.hud .pill');
       if (pill) pill.innerHTML = `<span class="coin"></span>${getState().coins}`;
     }));
+    $('#cheatZero').addEventListener('click', () => {
+      if (!confirm('Münzen wirklich auf 0 setzen? Gekaufte Sachen bleiben.')) return;
+      update((s) => { s.coins = 0; });
+      log('Geheim: Münzen auf 0');
+      backup();
+      say('Münzen sind jetzt 0');
+      const pill = app.querySelector('.hud .pill');
+      if (pill) pill.innerHTML = '<span class="coin"></span>0';
+    });
     $('#cheatExtra').addEventListener('click', () => {
       const tr = addExtra();
       backup();
@@ -534,7 +551,7 @@ async function listenForTrick(fox) {
   setBubble('…', 'Mikro startet …');
   let session;
   try {
-    session = await startRecording(() => {}, () => {}, null, 'She gives her pet fox a short dog command in English, like "Sit!", "Give paw!", "Jump!", "Spin!" or "Lie down!".');
+    session = await startRecording(() => {}, () => {}, null, `She gives her pet fox a short dog command in English, like ${TRICKS.map((t) => `"${t.name}"`).join(', ')}.`);
   } catch (e) {
     setBubble('Oh!', e.message);
     listening = false;
@@ -620,7 +637,8 @@ function finishExtra() {
     <div class="card center">
       ${learned
         ? `<h2>Neuer Trick! 🎉</h2><p>Raluca kann jetzt <b>${esc(learned.name)}</b></p><p class="small muted">Tippe im Raluca-Tab auf Raluca und sag „${esc(learned.name)}“.</p>`
-        : `<h2>Extra geschafft! 💪</h2>${nt ? `<p>Nächster Trick <b>${esc(nt.trick.name)}</b>: ${nt.have} von ${nt.need}</p>` : ''}`}
+        : `<h2>Extra geschafft! 💪</h2>${nt ? `<p>Nächster Trick <b>${esc(nt.trick.name)}</b>: ${nt.have} von ${nt.need}</p>` : ''}
+           ${nt && nt.missing ? `<p class="small">Dafür braucht Raluca zuerst: <b>${esc(itemById(nt.missing).name)}</b> aus dem Shop.</p>` : ''}`}
       <button class="btn primary big" id="more">Noch eine Extra-Übung</button>
       <button class="btn" id="home">Zurück zu Raluca</button>
     </div>
