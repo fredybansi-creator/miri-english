@@ -3,6 +3,8 @@
 // Exercise types: Nachsprechen (repeat), Satz bauen (build), Sag es auf Englisch (say), Hörgeschichte (story).
 
 import travel from './content/travel.js';
+import friends from './content/friends.js';
+import doctor from './content/doctor.js';
 import { mountFox } from './fox.js';
 import { play, playAll, stopAll } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
@@ -11,7 +13,9 @@ import { payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, ta
 import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
-const TOPIC = travel;
+// Topics in the order Miri does them; each lesson knows its topic.
+const TOPICS = [travel, friends, doctor];
+const LESSONS = TOPICS.flatMap((t) => t.lessons.map((l) => Object.assign(l, { topic: t })));
 const app = document.getElementById('app');
 
 // Raluca's short lines (audio made by tools/make_audio.py, EXTRA_MAIN)
@@ -30,8 +34,8 @@ function screen(html) {
 }
 
 // ---------------------------------------------------------------- which lesson is today's
-function lessonById(id) { return TOPIC.lessons.find((l) => l.id === id); }
-function nextLesson() { return TOPIC.lessons.find((l) => !getState().done[l.id]) || null; }
+function lessonById(id) { return LESSONS.find((l) => l.id === id); }
+function nextLesson() { return LESSONS.find((l) => !getState().done[l.id]) || null; }
 function doneToday() { return getState().days.includes(today()); }
 
 function stepsFor(lesson) {
@@ -53,10 +57,9 @@ function home() {
   const finishedToday = doneToday();
   const run = st.run && lessonById(st.run.lessonId) ? st.run : null;
   const days = streak();
-  const doneCount = TOPIC.lessons.filter((l) => st.done[l.id]).length;
   const m = mood();
   const nt = nextTrick();
-  const canExtra = TOPIC.lessons.some((l) => st.done[l.id]);
+  const canExtra = LESSONS.some((l) => st.done[l.id]);
 
   let card;
   if (run) {
@@ -77,10 +80,10 @@ function home() {
         ${next ? '<button class="btn link" id="ahead">Trotzdem schon die nächste Lektion machen</button>' : ''}
       </div>`;
   } else if (next) {
-    const n = TOPIC.lessons.indexOf(next) + 1;
+    const n = next.topic.lessons.indexOf(next) + 1;
     card = `
       <div class="card today">
-        <p class="kicker">Heute · Lektion ${n} von ${TOPIC.lessons.length} · ca. 10 Minuten</p>
+        <p class="kicker">Heute · ${esc(next.topic.title)} · Lektion ${n} von ${next.topic.lessons.length} · ca. 10 Min.</p>
         <h2>${esc(next.title)}</h2>
         <p class="muted">${esc(next.goal)}</p>
         <ul class="parts">
@@ -95,7 +98,7 @@ function home() {
   } else {
     card = `
       <div class="card today done">
-        <p class="kicker">${esc(TOPIC.title)}</p>
+        <p class="kicker">Alle Themen</p>
         <h2>Alle Lektionen geschafft! 🏆</h2>
         <p class="muted">Bald kommen neue Themen. Bis dahin kannst du jede Lektion wiederholen.</p>
       </div>`;
@@ -127,17 +130,18 @@ function home() {
     ${card}
     ${trickCard}
     <button class="btn shop-link" id="shopBtn2">🛍️ Shop – Sachen für Raluca</button>
+    ${TOPICS.map((t) => `
     <section class="topic">
-      <h3>${esc(TOPIC.title)} <span class="muted">${doneCount} von ${TOPIC.lessons.length}</span></h3>
+      <h3>${esc(t.title)} <span class="muted">${t.lessons.filter((l) => st.done[l.id]).length} von ${t.lessons.length}</span></h3>
       <ol class="lessons">
-        ${TOPIC.lessons.map((l, i) => `
+        ${t.lessons.map((l, i) => `
           <li class="${st.done[l.id] ? 'ok' : ''} ${next && next.id === l.id ? 'next' : ''}">
             <span class="dot">${st.done[l.id] ? '✓' : i + 1}</span>
             <span class="t">${esc(l.title)}</span>
             ${st.done[l.id] ? `<button class="btn small" data-again="${l.id}">Wiederholen</button>` : ''}
           </li>`).join('')}
       </ol>
-    </section>
+    </section>`).join('')}
     <details class="more">
       <summary>Mein Code und Hilfe</summary>
       <p>Dein Fortschritt wird automatisch gesichert. Mit diesem Code holst du ihn auf ein neues Handy:</p>
@@ -284,7 +288,7 @@ function startLesson(lesson) {
 // One short exercise from a lesson she already finished (repeat, build or say). Teaches Raluca tricks.
 function startExtra() {
   const st = getState();
-  const done = TOPIC.lessons.filter((l) => st.done[l.id]);
+  const done = LESSONS.filter((l) => st.done[l.id]);
   if (!done.length) return home();
   const lesson = done[Math.floor(Math.random() * done.length)];
   const pool = stepsFor(lesson).filter((x) => ['repeat', 'build', 'say'].includes(x.type));
