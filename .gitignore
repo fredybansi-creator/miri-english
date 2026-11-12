@@ -6,3 +6,4 @@ supabase/.temp/
 samples/
 tools/.venv/
 tools/models/
+__pycache__/
