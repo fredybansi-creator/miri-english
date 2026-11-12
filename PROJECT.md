@@ -53,6 +53,8 @@ at the same address once Freddy says ok; until then it lives at `/neu/` and the 
 - Step 1 (2026-11-12): `neu/` = daily practice. Start page with 2D Raluca (`neu/fox.js`), one lesson per day (~10 min),
   topic Reisen (`neu/content/travel.js`, 5 lessons, A2–B1, short sentences). Exercise types: repeat (mic, offline check),
   build (tiles), say (mic → `transcribe`, then `feedback` translate mode), story (audio + 2 questions).
+  Topics (2026-11-12, in this order): Reisen, Freunde, Beim Arzt, Im Urlaub, Café & Essen, Einkaufen – 6 × 5 lessons
+  (`neu/content/*.js`, imported in `neu/app.js` TOPICS).
   Progress: localStorage `miri-neu` + backup via `progress` (random code made on the phone, no password; `app: 'neu'`).
   Debug log: localStorage `miri-neu-log`, "Protokoll kopieren" on the start page.
   Audio: `tools/make_audio.py` also reads `neu/content/*.js` (voices us-main / us-friend are used).
