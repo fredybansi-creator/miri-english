@@ -26,6 +26,14 @@ function fresh() {
     done: {},      // lessonId → { date, good, total }
     days: [],      // dates with a finished lesson
     run: null,     // lesson in progress: { lessonId, step, results: [] }
+    // game (step 2)
+    coins: 0,
+    coinDays: [],  // dates that already paid coins
+    owned: [],     // shop item ids
+    wearing: {},   // slot → item id
+    food: {},      // date → exercises done that day (fills Raluca's bowl)
+    extras: 0,     // extra exercises done in total
+    tricks: [],    // learned trick ids, in order
     updatedAt: 0,
   };
 }
@@ -35,7 +43,7 @@ let state = load();
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (s && s.v === 1 && s.code) return s;
+    if (s && s.v === 1 && s.code) return { ...fresh(), ...s, code: s.code };
   } catch { /* ignore */ }
   const s = fresh();
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ }
@@ -48,6 +56,16 @@ export function update(fn) {
   fn(state);
   state.updatedAt = Date.now();
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ }
+}
+
+/** Whole days since the last finished lesson (0 = today, 1 = yesterday …), or null if never. */
+export function daysSinceLast() {
+  if (!state.days.length) return null;
+  const last = state.days.slice().sort().pop();
+  const [y, m, d] = last.split('-').map(Number);
+  const a = new Date(y, m - 1, d), b = new Date();
+  b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / 86400000);
 }
 
 /** Days in a row with a finished lesson, counting today or yesterday as the last day. */
