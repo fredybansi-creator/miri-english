@@ -13,6 +13,7 @@ Setup once:  python -m venv tools/.venv
 """
 import gc
 import json
+import os
 import pathlib
 import re
 import sys
@@ -26,7 +27,8 @@ from kokoro_onnx import Kokoro
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONTENT = ROOT / "content"
 AUDIO = ROOT / "audio"
-MODELS = ROOT / "tools" / "models"
+MODELS = pathlib.Path(os.environ.get("KOKORO_MODELS") or ROOT / "tools" / "models")
+NEW_CONTENT = ROOT / "neu" / "content"  # the new daily-practice app (rebuild 2026-11)
 
 # voice sets the app can ask for: <accent>-<role>
 VOICES = {
@@ -42,6 +44,12 @@ EXTRA_MAIN = [
     "Hello Miri! This is how I sound.",
     "Great, I will use this voice.",
     "Hi Miri! It's been ages – what have you been up to?",
+    # Raluca in the new app (neu/app.js, RALUCA_LINES)
+    "Hi Miri! Ready for today?",
+    "Great job!",
+    "Well done!",
+    "Let's try again.",
+    "You did it! See you tomorrow!",
 ]
 
 
@@ -100,6 +108,22 @@ def collect():
                 elif t == "match":
                     for en, _ in e["pairs"]:
                         main.add(en)
+    # new app: neu/content/*.js (repeat / build / say / story)
+    for f in sorted(NEW_CONTENT.glob("*.js")):
+        mod = load_module(f)
+        for l in mod["lessons"]:
+            for r in l.get("repeat", []):
+                main.add(r["en"])
+            for b in l.get("build", []):
+                main.add(b["en"])
+            for s in l.get("say", []):
+                s.get("they") and friend.add(s["they"])
+                main.add(s["answers"][0])
+            st = l.get("story")
+            if st:
+                main.update(st["lines"])
+                for q in st.get("questions", []):
+                    main.add(q["q"])
     clean = lambda xs: sorted({normalize(x) for x in xs if x and normalize(x)})
     return {"main": clean(main), "friend": clean(friend)}
 

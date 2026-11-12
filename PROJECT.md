@@ -42,6 +42,19 @@ the current state, so any new session can pick up the work.
 - Settings: accent US/UK, natural voice (Kokoro) on/off, Raluca's voice ElevenLabs/Handy, Raluca animation,
   device voice picker, speech rate, reset.
 
+## Rebuild (started 2026-11-11) – the new app in `neu/`
+Plan doc: https://claude.ai/artifact/TPF6QEVWq3GuuUjrdhCsqm ("Build plan, version 1"). The new app replaces the old one
+at the same address once Freddy says ok; until then it lives at `/neu/` and the old app stays untouched.
+- Step 0 done 2026-11-12: `mic-test.html` + Edge Function `transcribe` – 10/10 on Freddy's iPhone.
+- Step 1 (2026-11-12): `neu/` = daily practice. Start page with 2D Raluca (`neu/fox.js`), one lesson per day (~10 min),
+  topic Reisen (`neu/content/travel.js`, 5 lessons, A2–B1, short sentences). Exercise types: repeat (mic, offline check),
+  build (tiles), say (mic → `transcribe`, then `feedback` translate mode), story (audio + 2 questions).
+  Progress: localStorage `miri-neu` + backup via `progress` (random code made on the phone, no password; `app: 'neu'`).
+  Debug log: localStorage `miri-neu-log`, "Protokoll kopieren" on the start page.
+  Audio: `tools/make_audio.py` also reads `neu/content/*.js` (voices us-main / us-friend are used).
+  `KOKORO_MODELS=<dir>` lets it run outside Freddy's PC (Claude ran it in the cloud container).
+- Next: step 2 the game (coins, streak, bowl, mood, shop, tricks by voice), 3 more content, 4 reminder.
+
 ## Voices
 - **Kokoro (free, offline, no limit)** for all fixed lesson sentences: `tools/make_audio.py` renders
   mp3 files into `audio/<us|uk>-<main|friend>/<key>.mp3` + `audio/manifest.json`. Voices: us-main
