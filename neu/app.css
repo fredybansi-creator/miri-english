@@ -143,6 +143,8 @@ input { font: inherit; font-size: 17px; flex: 1; min-width: 0; padding: 10px 12p
 /* ---------- Raluca's moving parts (see fox.js). Pivots are in the SVG's own units. */
 #fox, #mover, #tail, #head, #earL, #earR, #lidL, #lidR, #legFR, #legFL, #legBR, #legBL, #torso, #ruff, #wear-neck, #wear-leash, #shadow, #browL, #browR { transform-box: view-box; }
 #fox, #mover { transform-origin: 224px 350px; }
+#ballfx { transform-box: view-box; transform-origin: 0 0; }
+.doing-ball #wear-toy { visibility: hidden; }
 #fox { cursor: pointer; }
 #shadow { transform-origin: 224px 352px; }
 #tail { transform-origin: 288px 262px; animation: wag 2.2s ease-in-out infinite; }
