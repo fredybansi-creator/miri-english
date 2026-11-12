@@ -84,8 +84,8 @@ function buildFox() {
   const sockGeo = lathe([[0, -0.27], [0.063, -0.27], [0.066, -0.34], [0.074, -0.42], [0.06, -0.47], [0, -0.48]], 24);
   const leg = (x, z, far) => {
     const g = pivot(hip, x, -0.06, z);
-    part(legGeo, far ? 0xdc7a30 : C.fur, g, { scale: [1, 1.0, 1] });
-    part(sockGeo, far ? 0x5a2e17 : C.sock, g, { outline: true });
+    part(legGeo, far ? 0xdc7a30 : C.fur, g, { scale: [1.22, 1, 1.22] });
+    part(sockGeo, far ? 0x5a2e17 : C.sock, g, { scale: [1.22, 1, 1.22], outline: true });
     return g;
   };
   // the camera is at +z, so the legs with z < 0 are on the far side (a bit darker)
@@ -95,8 +95,8 @@ function buildFox() {
   // tail: bushy shape with a white tip, pivot at the base
   const tail = pivot(hip, 0.08, 0.1, 0); fox.tail = tail;
   const tailInner = new THREE.Group(); tailInner.rotation.z = -0.75; tail.add(tailInner);
-  part(lathe([[0, 0], [0.07, 0.03], [0.16, 0.18], [0.21, 0.34], [0.18, 0.5], [0, 0.57]]), C.fur, tailInner, {});
-  part(lathe([[0, 0.43], [0.13, 0.45], [0.12, 0.52], [0.06, 0.58], [0, 0.6]]), C.cream, tailInner, {});
+  part(lathe([[0, 0], [0.07, 0.03], [0.16, 0.18], [0.21, 0.32], [0.2, 0.4], [0, 0.43]]), C.fur, tailInner, {});
+  part(lathe([[0, 0.37], [0.2, 0.39], [0.19, 0.47], [0.11, 0.56], [0, 0.6]]), C.cream, tailInner, {});
 
   // head (pivot at the neck)
   const neck = pivot(hip, -0.66, 0.2, 0); fox.neck = neck;
@@ -332,7 +332,7 @@ export function webglOk() {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
 }
 
-export function mountFox3d(container, { background = true } = {}) {
+export function mountFox3d(container, { background = true, shift = [0, 0] } = {}) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: !background });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -381,6 +381,8 @@ export function mountFox3d(container, { background = true } = {}) {
     const w = container.clientWidth || 300, h = container.clientHeight || 300;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
+    // shift: move the picture (part of its width / height), e.g. to make room for the speech bubble
+    if (shift[0] || shift[1]) camera.setViewOffset(w, h, -shift[0] * w, -shift[1] * h, w, h);
     camera.updateProjectionMatrix();
   }
   const ro = new ResizeObserver(resize); ro.observe(container); resize();

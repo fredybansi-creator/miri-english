@@ -98,19 +98,36 @@ function hud() {
 function wireGo() { app.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => openTab(b.dataset.go))); }
 
 /** Raluca on a stage with her speech bubble; tap = greet or listen for a trick. */
-function ralucaStage(stageSel = '#stage') {
+function ralucaStage(stageSel = '#stage', three = false) {
   const st = getState();
   const finishedToday = doneToday();
   const m = mood();
   const learned = TRICKS.filter((t) => st.tricks.includes(t.id));
   const stage = $(stageSel);
   const bubble = $('#bubble', stage);
-  const fox = mountFox(stage);
+  let fox = mountFox(stage);
   stage.appendChild(bubble);
   fox.setMood(finishedToday ? 'happy' : m);
   dress(stage);
-  fox.el.addEventListener('click', () => (learned.length ? listenForTrick(fox) : greet(fox, m, finishedToday)));
-  return fox;
+  // what the rest of the app talks to; the 3D Raluca takes over when she has loaded
+  const api = { el: stage, trick: (n) => fox.trick(n), setMood: (x) => fox.setMood(x) };
+  stage.addEventListener('click', () => (learned.length ? listenForTrick(api) : greet(api, m, finishedToday)));
+  api.ready = Promise.resolve();
+  if (three) {
+    api.ready = import('./fox3d.js').then((mod) => {
+      if (!document.body.contains(stage) || !mod.webglOk()) return;
+      const holder = document.createElement('div');
+      holder.className = 'fox3d';
+      const f3 = mod.mountFox3d(holder, { shift: [-0.09, 0.09] }); // a bit left and down: room for the bubble
+      f3.setMood(finishedToday ? 'happy' : m);
+      f3.dress(getState().wearing);
+      stage.querySelector('svg')?.remove();
+      stage.insertBefore(holder, bubble);
+      fox = f3;
+      cleanup = () => f3.dispose();
+    }).catch((e) => log('3D-Raluca lädt nicht: ' + e.message)); // the 2D Raluca stays
+  }
+  return api;
 }
 function bubbleHtml() {
   const st = getState();
@@ -362,11 +379,11 @@ function ralucaTab(cheer = false) {
     </div>
     <p class="small muted">Münzen: 10 für jeden Tag mit einer fertigen Lektion, +15 Bonus an 3 Tagen in Folge, +50 an jedem 7. Tag in Folge.</p>
   `);
-  const fox = ralucaStage();
+  const fox = ralucaStage('#stage', true);
   wireGo();
   const ex = $('#extraEx');
   if (ex) ex.addEventListener('click', startExtra);
-  if (cheer) setTimeout(() => fox.trick(typeof cheer === 'string' ? cheer : 'happy'), 50);
+  if (cheer) fox.ready.then(() => setTimeout(() => fox.trick(typeof cheer === 'string' ? cheer : 'happy'), 50));
   const redraw = (c) => { const y = window.scrollY; ralucaTab(c); window.scrollTo(0, y); };
   app.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
     if (!buy(b.dataset.buy)) return;
