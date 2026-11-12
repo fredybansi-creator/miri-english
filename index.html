@@ -4,25 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Miri English</title>
-  <meta name="description" content="Jeden Tag 10 Minuten Englisch sprechen.">
-  <meta name="theme-color" content="#FAF7F2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#14171C" media="(prefers-color-scheme: dark)">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Miri English">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="neu/manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/app.css">
+  <!-- The new app lives in neu/. The old app is still here: alt.html -->
+  <script>location.replace('neu/' + location.hash);</script>
+  <meta http-equiv="refresh" content="0; url=neu/">
 </head>
-<body>
-  <main id="app" aria-live="polite"></main>
-  <nav id="tabbar" class="tabbar" aria-label="Navigation"></nav>
-  <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="js/app.js"></script>
+<body style="font-family:-apple-system,system-ui,sans-serif;text-align:center;margin-top:40vh">
+  <a href="neu/">Miri English öffnen</a>
 </body>
 </html>
