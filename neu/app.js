@@ -10,7 +10,7 @@ import { play, playAll, stopAll, audioKey } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
 import { reminderState, registerWorker, turnOn, turnOff, sendTest } from './reminder.js';
-import { BOWL_FULL, payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
+import { BOWL_FULL, payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, isWorn, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
 import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
@@ -343,14 +343,14 @@ function ralucaTab(cheer = false) {
     <div class="shop">
       ${SHOP.map((it) => {
         const owned = st.owned.includes(it.id);
-        const worn = st.wearing[it.slot] === it.id;
+        const worn = isWorn(it.id);
         const blocked = it.needs && !st.owned.includes(it.needs);
         const btn = owned
           ? `<button class="btn small ${worn ? '' : 'primary'}" data-${worn ? 'off' : 'on'}="${it.id}">${worn ? 'Ausziehen' : 'Anziehen'}</button>`
           : blocked ? `<span class="small muted">Erst ${esc(itemById(it.needs).name)}</span>`
           : `<button class="btn small primary" data-buy="${it.id}" ${st.coins < it.price ? 'disabled' : ''}><span class="coin"></span> ${it.price}</button>`;
         return `<div class="item ${worn ? 'worn' : ''}">
-          <svg viewBox="${it.slot === 'leash' ? '-10 130 200 150' : it.slot === 'neck' ? '120 220 110 60' : it.slot === 'eyes' ? '120 140 100 40' : '120 70 110 60'}" class="thumb" aria-hidden="true">${it.svg}</svg>
+          <svg viewBox="${it.box}" class="thumb" aria-hidden="true">${it.svg}</svg>
           <b>${esc(it.name)}</b>
           ${btn}
         </div>`;
@@ -505,8 +505,7 @@ function mountMiniFox() {
   fox.setMood('happy');
   // only Raluca herself: no sky, grass or bowl, and cut to her size
   const svg = el.querySelector('svg');
-  [...svg.children].forEach((n) => { if (!['defs', 'g'].includes(n.tagName) && n.id !== 'shadow') n.remove(); });
-  svg.querySelectorAll(':scope > g:not(#mover)').forEach((n) => n.remove());
+  svg.querySelectorAll('#scene, #wear-toy').forEach((n) => n.remove());
   svg.setAttribute('viewBox', '60 60 300 300');
 }
 
