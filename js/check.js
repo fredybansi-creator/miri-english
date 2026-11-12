@@ -13,7 +13,7 @@ const CONTRACTIONS = {
   "didn't": 'did not', "isn't": 'is not', "aren't": 'are not', "wasn't": 'was not', "weren't": 'were not',
   "haven't": 'have not', "hasn't": 'has not', "hadn't": 'had not', "shouldn't": 'should not',
   "wouldn't": 'would not', "couldn't": 'could not', gonna: 'going to', wanna: 'want to', ok: 'okay',
-  "let's": 'let us',
+  "let's": 'let us', "here's": 'here is', "when's": 'when is',
 };
 
 export function tokens(text) {
