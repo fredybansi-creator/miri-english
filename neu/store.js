@@ -34,6 +34,7 @@ function fresh() {
     food: {},      // date → exercises done that day (fills Raluca's bowl)
     extras: 0,     // extra exercises done in total
     tricks: [],    // learned trick ids, in order
+    cards: {},     // flip cards: sentence key → { box 1–5, due date }
     updatedAt: 0,
   };
 }
