@@ -43,6 +43,10 @@ the current state, so any new session can pick up the work.
   device voice picker, speech rate, reset.
 
 ## Rebuild (started 2026-11-11) – the new app in `neu/`
+
+**2026-11-12: the new app is the main app.** Freddy said ok. The root `index.html` only forwards to `neu/`.
+The old app is kept at `alt.html` (same files `js/`, `css/`, `content/`), so we can go back by restoring `index.html`.
+
 Plan doc: https://claude.ai/artifact/TPF6QEVWq3GuuUjrdhCsqm ("Build plan, version 1"). The new app replaces the old one
 at the same address once Freddy says ok; until then it lives at `/neu/` and the old app stays untouched.
 - Step 0 done 2026-11-12: `mic-test.html` + Edge Function `transcribe` – 10/10 on Freddy's iPhone.
