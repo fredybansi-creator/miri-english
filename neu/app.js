@@ -481,7 +481,7 @@ function wireCheat() {
     taps = [];
     const box = $('#cheat');
     box.innerHTML = `<div class="card cheat"><h3>🤫 Geheim</h3>
-      <div class="row wrap"><button class="btn small" data-coins="50">+50 Münzen</button><button class="btn small" data-coins="200">+200 Münzen</button><button class="btn small" id="cheatZero">Münzen auf 0</button>
+      <div class="row wrap"><button class="btn small" data-coins="50">+50 Münzen</button><button class="btn small" data-coins="200">+200 Münzen</button><button class="btn small" id="cheatZero">Münzen + Shop auf 0</button>
       <button class="btn small" id="cheatExtra">+1 Extra-Übung</button><button class="btn small" id="cheatBowl">Napf füllen</button></div>
       <p class="small muted" id="cheatMsg"></p></div>`;
     const say = (t) => { $('#cheatMsg').textContent = t; };
@@ -495,11 +495,11 @@ function wireCheat() {
       if (pill) pill.innerHTML = `<span class="coin"></span>${getState().coins}`;
     }));
     $('#cheatZero').addEventListener('click', () => {
-      if (!confirm('Münzen wirklich auf 0 setzen? Gekaufte Sachen bleiben.')) return;
-      update((s) => { s.coins = 0; });
-      log('Geheim: Münzen auf 0');
+      if (!confirm('Münzen auf 0 setzen und alle gekauften Sachen wegnehmen?')) return;
+      update((s) => { s.coins = 0; s.owned = []; s.wearing = {}; });
+      log('Geheim: Münzen und Shop auf 0');
       backup();
-      say('Münzen sind jetzt 0');
+      say('Münzen sind 0, alle gekauften Sachen sind weg');
       const pill = app.querySelector('.hud .pill');
       if (pill) pill.innerHTML = '<span class="coin"></span>0';
     });
