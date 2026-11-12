@@ -103,7 +103,7 @@ async function transcribe(blob, type, check, hint) {
     try {
       const res = await fetch(URL_, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-        signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : undefined,
+        signal: AbortSignal.timeout ? AbortSignal.timeout(26000) : undefined,
       });
       data = await res.json().catch(() => ({ error: 'bad_response' }));
       if (res.ok || res.status < 500) break;
@@ -112,7 +112,7 @@ async function transcribe(blob, type, check, hint) {
       log('Netzwerk-Fehler: ' + (e && e.message));
       data = { error: 'network' };
     }
-    if (Date.now() - tA > 10000) break; // a slow failure: don't make her wait twice
+    if (Date.now() - tA > 12000) break; // a slow failure: don't make her wait twice
   }
   const ms = Date.now() - t0;
   if (data && data.ok) {
@@ -124,7 +124,7 @@ async function transcribe(blob, type, check, hint) {
     text: '', ms,
     error: data && data.error === 'network'
       ? 'Keine Internetverbindung? Bitte noch einmal versuchen.'
-      : 'Der Server hatte ein Problem. Bitte noch einmal versuchen.',
+      : 'Die Spracherkennung ist gerade überlastet. Bitte gleich noch einmal versuchen – oder tippe die Antwort.',
   };
 }
 
