@@ -42,7 +42,7 @@ p { margin: 0; }
 .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stage svg { top: -9%; height: 118%; }
 .stage.small { aspect-ratio: 1 / 0.82; }
-.bubble { position: absolute; top: 12px; right: 12px; max-width: 58%; text-align: right; background: var(--cream); color: #3a2a1a; border-radius: 14px; padding: 8px 12px; font-weight: 800; font-size: 16px; box-shadow: 0 2px 0 rgba(0,0,0,.06); }
+.bubble { position: absolute; top: 10px; right: 10px; max-width: 41%; text-align: right; background: var(--cream); color: #3a2a1a; border-radius: 14px; padding: 8px 12px; font-weight: 800; font-size: 16px; box-shadow: 0 2px 0 rgba(0,0,0,.06); }
 .bubble small { display: block; font-weight: 600; font-size: 12px; color: #7a6550; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 .card.center { text-align: center; align-items: center; }
@@ -186,3 +186,41 @@ button.pill { cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .item .btn { display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
 .item .btn:disabled { opacity: .45; }
 .coins-won { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+
+/* ---------- tab bar (like the old app) ---------- */
+body:not(.in-session) .wrap { padding-bottom: calc(64px + env(safe-area-inset-bottom) + 20px); }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom);
+  background: color-mix(in srgb, var(--card) 90%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px); border-top: 1px solid var(--line); }
+body.in-session .tabbar { display: none; }
+.tabbar-inner { display: flex; width: 100%; max-width: 480px; }
+.tab { flex: 1; height: 64px; border: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 11px; font-weight: 700; color: var(--muted); cursor: pointer; padding: 0; }
+.tab svg { width: 24px; height: 24px; }
+.tab[aria-current="page"] { color: var(--fox-dark); }
+.lessons .t small { display: block; font-weight: 500; font-size: 13px; color: var(--muted); }
+.shop-title { margin-top: 6px; }
+.row .grow { font-size: 18px; }
+
+/* ---------- small Raluca in the exercises ---------- */
+.exhead { display: flex; align-items: center; justify-content: space-between; min-height: 64px; }
+.minifox { position: relative; width: 96px; height: 96px; flex: none; margin: -8px 0 -8px; }
+.minifox svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---------- Karten ---------- */
+.flip { display: flex; flex-direction: column; gap: 14px; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+  padding: 22px 18px; min-height: 200px; cursor: pointer; justify-content: center; }
+.flip .en.big { color: var(--fox-dark); }
+
+/* ---------- Fortschritt ---------- */
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; }
+.stat b { font-size: 24px; }
+.stat span { font-size: 13px; color: var(--muted); }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cal span { padding: 6px 0; border-radius: 8px; background: var(--bg); color: var(--muted); }
+.cal .h { background: none; font-weight: 700; }
+.cal .on { background: var(--fox); color: #fff; font-weight: 800; }
+.cal .now { outline: 2px solid var(--fox-dark); }
+
+.typed[hidden] { display: none; }
+.card .meter { flex: none; }

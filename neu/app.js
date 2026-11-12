@@ -6,7 +6,7 @@ import travel from './content/travel.js';
 import friends from './content/friends.js';
 import doctor from './content/doctor.js';
 import { mountFox } from './fox.js';
-import { play, playAll, stopAll } from './audio.js';
+import { play, playAll, stopAll, audioKey } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
 import { payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
@@ -29,6 +29,7 @@ let cleanup = null; // stops recording / audio when leaving a screen
 function screen(html) {
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   stopAll();
+  document.body.classList.add('in-session'); // no tab bar inside a lesson (tabScreen takes it off)
   app.innerHTML = html;
   window.scrollTo(0, 0);
 }
@@ -50,16 +51,78 @@ function stepsFor(lesson) {
 
 const TYPE_LABEL = { repeat: 'Nachsprechen', build: 'Satz bauen', say: 'Sag es auf Englisch', story: 'Hörgeschichte', question: 'Hörgeschichte' };
 
-// ================================================================ start page
+// ================================================================ tabs (like the old app)
+// Heute = today's lesson with Raluca · Lektionen = all topics · Karten = flip cards
+// Raluca = her mood, tricks, extra exercises and the shop · Fortschritt = numbers, code and help
+const ICON = {
+  today: '<path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/>',
+  lessons: '<rect x="4" y="4" width="16" height="4.5" rx="1.5"/><rect x="4" y="10" width="16" height="4.5" rx="1.5"/><rect x="4" y="16" width="10" height="4.5" rx="1.5"/>',
+  cards: '<rect x="3.5" y="6" width="13" height="15" rx="2.5"/><path d="M8 3.5h10a2.5 2.5 0 0 1 2.5 2.5v12"/>',
+  raluca: '<path d="M5 4l4 5h6l4-5 1 9c0 4-3.6 7-8 7s-8-3-8-7z"/><circle cx="9.5" cy="12.5" r="1" fill="currentColor"/><circle cx="14.5" cy="12.5" r="1" fill="currentColor"/>',
+  progress: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+};
+const TABS = [
+  { id: 'today', label: 'Heute', show: () => home() },
+  { id: 'lessons', label: 'Lektionen', show: () => lessonsTab() },
+  { id: 'cards', label: 'Karten', show: () => cardsTab() },
+  { id: 'raluca', label: 'Raluca', show: () => ralucaTab() },
+  { id: 'progress', label: 'Fortschritt', show: () => progressTab() },
+];
+const tabbar = document.getElementById('tabbar');
+
+/** Show a tab page: page content + the tab bar at the bottom. */
+function tabScreen(id, html) {
+  screen(html);
+  document.body.classList.remove('in-session');
+  if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+  tabbar.innerHTML = `<div class="tabbar-inner">${TABS.map((t) => `
+    <button class="tab" data-tab="${t.id}" ${t.id === id ? 'aria-current="page"' : ''}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[t.id]}</svg>
+      <span>${t.label}</span>
+    </button>`).join('')}</div>`;
+  tabbar.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => TABS.find((t) => t.id === b.dataset.tab).show()));
+}
+function openTab(id) { (TABS.find((t) => t.id === id) || TABS[0]).show(); }
+
+function hud() {
+  const st = getState();
+  return `<div class="hud">
+    <button class="pill" data-go="raluca" aria-label="Münzen – zum Shop"><span class="coin"></span>${st.coins}</button>
+    <div class="pill" title="Tage in Folge">🔥 ${streak()}</div>
+  </div>`;
+}
+function wireGo() { app.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => openTab(b.dataset.go))); }
+
+/** Raluca on a stage with her speech bubble; tap = greet or listen for a trick. */
+function ralucaStage(stageSel = '#stage') {
+  const st = getState();
+  const finishedToday = doneToday();
+  const m = mood();
+  const learned = TRICKS.filter((t) => st.tricks.includes(t.id));
+  const stage = $(stageSel);
+  const bubble = $('#bubble', stage);
+  const fox = mountFox(stage);
+  stage.appendChild(bubble);
+  fox.setMood(finishedToday ? 'happy' : m);
+  dress(stage);
+  fox.el.addEventListener('click', () => (learned.length ? listenForTrick(fox) : greet(fox, m, finishedToday)));
+  return fox;
+}
+function bubbleHtml() {
+  const st = getState();
+  const finishedToday = doneToday();
+  const m = mood();
+  const line = finishedToday ? MOOD_LINE.happy : MOOD_LINE[m];
+  const learned = TRICKS.some((t) => st.tricks.includes(t.id));
+  return `<div class="bubble" id="bubble"><span id="bubbleText">${esc(line.en)}</span><small id="bubbleHint">${learned && (m === 'ok' || finishedToday) ? 'Tippe auf mich und sag einen Trick' : esc(line.de)}</small></div>`;
+}
+
+// ---------------------------------------------------------------- Heute
 function home() {
   const st = getState();
   const next = nextLesson();
   const finishedToday = doneToday();
   const run = st.run && lessonById(st.run.lessonId) ? st.run : null;
-  const days = streak();
-  const m = mood();
-  const nt = nextTrick();
-  const canExtra = LESSONS.some((l) => st.done[l.id]);
 
   let card;
   if (run) {
@@ -77,13 +140,14 @@ function home() {
         <p class="kicker">Heute</p>
         <h2>Fertig für heute! 🎉</h2>
         <p class="muted">Raluca ist stolz auf dich. Morgen geht es weiter${next ? ` mit „${esc(next.title)}“` : ''}.</p>
+        <button class="btn" data-go="cards">🃏 Karten üben</button>
         ${next ? '<button class="btn link" id="ahead">Trotzdem schon die nächste Lektion machen</button>' : ''}
       </div>`;
   } else if (next) {
     const n = next.topic.lessons.indexOf(next) + 1;
     card = `
       <div class="card today">
-        <p class="kicker">Heute · ${esc(next.topic.title)} · Lektion ${n} von ${next.topic.lessons.length} · ca. 10 Min.</p>
+        <p class="kicker">Heute · ${esc(next.topic.title)} · Lektion ${n} von ${next.topic.lessons.length}</p>
         <h2>${esc(next.title)}</h2>
         <p class="muted">${esc(next.goal)}</p>
         <ul class="parts">
@@ -92,44 +156,41 @@ function home() {
           <li><span>🗣️</span>Sag es auf Englisch</li>
           <li><span>🎧</span>Hörgeschichte</li>
         </ul>
-        <p class="small muted">+10 Münzen, wenn du fertig bist</p>
+        <p class="small muted">ca. 10 Minuten · +10 Münzen, wenn du fertig bist</p>
         <button class="btn primary big" id="go">Los geht's</button>
       </div>`;
   } else {
     card = `
       <div class="card today done">
-        <p class="kicker">Alle Themen</p>
         <h2>Alle Lektionen geschafft! 🏆</h2>
-        <p class="muted">Bald kommen neue Themen. Bis dahin kannst du jede Lektion wiederholen.</p>
+        <p class="muted">Bald kommen neue Themen. Bis dahin: Karten üben und Lektionen wiederholen.</p>
+        <button class="btn" data-go="cards">🃏 Karten üben</button>
       </div>`;
   }
+  const due = dueCards().length;
 
-  const learned = TRICKS.filter((t) => st.tricks.includes(t.id));
-  const trickCard = `
-    <div class="card tricks">
-      <h3>Raluca's Tricks</h3>
-      ${learned.length
-        ? `<p class="small">Tippe auf Raluca und sag: ${learned.map((t) => `<b>${esc(t.name)}</b>`).join(' · ')}</p>`
-        : '<p class="small muted">Raluca kann noch keine Tricks. Mit Extra-Übungen lernt sie welche.</p>'}
-      ${nt ? `
-        <div class="trickbar"><span>Nächster Trick: <b>${esc(nt.trick.name)}</b></span><span class="muted">${nt.have} von ${nt.need}</span></div>
-        <div class="meter"><i style="width:${Math.round((nt.have / nt.need) * 100)}%"></i></div>` : '<p class="small">Raluca kann alle Tricks! 🏆</p>'}
-      ${canExtra && !run ? '<button class="btn" id="extraEx">➕ Extra-Übung machen</button>' : ''}
-    </div>`;
-
-  screen(`
-    <header class="top">
-      <h1>Hallo Miri!</h1>
-      <div class="hud">
-        <button class="pill" id="shopBtn" aria-label="Shop öffnen"><span class="coin"></span>${st.coins}</button>
-        <div class="pill" title="Tage in Folge">🔥 ${days}</div>
-      </div>
-    </header>
-    <div class="stage" id="stage"><div class="bubble" id="bubble"><span id="bubbleText">${esc(finishedToday && !run ? MOOD_LINE.happy.en : MOOD_LINE[m].en)}</span><small id="bubbleHint">${learned.length && (m === 'ok' || finishedToday) ? 'Tippe auf mich und sag einen Trick' : esc((finishedToday ? MOOD_LINE.happy : MOOD_LINE[m]).de)}</small></div></div>
+  tabScreen('today', `
+    <header class="top"><h1>Hallo Miri!</h1>${hud()}</header>
+    <div class="stage" id="stage">${bubbleHtml()}</div>
     <div class="bowl"><span>🥣 Napf</span><div class="meter"><i style="width:${Math.round(bowlLevel() * 100)}%"></i></div><span class="muted small">${bowlLevel() >= 1 ? 'voll!' : 'füllt sich mit jeder Übung'}</span></div>
     ${card}
-    ${trickCard}
-    <button class="btn shop-link" id="shopBtn2">🛍️ Shop – Sachen für Raluca</button>
+    ${due && !run && !finishedToday ? `<button class="btn" data-go="cards">🃏 ${due} ${due === 1 ? 'Karte' : 'Karten'} zum Wiederholen</button>` : ''}
+  `);
+  ralucaStage();
+  wireGo();
+  const go = $('#go');
+  if (go) go.addEventListener('click', () => (run ? resume() : startLesson(next)));
+  const ahead = $('#ahead');
+  if (ahead) ahead.addEventListener('click', () => startLesson(next));
+}
+
+// ---------------------------------------------------------------- Lektionen
+function lessonsTab() {
+  const st = getState();
+  const next = nextLesson();
+  tabScreen('lessons', `
+    <header class="top"><h1>Lektionen</h1>${hud()}</header>
+    <p class="muted small">Jeden Tag eine Lektion, der Reihe nach. Fertige Lektionen kannst du immer wiederholen.</p>
     ${TOPICS.map((t) => `
     <section class="topic">
       <h3>${esc(t.title)} <span class="muted">${t.lessons.filter((l) => st.done[l.id]).length} von ${t.lessons.length}</span></h3>
@@ -137,11 +198,196 @@ function home() {
         ${t.lessons.map((l, i) => `
           <li class="${st.done[l.id] ? 'ok' : ''} ${next && next.id === l.id ? 'next' : ''}">
             <span class="dot">${st.done[l.id] ? '✓' : i + 1}</span>
-            <span class="t">${esc(l.title)}</span>
-            ${st.done[l.id] ? `<button class="btn small" data-again="${l.id}">Wiederholen</button>` : ''}
+            <span class="t">${esc(l.title)}<small>${esc(l.goal)}</small></span>
+            ${st.done[l.id] ? `<button class="btn small" data-again="${l.id}">Wiederholen</button>`
+              : next && next.id === l.id ? `<button class="btn small primary" data-again="${l.id}">Start</button>` : ''}
           </li>`).join('')}
       </ol>
     </section>`).join('')}
+  `);
+  wireGo();
+  app.querySelectorAll('[data-again]').forEach((b) => b.addEventListener('click', () => startLesson(lessonById(b.dataset.again))));
+}
+
+// ---------------------------------------------------------------- Karten (flip cards, simple boxes 1–5)
+// Every finished lesson gives cards: its "Nachsprechen" and "Satz bauen" sentences (German → English).
+// Box 1 comes back the next day, then after 2, 4, 8 and 16 days. "Nochmal" puts a card back to box 1.
+const BOX_DAYS = [1, 2, 4, 8, 16];
+const CARDS_PER_ROUND = 12;
+function allCards() {
+  const st = getState();
+  return LESSONS.filter((l) => st.done[l.id]).flatMap((l) =>
+    [...l.repeat, ...l.build].map((x) => ({ id: audioKey(x.en), en: x.en, de: x.de, lesson: l })));
+}
+function dueCards() {
+  const c = getState().cards, now = today();
+  return allCards().filter((x) => !c[x.id] || c[x.id].due <= now);
+}
+function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return today(d); }
+
+function cardsTab() {
+  const all = allCards(), due = dueCards();
+  const c = getState().cards;
+  const known = all.filter((x) => c[x.id] && c[x.id].box >= 3).length;
+  tabScreen('cards', `
+    <header class="top"><h1>Karten</h1>${hud()}</header>
+    <div class="card center">
+      ${all.length ? `
+        <p class="big-num">${due.length}</p>
+        <p class="muted">${due.length === 1 ? 'Karte ist' : 'Karten sind'} heute dran</p>
+        ${due.length ? `<button class="btn primary big" id="startCards">Karten üben</button>` : '<p>Alles wiederholt für heute! 🎉</p>'}
+        <p class="small muted">${all.length} Karten insgesamt · ${known} gut gelernt</p>`
+      : '<h2>Noch keine Karten</h2><p class="muted">Nach jeder fertigen Lektion kommen ihre Sätze hier als Karten dazu.</p><button class="btn primary" data-go="today">Zur Lektion von heute</button>'}
+    </div>
+    <p class="small muted">So geht's: Du siehst den Satz auf Deutsch. Sag ihn laut auf Englisch, dann dreh die Karte um. Wusstest du ihn, kommt er erst später wieder.</p>
+  `);
+  wireGo();
+  const b = $('#startCards');
+  if (b) b.addEventListener('click', () => cardRound(shuffle(due).slice(0, CARDS_PER_ROUND)));
+}
+
+function cardRound(list, i = 0, right = 0) {
+  if (i >= list.length) {
+    feed(1);
+    backup();
+    screen(`
+      <div class="stage small" id="stage"></div>
+      <div class="card center">
+        <h2>Karten geschafft! 🎉</h2>
+        <p class="big-num">${right} von ${list.length}</p>
+        <p class="muted">gewusst</p>
+        <button class="btn primary big" id="back">Fertig</button>
+      </div>`);
+    const fox = mountFox($('#stage'));
+    dress($('#stage'));
+    fox.setMood('happy');
+    setTimeout(() => fox.trick('happy'), 300);
+    $('#back').addEventListener('click', cardsTab);
+    return;
+  }
+  const card = list[i];
+  screen(`
+    <header class="bar">
+      <button class="x" id="quit" aria-label="Zurück">✕</button>
+      <div class="progress"><i style="width:${Math.round((i / list.length) * 100)}%"></i></div>
+      <span class="count">${i + 1}/${list.length}</span>
+    </header>
+    ${miniFox('Karten')}
+    <main class="ex">
+      <button class="flip" id="flip">
+        <span class="de big">${esc(card.de)}</span>
+        <span class="small muted" id="flipHint">Sag es laut auf Englisch – dann tippe hier</span>
+        <span class="en big" id="flipEn" hidden>${esc(card.en)}</span>
+      </button>
+      <div id="flipPlay" hidden>${listenButtons(card.en)}</div>
+    </main>
+    <footer class="actions" id="actions"></footer>`);
+  mountMiniFox();
+  $('#quit').addEventListener('click', cardsTab);
+  $('#flip').addEventListener('click', () => {
+    if (!$('#flipEn').hidden) return;
+    $('#flipEn').hidden = false;
+    $('#flipPlay').hidden = false;
+    $('#flipHint').hidden = true;
+    wirePlayButtons();
+    play(card.en);
+    $('#actions').innerHTML = '<div class="row"><button class="btn big grow" id="again">Nochmal</button><button class="btn primary big grow" id="knew">Gewusst ✓</button></div>';
+    const grade = (ok) => {
+      update((s) => {
+        const old = s.cards[card.id] || { box: 0 };
+        const box = ok ? Math.min(BOX_DAYS.length, old.box + 1) : 1;
+        s.cards[card.id] = { box, due: addDays(BOX_DAYS[box - 1]) };
+      });
+      cardRound(list, i + 1, right + (ok ? 1 : 0));
+    };
+    $('#again').addEventListener('click', () => grade(false));
+    $('#knew').addEventListener('click', () => grade(true));
+  });
+}
+
+// ---------------------------------------------------------------- Raluca (mood, tricks, extra exercises, shop)
+function ralucaTab(cheer = false) {
+  const st = getState();
+  const nt = nextTrick();
+  const learned = TRICKS.filter((t) => st.tricks.includes(t.id));
+  const canExtra = LESSONS.some((l) => st.done[l.id]);
+  const run = st.run && lessonById(st.run.lessonId) ? st.run : null;
+  tabScreen('raluca', `
+    <header class="top"><h1>Raluca</h1>${hud()}</header>
+    <div class="stage" id="stage">${bubbleHtml()}</div>
+    <div class="bowl"><span>🥣 Napf</span><div class="meter"><i style="width:${Math.round(bowlLevel() * 100)}%"></i></div><span class="muted small">${bowlLevel() >= 1 ? 'voll!' : 'füllt sich mit jeder Übung'}</span></div>
+    <div class="card tricks">
+      <h3>Tricks</h3>
+      ${learned.length
+        ? `<p class="small">Tippe auf Raluca und sag: ${learned.map((t) => `<b>${esc(t.name)}</b>`).join(' · ')}</p>`
+        : '<p class="small muted">Raluca kann noch keine Tricks. Mit Extra-Übungen lernt sie welche.</p>'}
+      ${nt ? `
+        <div class="trickbar"><span>Nächster Trick: <b>${esc(nt.trick.name)}</b></span><span class="muted">${nt.have} von ${nt.need}</span></div>
+        <div class="meter"><i style="width:${Math.round((nt.have / nt.need) * 100)}%"></i></div>` : '<p class="small">Raluca kann alle Tricks! 🏆</p>'}
+      ${canExtra && !run ? '<button class="btn" id="extraEx">➕ Extra-Übung machen</button>'
+        : canExtra ? '' : '<p class="small muted">Extra-Übungen gibt es nach deiner ersten Lektion.</p>'}
+    </div>
+    <h3 class="shop-title">Shop <span class="muted small">Münzen: ${st.coins}</span></h3>
+    <div class="shop">
+      ${SHOP.map((it) => {
+        const owned = st.owned.includes(it.id);
+        const worn = st.wearing[it.slot] === it.id;
+        const blocked = it.needs && !st.owned.includes(it.needs);
+        const btn = owned
+          ? `<button class="btn small ${worn ? '' : 'primary'}" data-${worn ? 'off' : 'on'}="${it.id}">${worn ? 'Ausziehen' : 'Anziehen'}</button>`
+          : blocked ? `<span class="small muted">Erst ${esc(itemById(it.needs).name)}</span>`
+          : `<button class="btn small primary" data-buy="${it.id}" ${st.coins < it.price ? 'disabled' : ''}><span class="coin"></span> ${it.price}</button>`;
+        return `<div class="item ${worn ? 'worn' : ''}">
+          <svg viewBox="${it.slot === 'leash' ? '-10 130 200 150' : it.slot === 'neck' ? '120 220 110 60' : it.slot === 'eyes' ? '120 140 100 40' : '120 70 110 60'}" class="thumb" aria-hidden="true">${it.svg}</svg>
+          <b>${esc(it.name)}</b>
+          ${btn}
+        </div>`;
+      }).join('')}
+    </div>
+    <p class="small muted">Münzen: 10 für jeden Tag mit einer fertigen Lektion, +15 Bonus an 3 Tagen in Folge, +50 an jedem 7. Tag in Folge.</p>
+  `);
+  const fox = ralucaStage();
+  wireGo();
+  const ex = $('#extraEx');
+  if (ex) ex.addEventListener('click', startExtra);
+  if (cheer) setTimeout(() => fox.trick('happy'), 50);
+  const redraw = (c) => { const y = window.scrollY; ralucaTab(c); window.scrollTo(0, y); };
+  app.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
+    if (buy(b.dataset.buy)) { log('Gekauft: ' + b.dataset.buy); backup(); play('Thank you, Miri! I love it!'); redraw(true); }
+  }));
+  app.querySelectorAll('[data-on]').forEach((b) => b.addEventListener('click', () => { wear(b.dataset.on); redraw(false); }));
+  app.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { takeOff(b.dataset.off); redraw(false); }));
+}
+
+// ---------------------------------------------------------------- Fortschritt
+function progressTab() {
+  const st = getState();
+  const doneLessons = LESSONS.filter((l) => st.done[l.id]);
+  const all = allCards();
+  const known = all.filter((x) => st.cards[x.id] && st.cards[x.id].box >= 3).length;
+  // last 4 weeks, Monday first
+  const set = new Set(st.days);
+  const start = new Date(); start.setDate(start.getDate() - 27 - ((start.getDay() + 6) % 7));
+  const cells = [];
+  for (let d = new Date(start); today(d) <= today(); d.setDate(d.getDate() + 1)) cells.push({ day: today(d), n: d.getDate() });
+  tabScreen('progress', `
+    <header class="top"><h1>Fortschritt</h1>${hud()}</header>
+    <div class="stats">
+      <div class="stat"><b>🔥 ${streak()}</b><span>Tage in Folge</span></div>
+      <div class="stat"><b>${st.days.length}</b><span>Übungstage</span></div>
+      <div class="stat"><b>${doneLessons.length}/${LESSONS.length}</b><span>Lektionen</span></div>
+      <div class="stat"><b>${known}</b><span>Karten gelernt</span></div>
+    </div>
+    <div class="card">
+      <h3>Die letzten Wochen</h3>
+      <div class="cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((x) => `<span class="h">${x}</span>`).join('')}${cells.map((c) => `<span class="${set.has(c.day) ? 'on' : ''} ${c.day === today() ? 'now' : ''}">${c.n}</span>`).join('')}</div>
+    </div>
+    <div class="card">
+      <h3>Themen</h3>
+      ${TOPICS.map((t) => { const n = t.lessons.filter((l) => st.done[l.id]).length; return `
+        <div class="trickbar"><span>${esc(t.title)}</span><span class="muted">${n} von ${t.lessons.length}</span></div>
+        <div class="meter"><i style="width:${Math.round((n / t.lessons.length) * 100)}%"></i></div>`; }).join('')}
+    </div>
     <details class="more">
       <summary>Mein Code und Hilfe</summary>
       <p>Dein Fortschritt wird automatisch gesichert. Mit diesem Code holst du ihn auf ein neues Handy:</p>
@@ -151,24 +397,7 @@ function home() {
       <button class="btn small" id="copyLog">Protokoll kopieren (für Claude)</button>
     </details>
   `);
-
-  const bubble = $('#bubble');
-  const fox = mountFox($('#stage'));
-  $('#stage').appendChild(bubble);
-  fox.setMood(finishedToday ? 'happy' : m);
-  dress($('#stage'));
-  fox.el.addEventListener('click', () => (learned.length ? listenForTrick(fox) : greet(fox, m, finishedToday)));
-
-  const go = $('#go');
-  if (go) go.addEventListener('click', () => (run ? resume() : startLesson(next)));
-  const ahead = $('#ahead');
-  if (ahead) ahead.addEventListener('click', () => startLesson(next));
-  const ex = $('#extraEx');
-  if (ex) ex.addEventListener('click', startExtra);
-  $('#shopBtn').addEventListener('click', shop);
-  $('#shopBtn2').addEventListener('click', shop);
-  app.querySelectorAll('[data-again]').forEach((b) => b.addEventListener('click', () => startLesson(lessonById(b.dataset.again))));
-
+  wireGo();
   $('#restoreBtn').addEventListener('click', async () => {
     const msg = $('#restoreMsg');
     msg.textContent = 'Wird geladen …';
@@ -181,6 +410,23 @@ function home() {
     const text = `Miri English (neu)\n${navigator.userAgent}\n\n${readLog().join('\n')}`;
     try { await navigator.clipboard.writeText(text); ev.target.textContent = 'Kopiert ✓'; } catch { ev.target.textContent = 'Kopieren ging nicht'; }
   });
+}
+
+// ---------------------------------------------------------------- small Raluca in the exercises (just sits there)
+function miniFox(label) {
+  return `<div class="exhead"><p class="type">${esc(label)}</p><div class="minifox" id="minifox" aria-hidden="true"></div></div>`;
+}
+function mountMiniFox() {
+  const el = $('#minifox');
+  if (!el) return;
+  const fox = mountFox(el);
+  dress(el);
+  fox.setMood('happy');
+  // only Raluca herself: no sky, grass or bowl, and cut to her size
+  const svg = el.querySelector('svg');
+  [...svg.children].forEach((n) => { if (!['defs', 'g'].includes(n.tagName) && n.id !== 'shadow') n.remove(); });
+  svg.querySelectorAll(':scope > g:not(#mover)').forEach((n) => n.remove());
+  svg.setAttribute('viewBox', '60 60 300 300');
 }
 
 function setBubble(en, de = '') {
@@ -233,49 +479,6 @@ async function listenForTrick(fox) {
   }
 }
 
-// ================================================================ shop
-function shop() {
-  const st = getState();
-  screen(`
-    <header class="bar">
-      <button class="x" id="back" aria-label="Zurück zum Start">✕</button>
-      <h2 class="grow">Shop</h2>
-      <div class="pill"><span class="coin"></span>${st.coins}</div>
-    </header>
-    <div class="stage small" id="stage"></div>
-    <p class="small muted">Münzen bekommst du für jeden Tag mit einer fertigen Lektion (10), dazu Bonus an 3 Tagen in Folge (+15) und jede Woche in Folge (+50).</p>
-    <div class="shop">
-      ${SHOP.map((it) => {
-        const owned = st.owned.includes(it.id);
-        const worn = st.wearing[it.slot] === it.id;
-        const blocked = it.needs && !st.owned.includes(it.needs);
-        const btn = owned
-          ? `<button class="btn small ${worn ? '' : 'primary'}" data-${worn ? 'off' : 'on'}="${it.id}">${worn ? 'Ausziehen' : 'Anziehen'}</button>`
-          : blocked ? `<span class="small muted">Erst ${esc(itemById(it.needs).name)}</span>`
-          : `<button class="btn small primary" data-buy="${it.id}" ${st.coins < it.price ? 'disabled' : ''}><span class="coin"></span> ${it.price}</button>`;
-        return `<div class="item ${worn ? 'worn' : ''}">
-          <svg viewBox="${it.slot === 'leash' ? '-10 130 200 150' : it.slot === 'neck' ? '120 220 110 60' : it.slot === 'eyes' ? '120 140 100 40' : '120 70 110 60'}" class="thumb" aria-hidden="true">${it.svg}</svg>
-          <b>${esc(it.name)}</b>
-          ${btn}
-        </div>`;
-      }).join('')}
-    </div>
-  `);
-  const fox = mountFox($('#stage'));
-  dress($('#stage'));
-  $('#back').addEventListener('click', home);
-  app.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
-    if (buy(b.dataset.buy)) { log('Gekauft: ' + b.dataset.buy); backup(); play('Thank you, Miri! I love it!'); shop(); setTimeout(() => { const s = $('#stage'); if (s) mountAndCheer(s); }, 50); }
-  }));
-  app.querySelectorAll('[data-on]').forEach((b) => b.addEventListener('click', () => { wear(b.dataset.on); shop(); }));
-  app.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { takeOff(b.dataset.off); shop(); }));
-  void fox;
-}
-function mountAndCheer(stage) {
-  const fox = mountFox(stage);
-  dress(stage);
-  fox.trick('happy');
-}
 
 // ================================================================ lesson flow
 function startLesson(lesson) {
@@ -305,16 +508,16 @@ function resume() {
   const steps = run.extra ? run.steps : stepsFor(lesson);
   if (run.step >= steps.length) return run.extra ? finishExtra() : finishLesson(lesson);
   const step = steps[run.step];
-  const frame = (inner, footer = '') => screen(`
+  const frame = (inner, footer = '') => { screen(`
     <header class="bar">
       <button class="x" id="quit" aria-label="Zurück zum Start">✕</button>
       <div class="progress" aria-label="Fortschritt"><i style="width:${Math.round((run.step / steps.length) * 100)}%"></i></div>
       <span class="count">${run.extra ? 'Extra' : `${run.step + 1}/${steps.length}`}</span>
     </header>
-    <p class="type">${TYPE_LABEL[step.type]}</p>
+    ${miniFox(TYPE_LABEL[step.type])}
     <main class="ex">${inner}</main>
     <footer class="actions" id="actions">${footer}</footer>
-  `);
+  `); mountMiniFox(); };
   const next = (ok) => {
     update((s) => { s.run.results[s.run.step] = ok; s.run.step++; });
     if (ok !== undefined) feed(1); // every exercise fills Raluca's bowl a little
@@ -333,10 +536,10 @@ function finishExtra() {
     <div class="stage small" id="stage"></div>
     <div class="card center">
       ${learned
-        ? `<h2>Neuer Trick! 🎉</h2><p>Raluca kann jetzt <b>${esc(learned.name)}</b></p><p class="small muted">Tippe auf dem Start auf Raluca und sag „${esc(learned.name)}“.</p>`
+        ? `<h2>Neuer Trick! 🎉</h2><p>Raluca kann jetzt <b>${esc(learned.name)}</b></p><p class="small muted">Tippe im Raluca-Tab auf Raluca und sag „${esc(learned.name)}“.</p>`
         : `<h2>Extra geschafft! 💪</h2>${nt ? `<p>Nächster Trick <b>${esc(nt.trick.name)}</b>: ${nt.have} von ${nt.need}</p>` : ''}`}
       <button class="btn primary big" id="more">Noch eine Extra-Übung</button>
-      <button class="btn" id="home">Zum Start</button>
+      <button class="btn" id="home">Zurück zu Raluca</button>
     </div>
   `);
   const stage = $('#stage');
@@ -346,7 +549,7 @@ function finishExtra() {
   setTimeout(() => { if (learned) { fox.trick(learned.id); play('Good girl!'); } else fox.trick('happy'); }, 300);
   log(learned ? 'Trick gelernt: ' + learned.id : 'Extra-Übung fertig');
   $('#more').addEventListener('click', startExtra);
-  $('#home').addEventListener('click', home);
+  $('#home').addEventListener('click', () => ralucaTab());
 }
 
 function finishLesson(lesson) {
@@ -691,5 +894,5 @@ function exQuestion(lesson, step, frame, next) {
 // ================================================================ start
 window.addEventListener('pageshow', () => {});
 log('App geöffnet');
-home();
+openTab(location.hash.slice(1));
 backup();
