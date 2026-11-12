@@ -2,6 +2,7 @@
 // Used by the new app's speaking exercises (neu/) and the mic test page (mic-test.html).
 // Optional "check": { they, de, answers } – then the same Gemini call also judges her answer
 // (one trip instead of transcribe + feedback, so Miri waits about half as long).
+// Optional "hint": a short context line, e.g. that she says a dog command (Raluca's tricks).
 // The browser records with MediaRecorder, converts to 16 kHz mono WAV and sends it here as base64.
 // Secrets (Supabase dashboard → Edge Functions → Secrets):
 //   GEMINI_API_KEY   required (same key as the feedback function)
@@ -92,7 +93,7 @@ function json(body: unknown, status: number, origin: string | null) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors(origin), "Content-Type": "application/json" } });
 }
 
-async function transcribe(key: string, audio: string, mime: string, check: Check | null) {
+async function transcribe(key: string, audio: string, mime: string, check: Check | null, hint = "") {
   let lastError = "no model available";
   const skipped: string[] = [];
   for (const model of MODELS) {
@@ -107,7 +108,7 @@ async function transcribe(key: string, audio: string, mime: string, check: Check
             { inlineData: { mimeType: mime, data: audio } },
             { text: check
               ? JSON.stringify({ friend_said: clip(check.they, 300), german: clip(check.de, 400), example_answers: (check.answers || []).slice(0, 4).map((a) => clip(a, 300)) })
-              : "Transcribe this recording exactly as spoken." },
+              : hint ? `Transcribe this recording exactly as spoken. Context: ${hint}` : "Transcribe this recording exactly as spoken." },
           ] }],
           generationConfig: { temperature: check ? 0.2 : 0, responseMimeType: "application/json", responseSchema: check ? CHECK_SCHEMA : SCHEMA },
         }),
@@ -154,7 +155,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "not_configured" }, 503, origin);
 
-  let body: { audio?: string; mime?: string; check?: Check };
+  let body: { audio?: string; mime?: string; check?: Check; hint?: string };
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400, origin); }
   const audio = String(body.audio || "");
   const mime = String(body.mime || "audio/wav").split(";")[0].trim().toLowerCase();
@@ -165,7 +166,7 @@ Deno.serve(async (req) => {
   const started = Date.now();
   try {
     const check = body.check && typeof body.check === "object" ? body.check : null;
-    const result = await transcribe(key, audio, mime, check);
+    const result = await transcribe(key, audio, mime, check, clip(body.hint, 200));
     return json({ ok: true, ...result, ms: Date.now() - started }, 200, origin);
   } catch (e) {
     return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);

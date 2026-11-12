@@ -50,6 +50,12 @@ EXTRA_MAIN = [
     "Well done!",
     "Let's try again.",
     "You did it! See you tomorrow!",
+    # the game (neu/game.js MOOD_LINE, neu/app.js)
+    "I love you, Miri!",
+    "I'm hungry, Miri!",
+    "I missed you, Miri!",
+    "Good girl!",
+    "Thank you, Miri! I love it!",
 ]
 
 

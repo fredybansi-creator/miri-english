@@ -1,4 +1,4 @@
-// Miri English – new daily practice (rebuild step 1).
+// Miri English – new daily practice (rebuild step 1) with the Raluca game (step 2).
 // Start page with Raluca → today's lesson (about 10 minutes) → done for today.
 // Exercise types: Nachsprechen (repeat), Satz bauen (build), Sag es auf Englisch (say), Hörgeschichte (story).
 
@@ -7,6 +7,7 @@ import { mountFox } from './fox.js';
 import { play, playAll, stopAll } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
+import { payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
 import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
@@ -53,15 +54,18 @@ function home() {
   const run = st.run && lessonById(st.run.lessonId) ? st.run : null;
   const days = streak();
   const doneCount = TOPIC.lessons.filter((l) => st.done[l.id]).length;
+  const m = mood();
+  const nt = nextTrick();
+  const canExtra = TOPIC.lessons.some((l) => st.done[l.id]);
 
   let card;
   if (run) {
     const l = lessonById(run.lessonId);
     card = `
       <div class="card today">
-        <p class="kicker">Angefangen</p>
-        <h2>${esc(l.title)}</h2>
-        <p class="muted">${esc(l.goal)}</p>
+        <p class="kicker">${run.extra ? 'Extra-Übung' : 'Angefangen'}</p>
+        <h2>${run.extra ? 'Extra-Übung' : esc(l.title)}</h2>
+        ${run.extra ? '' : `<p class="muted">${esc(l.goal)}</p>`}
         <button class="btn primary big" id="go">Weitermachen</button>
       </div>`;
   } else if (finishedToday) {
@@ -70,7 +74,7 @@ function home() {
         <p class="kicker">Heute</p>
         <h2>Fertig für heute! 🎉</h2>
         <p class="muted">Raluca ist stolz auf dich. Morgen geht es weiter${next ? ` mit „${esc(next.title)}“` : ''}.</p>
-        ${next ? '<button class="btn link" id="extra">Trotzdem schon die nächste Lektion machen</button>' : ''}
+        ${next ? '<button class="btn link" id="ahead">Trotzdem schon die nächste Lektion machen</button>' : ''}
       </div>`;
   } else if (next) {
     const n = TOPIC.lessons.indexOf(next) + 1;
@@ -85,6 +89,7 @@ function home() {
           <li><span>🗣️</span>Sag es auf Englisch</li>
           <li><span>🎧</span>Hörgeschichte</li>
         </ul>
+        <p class="small muted">+10 Münzen, wenn du fertig bist</p>
         <button class="btn primary big" id="go">Los geht's</button>
       </div>`;
   } else {
@@ -96,13 +101,32 @@ function home() {
       </div>`;
   }
 
+  const learned = TRICKS.filter((t) => st.tricks.includes(t.id));
+  const trickCard = `
+    <div class="card tricks">
+      <h3>Raluca's Tricks</h3>
+      ${learned.length
+        ? `<p class="small">Tippe auf Raluca und sag: ${learned.map((t) => `<b>${esc(t.name)}</b>`).join(' · ')}</p>`
+        : '<p class="small muted">Raluca kann noch keine Tricks. Mit Extra-Übungen lernt sie welche.</p>'}
+      ${nt ? `
+        <div class="trickbar"><span>Nächster Trick: <b>${esc(nt.trick.name)}</b></span><span class="muted">${nt.have} von ${nt.need}</span></div>
+        <div class="meter"><i style="width:${Math.round((nt.have / nt.need) * 100)}%"></i></div>` : '<p class="small">Raluca kann alle Tricks! 🏆</p>'}
+      ${canExtra && !run ? '<button class="btn" id="extraEx">➕ Extra-Übung machen</button>' : ''}
+    </div>`;
+
   screen(`
     <header class="top">
       <h1>Hallo Miri!</h1>
-      <div class="pill" title="Tage in Folge">🔥 ${days} ${days === 1 ? 'Tag' : 'Tage'}</div>
+      <div class="hud">
+        <button class="pill" id="shopBtn" aria-label="Shop öffnen"><span class="coin"></span>${st.coins}</button>
+        <div class="pill" title="Tage in Folge">🔥 ${days}</div>
+      </div>
     </header>
-    <div class="stage" id="stage"><div class="bubble" id="bubble">${finishedToday && !run ? 'Great job today!' : 'Hi Miri! Ready for today?'}<small>Tippe auf mich</small></div></div>
+    <div class="stage" id="stage"><div class="bubble" id="bubble"><span id="bubbleText">${esc(finishedToday && !run ? MOOD_LINE.happy.en : MOOD_LINE[m].en)}</span><small id="bubbleHint">${learned.length && (m === 'ok' || finishedToday) ? 'Tippe auf mich und sag einen Trick' : esc((finishedToday ? MOOD_LINE.happy : MOOD_LINE[m]).de)}</small></div></div>
+    <div class="bowl"><span>🥣 Napf</span><div class="meter"><i style="width:${Math.round(bowlLevel() * 100)}%"></i></div><span class="muted small">${bowlLevel() >= 1 ? 'voll!' : 'füllt sich mit jeder Übung'}</span></div>
     ${card}
+    ${trickCard}
+    <button class="btn shop-link" id="shopBtn2">🛍️ Shop – Sachen für Raluca</button>
     <section class="topic">
       <h3>${esc(TOPIC.title)} <span class="muted">${doneCount} von ${TOPIC.lessons.length}</span></h3>
       <ol class="lessons">
@@ -127,15 +151,18 @@ function home() {
   const bubble = $('#bubble');
   const fox = mountFox($('#stage'));
   $('#stage').appendChild(bubble);
-  fox.el.addEventListener('click', () => {
-    play(finishedToday && !run ? RALUCA.great : RALUCA.hello);
-    fox.trick(fox.tricks[Math.floor(Math.random() * fox.tricks.length)]);
-  });
+  fox.setMood(finishedToday ? 'happy' : m);
+  dress($('#stage'));
+  fox.el.addEventListener('click', () => (learned.length ? listenForTrick(fox) : greet(fox, m, finishedToday)));
 
   const go = $('#go');
   if (go) go.addEventListener('click', () => (run ? resume() : startLesson(next)));
-  const extra = $('#extra');
-  if (extra) extra.addEventListener('click', () => startLesson(next));
+  const ahead = $('#ahead');
+  if (ahead) ahead.addEventListener('click', () => startLesson(next));
+  const ex = $('#extraEx');
+  if (ex) ex.addEventListener('click', startExtra);
+  $('#shopBtn').addEventListener('click', shop);
+  $('#shopBtn2').addEventListener('click', shop);
   app.querySelectorAll('[data-again]').forEach((b) => b.addEventListener('click', () => startLesson(lessonById(b.dataset.again))));
 
   $('#restoreBtn').addEventListener('click', async () => {
@@ -152,6 +179,100 @@ function home() {
   });
 }
 
+function setBubble(en, de = '') {
+  const t = $('#bubbleText'), h = $('#bubbleHint');
+  if (t) t.textContent = en;
+  if (h) h.textContent = de;
+}
+
+function greet(fox, m, finishedToday) {
+  const line = finishedToday ? MOOD_LINE.happy : MOOD_LINE[m];
+  setBubble(line.en, line.de);
+  play(line.en);
+  fox.trick(m === 'sad' || m === 'hungry' ? 'happy' : ['happy', 'jump', 'spin'][Math.floor(Math.random() * 3)]);
+}
+
+// Tap Raluca → she listens for 3 seconds → does the trick Miri said.
+let listening = false;
+async function listenForTrick(fox) {
+  if (listening) return;
+  listening = true;
+  stopAll();
+  setBubble('…', 'Mikro startet …');
+  let session;
+  try {
+    session = await startRecording(() => {}, () => {}, null, 'She gives her pet fox a short dog command in English, like "Sit!", "Give paw!", "Jump!", "Spin!" or "Lie down!".');
+  } catch (e) {
+    setBubble('Oh!', e.message);
+    listening = false;
+    return;
+  }
+  setBubble('👂 I\'m listening!', 'Sag jetzt einen Trick, z. B. „Sit!“');
+  await new Promise((r) => setTimeout(r, 2800));
+  setBubble('🤔', 'Moment …');
+  const r = await session.stop();
+  listening = false;
+  if (!document.body.contains(fox.el)) return;
+  const said = r.text || '';
+  const tr = trickFromSpeech(said);
+  log(`Trick gehört: "${said}" → ${tr ? tr.id : '–'}`);
+  if (tr && getState().tricks.includes(tr.id)) {
+    setBubble(tr.name, `Du hast gesagt: „${said}“`);
+    await fox.trick(tr.id);
+    setBubble('Good girl!', 'Raluca ist stolz 🧡');
+    play('Good girl!');
+  } else if (tr) {
+    setBubble('Hmm?', `„${tr.name}“ kann Raluca noch nicht. Mach Extra-Übungen!`);
+  } else {
+    const learned = TRICKS.filter((t) => getState().tricks.includes(t.id)).map((t) => t.name).join(', ');
+    setBubble('Hmm?', r.error ? r.error : `Das habe ich nicht verstanden${said ? ` („${said}“)` : ''}. Sag z. B.: ${learned}`);
+  }
+}
+
+// ================================================================ shop
+function shop() {
+  const st = getState();
+  screen(`
+    <header class="bar">
+      <button class="x" id="back" aria-label="Zurück zum Start">✕</button>
+      <h2 class="grow">Shop</h2>
+      <div class="pill"><span class="coin"></span>${st.coins}</div>
+    </header>
+    <div class="stage small" id="stage"></div>
+    <p class="small muted">Münzen bekommst du für jeden Tag mit einer fertigen Lektion (10), dazu Bonus an 3 Tagen in Folge (+15) und jede Woche in Folge (+50).</p>
+    <div class="shop">
+      ${SHOP.map((it) => {
+        const owned = st.owned.includes(it.id);
+        const worn = st.wearing[it.slot] === it.id;
+        const blocked = it.needs && !st.owned.includes(it.needs);
+        const btn = owned
+          ? `<button class="btn small ${worn ? '' : 'primary'}" data-${worn ? 'off' : 'on'}="${it.id}">${worn ? 'Ausziehen' : 'Anziehen'}</button>`
+          : blocked ? `<span class="small muted">Erst ${esc(itemById(it.needs).name)}</span>`
+          : `<button class="btn small primary" data-buy="${it.id}" ${st.coins < it.price ? 'disabled' : ''}><span class="coin"></span> ${it.price}</button>`;
+        return `<div class="item ${worn ? 'worn' : ''}">
+          <svg viewBox="${it.slot === 'leash' ? '-10 130 200 150' : it.slot === 'neck' ? '120 220 110 60' : it.slot === 'eyes' ? '120 140 100 40' : '120 70 110 60'}" class="thumb" aria-hidden="true">${it.svg}</svg>
+          <b>${esc(it.name)}</b>
+          ${btn}
+        </div>`;
+      }).join('')}
+    </div>
+  `);
+  const fox = mountFox($('#stage'));
+  dress($('#stage'));
+  $('#back').addEventListener('click', home);
+  app.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
+    if (buy(b.dataset.buy)) { log('Gekauft: ' + b.dataset.buy); backup(); play('Thank you, Miri! I love it!'); shop(); setTimeout(() => { const s = $('#stage'); if (s) mountAndCheer(s); }, 50); }
+  }));
+  app.querySelectorAll('[data-on]').forEach((b) => b.addEventListener('click', () => { wear(b.dataset.on); shop(); }));
+  app.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { takeOff(b.dataset.off); shop(); }));
+  void fox;
+}
+function mountAndCheer(stage) {
+  const fox = mountFox(stage);
+  dress(stage);
+  fox.trick('happy');
+}
+
 // ================================================================ lesson flow
 function startLesson(lesson) {
   if (!lesson) return home();
@@ -160,18 +281,31 @@ function startLesson(lesson) {
   resume();
 }
 
+// One short exercise from a lesson she already finished (repeat, build or say). Teaches Raluca tricks.
+function startExtra() {
+  const st = getState();
+  const done = TOPIC.lessons.filter((l) => st.done[l.id]);
+  if (!done.length) return home();
+  const lesson = done[Math.floor(Math.random() * done.length)];
+  const pool = stepsFor(lesson).filter((x) => ['repeat', 'build', 'say'].includes(x.type));
+  const step = pool[Math.floor(Math.random() * pool.length)];
+  update((s) => { s.run = { lessonId: lesson.id, extra: true, steps: [step], step: 0, results: [], startedAt: Date.now() }; });
+  log(`Extra-Übung: ${lesson.id} ${step.type} ${step.i}`);
+  resume();
+}
+
 function resume() {
   const run = getState().run;
   const lesson = run && lessonById(run.lessonId);
   if (!lesson) return home();
-  const steps = stepsFor(lesson);
-  if (run.step >= steps.length) return finishLesson(lesson);
+  const steps = run.extra ? run.steps : stepsFor(lesson);
+  if (run.step >= steps.length) return run.extra ? finishExtra() : finishLesson(lesson);
   const step = steps[run.step];
   const frame = (inner, footer = '') => screen(`
     <header class="bar">
       <button class="x" id="quit" aria-label="Zurück zum Start">✕</button>
       <div class="progress" aria-label="Fortschritt"><i style="width:${Math.round((run.step / steps.length) * 100)}%"></i></div>
-      <span class="count">${run.step + 1}/${steps.length}</span>
+      <span class="count">${run.extra ? 'Extra' : `${run.step + 1}/${steps.length}`}</span>
     </header>
     <p class="type">${TYPE_LABEL[step.type]}</p>
     <main class="ex">${inner}</main>
@@ -179,10 +313,36 @@ function resume() {
   `);
   const next = (ok) => {
     update((s) => { s.run.results[s.run.step] = ok; s.run.step++; });
+    if (ok !== undefined) feed(1); // every exercise fills Raluca's bowl a little
     resume();
   };
   ({ repeat: exRepeat, build: exBuild, say: exSay, story: exStory, question: exQuestion })[step.type](lesson, step, frame, next);
   $('#quit').addEventListener('click', () => home());
+}
+
+function finishExtra() {
+  update((s) => { s.run = null; });
+  const learned = addExtra();
+  const nt = nextTrick();
+  backup();
+  screen(`
+    <div class="stage small" id="stage"></div>
+    <div class="card center">
+      ${learned
+        ? `<h2>Neuer Trick! 🎉</h2><p>Raluca kann jetzt <b>${esc(learned.name)}</b></p><p class="small muted">Tippe auf dem Start auf Raluca und sag „${esc(learned.name)}“.</p>`
+        : `<h2>Extra geschafft! 💪</h2>${nt ? `<p>Nächster Trick <b>${esc(nt.trick.name)}</b>: ${nt.have} von ${nt.need}</p>` : ''}`}
+      <button class="btn primary big" id="more">Noch eine Extra-Übung</button>
+      <button class="btn" id="home">Zum Start</button>
+    </div>
+  `);
+  const stage = $('#stage');
+  const fox = mountFox(stage);
+  dress(stage);
+  fox.setMood('happy');
+  setTimeout(() => { if (learned) { fox.trick(learned.id); play('Good girl!'); } else fox.trick('happy'); }, 300);
+  log(learned ? 'Trick gelernt: ' + learned.id : 'Extra-Übung fertig');
+  $('#more').addEventListener('click', startExtra);
+  $('#home').addEventListener('click', home);
 }
 
 function finishLesson(lesson) {
@@ -195,7 +355,8 @@ function finishLesson(lesson) {
     if (!s.days.includes(today())) s.days.push(today());
     s.run = null;
   });
-  log(`Lektion fertig: ${lesson.id} (${good}/${results.length}, ${minutes} Min.)`);
+  const pay = payDay();
+  log(`Lektion fertig: ${lesson.id} (${good}/${results.length}, ${minutes} Min.)${pay.earned ? `, +${pay.earned} Münzen` : ''}`);
   backup();
   const days = streak();
   screen(`
@@ -204,11 +365,15 @@ function finishLesson(lesson) {
       <h2>Geschafft! 🎉</h2>
       <p class="big-num">${good} von ${results.length}</p>
       <p class="muted">Übungen richtig · ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'}</p>
-      <p>🔥 ${days} ${days === 1 ? 'Tag' : 'Tage'} in Folge</p>
+      ${pay.earned ? `<p class="coins-won"><span class="coin"></span> +${pay.earned} Münzen${pay.bonus ? ` (mit ${pay.bonus} Bonus für ${days} Tage in Folge!)` : ''}</p>` : '<p class="small muted">Münzen gibt es einmal pro Tag.</p>'}
+      <p>🔥 ${days} ${days === 1 ? 'Tag' : 'Tage'} in Folge · 🥣 Napf ${bowlLevel() >= 1 ? 'voll' : 'gefüllt'}</p>
       <button class="btn primary big" id="home">Zum Start</button>
     </div>
   `);
-  const fox = mountFox($('#stage'));
+  const stage = $('#stage');
+  const fox = mountFox(stage);
+  dress(stage);
+  fox.setMood('happy');
   setTimeout(() => { fox.trick('jump'); play(RALUCA.bye); }, 300);
   $('#home').addEventListener('click', home);
 }

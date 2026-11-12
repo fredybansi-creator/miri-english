@@ -156,3 +156,33 @@ input { font: inherit; font-size: 17px; flex: 1; min-width: 0; padding: 10px 12p
 @keyframes bob { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-2.5deg); } }
 @keyframes blink { 0%, 45%, 51%, 100% { transform: scaleY(0); } 48% { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) { #tail, #head, #lidL, #lidR { animation: none; } }
+
+/* ---------- Raluca's mood (fox.js setMood) */
+.mood-sad #earL { transform: rotate(-28deg); }
+.mood-sad #earR { transform: rotate(28deg); }
+.mood-sad #lidL, .mood-sad #lidR { animation: none; transform: scaleY(.5); }
+.mood-sad #tail { animation: none; transform: rotate(14deg); }
+.mood-hungry #earL { transform: rotate(-12deg); }
+.mood-hungry #earR { transform: rotate(12deg); }
+.mood-hungry #tail { animation-duration: 3.6s; }
+#earL, #earR { transition: transform .4s; }
+
+/* ---------- game (step 2) */
+.hud { display: flex; gap: 8px; }
+button.pill { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.pill { display: flex; align-items: center; gap: 6px; }
+.coin { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #f5b82e; box-shadow: inset 0 -2px 0 rgba(0,0,0,.15); vertical-align: -2px; flex: none; }
+.bowl { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 10px 14px; font-weight: 700; font-size: 15px; }
+.meter { flex: 1; height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--fox); border-radius: 99px; }
+.card.tricks { gap: 8px; }
+.trickbar { display: flex; justify-content: space-between; font-size: 15px; }
+.shop-link { text-align: center; }
+.grow { flex: 1; font-size: 22px; }
+.shop { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.item { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; font-size: 15px; }
+.item.worn { border-color: var(--fox); box-shadow: 0 0 0 2px var(--fox) inset; }
+.item .thumb { width: 100%; height: 64px; }
+.item .btn { display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+.item .btn:disabled { opacity: .45; }
+.coins-won { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; }

@@ -1,6 +1,7 @@
 // Raluca, the 2D cartoon fox (SVG with separate moving parts). Kept as its own module so a 3D
 // Raluca can replace it later without touching the lessons.
-// Usage: mountFox(container) → { trick(name), say(text) }; tricks: happy, jump, spin, sit, paw.
+// Usage: mountFox(container) → { trick(name), setMood(m), el }; tricks: happy, jump, spin, sit, paw, down.
+// Moods (CSS classes on the container): happy, ok, hungry, sad.
 
 const SVG = `
 <svg viewBox="0 0 400 400" role="img" aria-label="Raluca, der Fuchs">
@@ -107,6 +108,12 @@ export function mountFox(container) {
       [legBR, legBL].forEach((e) => e.animate([{ transform: 'none' }, { transform: 'translateY(18px) scaleY(.45)', offset: 0.25 }, { transform: 'translateY(18px) scaleY(.45)', offset: 0.8 }, { transform: 'none' }], { duration: 2000, easing: 'ease-in-out' }));
       await A(head, [{ transform: 'none' }, { transform: 'translateY(-6px) rotate(-6deg)', offset: 0.3 }, { transform: 'translateY(-6px) rotate(6deg)', offset: 0.6 }, { transform: 'none' }], { duration: 2000 });
     },
+    down: async () => {
+      [legFR, legFL, legBR, legBL].forEach((e) => e.animate([{ transform: 'none' }, { transform: 'translateY(14px) scaleY(.3)', offset: 0.3 }, { transform: 'translateY(14px) scaleY(.3)', offset: 0.8 }, { transform: 'none' }], { duration: 2400, easing: 'ease-in-out' }));
+      [torso, tail].forEach((e) => e.animate([{ transform: 'none' }, { transform: 'translateY(36px)', offset: 0.3 }, { transform: 'translateY(36px)', offset: 0.8 }, { transform: 'none' }], { duration: 2400, easing: 'ease-in-out' }));
+      [earL, earR].forEach((e) => e.animate([{ transform: 'none' }, { transform: 'rotate(-12deg)', offset: 0.3 }, { transform: 'rotate(-12deg)', offset: 0.8 }, { transform: 'none' }], { duration: 2400 }));
+      await A(head, [{ transform: 'none' }, { transform: 'translateY(46px) rotate(4deg)', offset: 0.3 }, { transform: 'translateY(46px) rotate(4deg)', offset: 0.8 }, { transform: 'none' }], { duration: 2400 });
+    },
     paw: async () => {
       head.animate([{ transform: 'none' }, { transform: 'rotate(-8deg)' }, { transform: 'none' }], { duration: 1600 });
       await A(legFR, [{ transform: 'rotate(0)' }, { transform: 'rotate(75deg)', offset: 0.3 }, { transform: 'rotate(65deg)', offset: 0.5 }, { transform: 'rotate(75deg)', offset: 0.7 }, { transform: 'rotate(0)' }], { duration: 1600 });
@@ -119,5 +126,8 @@ export function mountFox(container) {
     try { await T[name](); } catch { /* animation cancelled */ }
     busy = false;
   }
-  return { trick, tricks: Object.keys(T), el: fox };
+  function setMood(m) {
+    ['happy', 'ok', 'hungry', 'sad'].forEach((x) => container.classList.toggle('mood-' + x, x === m));
+  }
+  return { trick, setMood, tricks: Object.keys(T), el: fox };
 }

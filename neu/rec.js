@@ -34,7 +34,7 @@ export function releaseMic() {
  * Start recording. Returns { stop(): Promise<{ text, error, ms }>, cancel() } or throws with a German message.
  * onTick(seconds) is called while recording; recording stops by itself after 60 s.
  */
-export async function startRecording(onTick, onAutoStop, check = null) {
+export async function startRecording(onTick, onAutoStop, check = null, hint = '') {
   try {
     if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); }
     if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
@@ -80,12 +80,12 @@ export async function startRecording(onTick, onAutoStop, check = null) {
       log(`Aufnahme: ${(durMs / 1000).toFixed(1)} s, ${blob.size} Bytes in ${chunks.length} Teilen${muted ? ', Mikro war stumm' : ''}`);
       if (durMs < 600) return { text: '', error: 'Das war zu kurz. Tippe auf das Mikro und sprich etwas länger.' };
       if (blob.size < 1000) return { text: '', error: 'Das Mikro hat nichts aufgenommen. Bitte noch einmal versuchen.' };
-      return transcribe(blob, type, check);
+      return transcribe(blob, type, check, hint);
     },
   };
 }
 
-async function transcribe(blob, type, check) {
+async function transcribe(blob, type, check, hint) {
   let payload;
   try {
     const wav = await toWav16k(blob);
@@ -95,6 +95,7 @@ async function transcribe(blob, type, check) {
     payload = { audio: await b64(blob), mime: type.split(';')[0] };
   }
   if (check) payload.check = check; // the server also judges the answer in the same call
+  if (hint) payload.hint = hint;
   const t0 = Date.now();
   let data = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
