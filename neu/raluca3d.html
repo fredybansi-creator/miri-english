@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Raluca 3D – Test</title>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #eef4ec; color: #2c3328; }
+  main { max-width: 480px; margin: 0 auto; padding: 12px 16px 40px; }
+  h1 { font-size: 22px; margin: 6px 0 10px; }
+  #stage { width: 100%; aspect-ratio: 1; border-radius: 18px; overflow: hidden; background: #cfe9f7; }
+  h2 { font-size: 15px; margin: 16px 0 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { font: inherit; font-size: 14px; padding: 8px 12px; border-radius: 999px; border: 1px solid #c9d6c3; background: #fff; color: #2c3328; }
+  button.on { background: #b8521a; border-color: #b8521a; color: #fff; }
+  p { font-size: 13px; color: #6a7564; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Raluca 3D – Test</h1>
+  <div id="stage"></div>
+  <h2>Tricks</h2><div class="row" id="tricks"></div>
+  <h2>Laune</h2><div class="row" id="moods"></div>
+  <h2>Sachen</h2><div class="row" id="items"></div>
+  <p>Nur zum Ausprobieren. Miris App benutzt noch die 2D-Raluca.</p>
+</main>
+<script type="module">
+import { mountFox3d, webglOk } from './fox3d.js';
+import { SHOP } from './game.js';
+const stage = document.getElementById('stage');
+if (!webglOk()) stage.textContent = 'Dieses Handy kann kein 3D (WebGL).';
+const fox = mountFox3d(stage);
+window.FOX = fox;
+const btn = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => fn(b); return b; };
+for (const t of fox.tricks) document.getElementById('tricks').append(btn(t, () => fox.trick(t)));
+for (const m of ['happy', 'ok', 'hungry', 'sad']) document.getElementById('moods').append(btn(m, () => fox.setMood(m)));
+const wearing = {};
+for (const it of SHOP) document.getElementById('items').append(btn(it.name, (b) => {
+  if (wearing[it.slot] === it.id) { delete wearing[it.slot]; b.classList.remove('on'); }
+  else { document.querySelectorAll('#items button').forEach((x) => { if (x.dataset.slot === it.slot) x.classList.remove('on'); }); wearing[it.slot] = it.id; b.classList.add('on'); }
+  fox.dress(wearing);
+}));
+document.querySelectorAll('#items button').forEach((b, i) => { b.dataset.slot = SHOP[i].slot; });
+</script>
+</body>
+</html>
