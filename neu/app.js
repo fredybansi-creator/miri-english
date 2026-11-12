@@ -9,7 +9,8 @@ import { mountFox } from './fox.js';
 import { play, playAll, stopAll, audioKey } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
-import { payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
+import { reminderState, registerWorker, turnOn, turnOff, sendTest } from './reminder.js';
+import { BOWL_FULL, payDay, feed, bowlLevel, mood, MOOD_LINE, SHOP, itemById, buy, wear, takeOff, dress, TRICKS, nextTrick, addExtra, trickFromSpeech } from './game.js';
 import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
@@ -168,13 +169,23 @@ function home() {
       </div>`;
   }
   const due = dueCards().length;
+  const st0 = getState();
+  const fresh = !st0.days.length && !Object.keys(st0.done).length && !st0.coins && !run;
+  const homeApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const restoreCard = fresh && homeApp ? `
+    <div class="card"><h3>Schon in Safari geübt?</h3>
+      <p class="small muted">Gib deinen Code ein, dann holt die App deinen Fortschritt, Münzen und Raluca.</p>
+      <div class="row"><input id="restoreCode" placeholder="Code eingeben" autocapitalize="characters" autocomplete="off"><button class="btn small" id="restoreBtn">Laden</button></div>
+      <p class="muted small" id="restoreMsg"></p></div>` : '';
 
   tabScreen('today', `
     <header class="top"><h1>Hallo Miri!</h1>${hud()}</header>
     <div class="stage" id="stage">${bubbleHtml()}</div>
     <div class="bowl"><span>🥣 Napf</span><div class="meter"><i style="width:${Math.round(bowlLevel() * 100)}%"></i></div><span class="muted small">${bowlLevel() >= 1 ? 'voll!' : 'füllt sich mit jeder Übung'}</span></div>
+    ${restoreCard}
     ${card}
     ${due && !run && !finishedToday ? `<button class="btn" data-go="cards">🃏 ${due} ${due === 1 ? 'Karte' : 'Karten'} zum Wiederholen</button>` : ''}
+    ${['off', 'homescreen'].includes(reminderState()) ? '<button class="btn link" data-go="progress">🔔 Erinnerung um 19 Uhr einschalten</button>' : ''}
   `);
   ralucaStage();
   wireGo();
@@ -182,6 +193,7 @@ function home() {
   if (go) go.addEventListener('click', () => (run ? resume() : startLesson(next)));
   const ahead = $('#ahead');
   if (ahead) ahead.addEventListener('click', () => startLesson(next));
+  if ($('#restoreBtn')) wireRestore();
 }
 
 // ---------------------------------------------------------------- Lektionen
@@ -371,7 +383,8 @@ function progressTab() {
   const cells = [];
   for (let d = new Date(start); today(d) <= today(); d.setDate(d.getDate() + 1)) cells.push({ day: today(d), n: d.getDate() });
   tabScreen('progress', `
-    <header class="top"><h1>Fortschritt</h1>${hud()}</header>
+    <header class="top"><h1 id="secret">Fortschritt</h1>${hud()}</header>
+    <div id="cheat"></div>
     <div class="stats">
       <div class="stat"><b>🔥 ${streak()}</b><span>Tage in Folge</span></div>
       <div class="stat"><b>${st.days.length}</b><span>Übungstage</span></div>
@@ -388,6 +401,7 @@ function progressTab() {
         <div class="trickbar"><span>${esc(t.title)}</span><span class="muted">${n} von ${t.lessons.length}</span></div>
         <div class="meter"><i style="width:${Math.round((n / t.lessons.length) * 100)}%"></i></div>`; }).join('')}
     </div>
+    ${reminderCard()}
     <details class="more">
       <summary>Mein Code und Hilfe</summary>
       <p>Dein Fortschritt wird automatisch gesichert. Mit diesem Code holst du ihn auf ein neues Handy:</p>
@@ -398,6 +412,16 @@ function progressTab() {
     </details>
   `);
   wireGo();
+  wireReminder();
+  wireCheat();
+  wireRestore();
+  $('#copyLog').addEventListener('click', async (ev) => {
+    const text = `Miri English (neu)\n${navigator.userAgent}\n\n${readLog().join('\n')}`;
+    try { await navigator.clipboard.writeText(text); ev.target.textContent = 'Kopiert ✓'; } catch { ev.target.textContent = 'Kopieren ging nicht'; }
+  });
+}
+
+function wireRestore() {
   $('#restoreBtn').addEventListener('click', async () => {
     const msg = $('#restoreMsg');
     msg.textContent = 'Wird geladen …';
@@ -406,9 +430,66 @@ function progressTab() {
       if (ok) { msg.textContent = 'Geladen!'; setTimeout(home, 600); } else msg.textContent = 'Zu diesem Code gibt es nichts.';
     } catch (e) { msg.textContent = e.message.includes('16') ? e.message : 'Das ging nicht. Stimmt der Code?'; }
   });
-  $('#copyLog').addEventListener('click', async (ev) => {
-    const text = `Miri English (neu)\n${navigator.userAgent}\n\n${readLog().join('\n')}`;
-    try { await navigator.clipboard.writeText(text); ev.target.textContent = 'Kopiert ✓'; } catch { ev.target.textContent = 'Kopieren ging nicht'; }
+}
+
+// ---------------------------------------------------------------- reminder at 19:00 (Fortschritt tab)
+function reminderCard() {
+  const st = reminderState();
+  const body = {
+    on: '<p>✅ An. Raluca erinnert dich um 19 Uhr, wenn du an dem Tag noch keine Lektion gemacht hast.</p><div class="row"><button class="btn small" id="remTest">Test-Nachricht senden</button><button class="btn small" id="remOff">Ausschalten</button></div>',
+    off: '<p class="muted">Raluca erinnert dich um 19 Uhr, wenn du an dem Tag noch keine Lektion gemacht hast.</p><button class="btn primary" id="remOn">Erinnerung einschalten</button>',
+    homescreen: `<p>Auf dem iPhone geht das nur, wenn die App auf dem Home-Bildschirm ist:</p><ol class="steps"><li>Schreib dir deinen Code auf: <b class="code">${esc(getState().code)}</b> (die App auf dem Home-Bildschirm fängt sonst leer an)</li><li>Unten in Safari auf <b>Teilen</b> tippen (Viereck mit Pfeil)</li><li><b>Zum Home-Bildschirm</b> wählen, dann <b>Hinzufügen</b></li><li>Die App über das neue Symbol öffnen und hier die Erinnerung einschalten</li></ol>`,
+    blocked: '<p>Mitteilungen sind für diese App ausgeschaltet. Einschalten: <b>Einstellungen › Mitteilungen › Miri English</b>.</p>',
+    unsupported: '<p class="muted">Dieses Handy oder dieser Browser kann leider keine Erinnerungen zeigen.</p>',
+  }[st];
+  return `<div class="card" id="remCard"><h3>🔔 Erinnerung um 19 Uhr</h3>${body}<p class="small muted" id="remMsg"></p></div>`;
+}
+function wireReminder() {
+  const msg = (t) => { const m = $('#remMsg'); if (m) m.textContent = t; };
+  const redraw = () => { const c = $('#remCard'); if (c) { c.outerHTML = reminderCard(); wireReminder(); } };
+  const on = $('#remOn'), off = $('#remOff'), test = $('#remTest');
+  if (on) on.addEventListener('click', async () => {
+    on.disabled = true; msg('Einen Moment …');
+    try { await turnOn(); backup(); redraw(); msg('Eingeschaltet! 🎉'); } catch (e) { on.disabled = false; msg(e.message.startsWith('Du') ? e.message : 'Das ging nicht: ' + e.message); log('Erinnerung Fehler: ' + e.message); }
+  });
+  if (off) off.addEventListener('click', async () => { await turnOff(); redraw(); });
+  if (test) test.addEventListener('click', async () => {
+    msg('Wird gesendet …');
+    try { await sendTest(); msg('Gesendet. Die Nachricht kommt in ein paar Sekunden.'); } catch (e) { msg('Das ging nicht: ' + e.message); log('Test-Nachricht Fehler: ' + e.message); }
+  });
+}
+
+// ---------------------------------------------------------------- Freddy's secret coin cheat
+// Tap the title "Fortschritt" 7 times quickly → a small hidden panel.
+function wireCheat() {
+  let taps = [];
+  $('#secret').addEventListener('click', () => {
+    const now = Date.now();
+    taps = taps.filter((t) => now - t < 3000).concat(now);
+    if (taps.length < 7) return;
+    taps = [];
+    const box = $('#cheat');
+    box.innerHTML = `<div class="card cheat"><h3>🤫 Geheim</h3>
+      <div class="row wrap"><button class="btn small" data-coins="50">+50 Münzen</button><button class="btn small" data-coins="200">+200 Münzen</button>
+      <button class="btn small" id="cheatExtra">+1 Extra-Übung</button><button class="btn small" id="cheatBowl">Napf füllen</button></div>
+      <p class="small muted" id="cheatMsg"></p></div>`;
+    const say = (t) => { $('#cheatMsg').textContent = t; };
+    box.querySelectorAll('[data-coins]').forEach((b) => b.addEventListener('click', () => {
+      const n = Number(b.dataset.coins);
+      update((s) => { s.coins += n; });
+      log('Geheim: +' + n + ' Münzen');
+      backup();
+      say(`+${n} Münzen · jetzt ${getState().coins}`);
+      const pill = app.querySelector('.hud .pill');
+      if (pill) pill.innerHTML = `<span class="coin"></span>${getState().coins}`;
+    }));
+    $('#cheatExtra').addEventListener('click', () => {
+      const tr = addExtra();
+      backup();
+      log('Geheim: +1 Extra-Übung');
+      say(tr ? `Raluca kann jetzt ${tr.name}` : 'Extra-Übung gezählt');
+    });
+    $('#cheatBowl').addEventListener('click', () => { feed(BOWL_FULL); log('Geheim: Napf gefüllt'); say('Napf ist voll'); });
   });
 }
 
@@ -893,6 +974,7 @@ function exQuestion(lesson, step, frame, next) {
 
 // ================================================================ start
 window.addEventListener('pageshow', () => {});
+registerWorker();
 log('App geöffnet');
 openTab(location.hash.slice(1));
 backup();
