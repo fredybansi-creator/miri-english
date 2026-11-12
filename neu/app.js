@@ -239,15 +239,28 @@ function micControls(onText) {
   const mic = $('#mic'), status = $('#status');
   let session = null, busy = false;
 
+  let starting = false;
   async function begin() {
+    if (starting) return;
+    starting = true;
     stopAll();
+    // The iPhone needs a moment to switch the mic on – show that, so she starts talking at the right time.
+    mic.disabled = true;
+    mic.querySelector('.ico').textContent = '⏳';
+    mic.querySelector('.lbl').textContent = 'Moment …';
+    status.textContent = 'Mikro startet …';
     try {
-      session = await startRecording((s) => { status.textContent = `Ich höre zu … ${s} s · Tippe auf „Fertig“, wenn du fertig bist.`; }, finish);
-    } catch (e) { status.textContent = e.message; return; }
+      session = await startRecording((s) => { status.textContent = `Jetzt sprechen! ${s} s · Tippe auf „Fertig“, wenn du fertig bist.`; }, finish);
+    } catch (e) {
+      status.textContent = e.message;
+      mic.querySelector('.ico').textContent = '🎤';
+      mic.querySelector('.lbl').textContent = 'Sprechen';
+      return;
+    } finally { starting = false; mic.disabled = false; }
     mic.classList.add('on');
     mic.querySelector('.ico').textContent = '■';
     mic.querySelector('.lbl').textContent = 'Fertig';
-    status.textContent = 'Ich höre zu … Tippe auf „Fertig“, wenn du fertig bist.';
+    status.textContent = 'Jetzt sprechen! Tippe auf „Fertig“, wenn du fertig bist.';
   }
   async function finish() {
     if (!session || busy) return;
@@ -382,10 +395,15 @@ function exSay(lesson, step, frame, next) {
       $('#actions').innerHTML = '<p class="status">Raluca schaut sich deinen Satz an …</p>';
       const local = checkAnswer(item, [said]);
       let level = local.level, fb = null;
-      for (let attempt = 1; attempt <= 2 && !fb; attempt++) {
-        try { fb = await aiFeedback({ they: item.they || '', de: item.de, answers: item.answers }, said, { timeout: 15000 }); level = fb.level; }
-        catch (e) { log(`KI-Feedback ging nicht (${attempt}): ` + (e.code || e.message)); } // then the offline check decides
-      }
+      // The AI gets at most 8 seconds (Gemini is sometimes overloaded); then the offline check decides.
+      // A hard timer as well, because a hanging request must never block the lesson.
+      const t0 = Date.now();
+      fb = await Promise.race([
+        aiFeedback({ they: item.they || '', de: item.de, answers: item.answers }, said, { timeout: 8000 })
+          .catch((e) => { log('KI-Feedback ging nicht: ' + (e.code || e.message)); return null; }),
+        new Promise((r) => setTimeout(() => r(null), 9000)),
+      ]);
+      if (fb) level = fb.level; else log(`KI-Feedback übersprungen nach ${((Date.now() - t0) / 1000).toFixed(1)} s`);
       const [cls, msg] = praise(level);
       let body = `<p class="verdict">${msg}</p><p class="said">Du hast gesagt: „${esc(said)}“</p>`;
       if (fb) {
@@ -395,6 +413,7 @@ function exSay(lesson, step, frame, next) {
       } else if (local.missing.length && level !== 'great') {
         body += `<p>Diese Wörter fehlen noch: <b>${local.missing.map(esc).join(', ')}</b></p>`;
       }
+      if (!fb) body += '<p class="small muted">Die KI ist gerade überlastet, deshalb nur eine einfache Prüfung.</p>';
       $('#result').innerHTML = showAnswer(body, cls);
       wirePlayButtons($('#result'));
       if (level !== 'great') setTimeout(() => play(item.answers[0]), 400);
