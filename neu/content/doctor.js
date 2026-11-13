@@ -42,6 +42,9 @@ export default {
           keywords: [['miri']],
         },
       ],
+      tip: {"de": "Am Telefon: „I'd like to make an appointment.“ Uhrzeiten: at ten (um zehn), on Monday (am Montag), in the morning (am Vormittag).", "en": "Can I come on Monday at ten?"},
+      write: {"de": "Schreib eine kurze E-Mail an eine Praxis: Du brauchst einen Termin diese Woche.", "useWords": ["I'd like to make an appointment", "this week", "in the morning"], "sample": "Hello, I'd like to make an appointment this week, if possible in the morning. Thank you!"},
+      talk: {"they": "When is a good time for you to see the doctor?", "de": "Sag, wann du Zeit hast und wann nicht.", "useWords": ["I can come", "on", "I work until"], "sample": "I can come on Tuesday or Thursday. I work until five."},
       story: {
         title: 'Der Anruf',
         de: 'Paul ruft beim Arzt an. Hör gut zu.',
@@ -98,6 +101,9 @@ export default {
           keywords: [['yes'], ['throat']],
         },
       ],
+      tip: {"de": "Schmerzen: „I have a headache / a sore throat.“ Für Körperteile: „My back hurts.“ – mit „my“, nicht „the“.", "en": "My back hurts."},
+      write: {"de": "Schreib deiner Chefin, dass du krank bist und heute nicht kommst.", "useWords": ["I'm sorry", "I don't feel well", "I have"], "sample": "I'm sorry, I don't feel well today. I have a bad headache and a sore throat."},
+      talk: {"they": "You don't look well. What's wrong?", "de": "Erzähl, was dir weh tut und seit wann.", "useWords": ["I have", "It started", "ago"], "sample": "I have a headache. It started two days ago."},
       story: {
         title: 'Ein schlechter Tag',
         de: 'Sophie geht zum Arzt. Hör gut zu.',
@@ -154,6 +160,9 @@ export default {
           keywords: [['yes'], ['fever', 'temperature'], ['last night', 'yesterday']],
         },
       ],
+      tip: {"de": "„Seit“ bei Zeiträumen ist „for“, nicht „since“: I've had a cough for three days. („since“ nur mit Zeitpunkt: since Monday.)", "en": "I've had a cough for three days."},
+      write: {"de": "Schreib auf, welche Allergien oder Medikamente ein Arzt von dir wissen sollte (oder dass du keine hast).", "useWords": ["I'm allergic to", "I don't take", "I take"], "sample": "I'm not allergic to anything. I don't take any medicine."},
+      talk: {"they": "How do you sleep at the moment?", "de": "Erzähl, wie du gerade schläfst.", "useWords": ["I sleep well", "badly", "I wake up"], "sample": "Not very well. I often wake up at night."},
       story: {
         title: 'Viele Fragen',
         de: 'Ben ist beim Arzt. Hör gut zu.',
@@ -187,7 +196,7 @@ export default {
       ],
       build: [
         { en: 'Should I take it with food?', de: 'Soll ich es mit dem Essen nehmen?', extra: ['shall'] },
-        { en: 'Can I drive after taking this?', de: 'Darf ich Auto fahren, nachdem ich das genommen habe?', extra: ['may'] },
+        { en: 'Can I drive after taking this?', de: 'Darf ich Auto fahren, nachdem ich das genommen habe?', extra: ['drove'] },
         { en: 'How much does it cost?', de: 'Wie viel kostet das?', extra: ['many'] },
       ],
       say: [
@@ -210,6 +219,9 @@ export default {
           keywords: [['something', 'anything'], ['sore throat', 'throat']],
         },
       ],
+      tip: {"de": "„Should“ = sollte: Should I take it with food? Antworten: „Yes, you should.“ / „No, you don't need to.“", "en": "Should I take it with food?"},
+      write: {"de": "Schreib, was du machst, wenn du erkältet bist.", "useWords": ["When I have a cold", "I drink", "I stay"], "sample": "When I have a cold, I drink a lot of tea and stay in bed."},
+      talk: {"they": "What do you do when you have a cold?", "de": "Erzähl, was dir bei einer Erkältung hilft.", "useWords": ["tea with honey", "I rest", "I go to bed early"], "sample": "I drink tea with honey and go to bed early."},
       story: {
         title: 'In der Apotheke',
         de: 'Anna holt ein Medikament. Hör gut zu.',
@@ -243,7 +255,7 @@ export default {
       ],
       build: [
         { en: 'She can\'t stand up.', de: 'Sie kann nicht aufstehen.', extra: ['stay'] },
-        { en: 'I think it is broken.', de: 'Ich glaube, es ist gebrochen.', extra: ['believe'] },
+        { en: 'I think it is broken.', de: 'Ich glaube, es ist gebrochen.', extra: ['thinks'] },
         { en: 'Is there a doctor who speaks German?', de: 'Gibt es einen Arzt, der Deutsch spricht?', extra: ['which'] },
       ],
       say: [
@@ -266,6 +278,9 @@ export default {
           keywords: [['where', 'which'], ['hospital']],
         },
       ],
+      tip: {"de": "Im Notfall kurz und klar: „Please call an ambulance!“ – „Please“ steht am Anfang, das ist dringend und trotzdem höflich.", "en": "Please call an ambulance!"},
+      write: {"de": "Schreib einer Freundin, was im Urlaub passiert ist: Jemand hat sich verletzt.", "useWords": ["fell", "hurt", "hospital", "now"], "sample": "My friend fell and hurt her leg. We went to the hospital, but now she is fine."},
+      talk: {"they": "Have you ever been to a hospital on holiday?", "de": "Erzähl, ob du schon einmal im Urlaub einen Arzt gebraucht hast.", "useWords": ["No, never", "Once", "I needed"], "sample": "No, never. But once a friend needed a doctor in Spain."},
       story: {
         title: 'Ein Unfall im Urlaub',
         de: 'Lena und Maria sind in Spanien. Hör gut zu.',

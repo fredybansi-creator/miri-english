@@ -16,7 +16,8 @@ the current state, so any new session can pick up the work.
 ## Freddy's requirements and preferences (keep following these)
 - Daily flashcards, modules with daily tasks, varied exercises, translating German → English **by voice**.
 - Spoken answers don't need to be perfect: feedback says which words make it better (encouraging).
-- Content at **B1+ → B2**; harder, conversation-like (longer replies), not trivially easy choices.
+- Content level (since the rebuild): level 1 topics A2–B1 (short sentences, after Miri found the old app too hard),
+  level 2 topics B1 (longer answers, new grammar). The old app's B1+ → B2 aim is no longer the target.
 - **No idioms / figurative sayings** (no "raining cats and dogs", "snowed under", "on the fence"…).
   Common phrasal verbs (catch up, end up, figure out) are fine. Raluca and the coach are told the same.
 - Free where possible; quality must stay good. No surprise costs (no credit cards on any service).
@@ -205,3 +206,26 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   (`cardRight`). Listening: hear the sentence, pick the German meaning of 3. 📻 Olli's story of the day
   (`neu/welt/stories.js`, 14 short stories in order, one per day, in the 📜 sheet): listen first, then a question,
   🟫 +5. make_audio.py collects the stories.
+
+## Review and follow-up (2026-11-13 evening)
+Full engineer + teacher review: https://claude.ai/artifact/A32G6uXxcBdmdWsRPvQ7Vo (Claude Doc). Freddy said "do all steps":
+- Content fixes: 7 "Satz bauen" extra words that also made a correct sentence were replaced (rule: an extra word must
+  make the sentence WRONG – e.g. "high" for "big waves" was unfair). Story intro f1 (Lisa), café uses British "eat in /
+  take away", "biscuits", "farmers' market".
+- Each lesson now has `tip` (short German grammar tip + example, first step), `write` (open writing task, typed) and
+  `talk` (free speaking about herself). Both are judged by the `feedback` function in mode "free" (praise, max 2 fixes,
+  "Noch etwas schöner" = levelUp); without AI: 6+ words count. Only 3 of the 4 `repeat` sentences are played (the 4th
+  is still a card), so a lesson has 15 steps (~12 min).
+- Level 2 (Stufe 2): 6 new topics × 5 lessons in `neu/content/` – work, plans, home, experiences, opinions, problems
+  (ids w, p, n, e, o, r). All topics are listed once in `neu/content/index.js` (app, game and check use it).
+- Cards (`neu/cards.js`): repeat + build + the first answer of every `say` item. Wrong repeat/build/say steps are saved
+  in `done[id].wrong`; extra exercises pick them first (70 %), right answer removes them.
+- Backup: `store.js backup()` also sends the game save (`miri-welt`) as `data.welt`; `restore()` writes it back. The game
+  uploads at most every 2 min and when the page is hidden. The `progress` function (v2) refuses to overwrite a newer
+  online copy (answers `{ ok, stale }`).
+- Offline: `neu/sw.js` keeps every app file (network first, cache when offline). mp3 voices are not cached (Safari
+  range requests) – offline the phone voice speaks.
+- Safety check: `node tools/check_content.mjs` (lessons complete, extra words, voice files, all JS parses); runs on
+  GitHub for every pull request (`.github/workflows/check.yml`).
+- Not done on purpose: splitting `neu/welt/welt.js` (another thread was still changing it); `neu/` still imports
+  `js/check.js`, `js/ai.js`, `js/config.js` from the old app – keep those files.

@@ -14,7 +14,7 @@ export default {
       repeat: [
         { en: "Can I have a cappuccino, please?", de: 'Kann ich bitte einen Cappuccino haben?' },
         { en: 'With oat milk, please.', de: 'Mit Hafermilch, bitte.' },
-        { en: 'Is it for here or to go?', de: 'Zum Hieressen oder zum Mitnehmen?' },
+        { en: 'Is it to eat in or to take away?', de: 'Zum Hieressen oder zum Mitnehmen?' },
         { en: "I'll have a piece of chocolate cake.", de: 'Ich nehme ein Stück Schokoladenkuchen.' },
       ],
       build: [
@@ -30,10 +30,10 @@ export default {
           keywords: [['cappuccino']],
         },
         {
-          they: 'Sure. Is it for here or to go?',
+          they: 'Sure. Is it to eat in or to take away?',
           de: 'Zum Hieressen, bitte.',
-          answers: ['For here, please.', "It's for here, please.", "I'll have it here, please."],
-          keywords: [['here']],
+          answers: ['To eat in, please.', "I'd like to eat in, please.", "For here, please.", "I'll have it here, please."],
+          keywords: [['eat in', 'here']],
         },
         {
           they: 'Anything to eat?',
@@ -42,6 +42,9 @@ export default {
           keywords: [['chocolate'], ['cake']],
         },
       ],
+      tip: {"de": "„Can I have …, please?“ ist die einfachste höfliche Bestellung. Noch höflicher: „Could I have …?“", "en": "Could I have a cappuccino, please?"},
+      write: {"de": "Schreib, was du in einem Café am liebsten bestellst.", "useWords": ["I usually order", "with", "and"], "sample": "I usually order a cappuccino with oat milk and a piece of cake."},
+      talk: {"they": "Do you drink coffee or tea in the morning?", "de": "Erzähl, was du morgens trinkst.", "useWords": ["I drink", "every morning", "with milk"], "sample": "I drink coffee with milk every morning."},
       story: {
         title: 'Das Lieblingscafé',
         de: 'Julia geht in ihr Lieblingscafé. Hör gut zu.',
@@ -98,6 +101,9 @@ export default {
           keywords: [['two'], ['pieces', 'piece']],
         },
       ],
+      tip: {"de": "„Are there nuts in this?“ = Sind da Nüsse drin? „there is / there are“ = es gibt / da ist.", "en": "Are there nuts in this?"},
+      write: {"de": "Schreib eine Einkaufsliste für ein Frühstück mit Freunden – in ganzen Sätzen.", "useWords": ["I need", "some", "a loaf of"], "sample": "I need some rolls, a loaf of bread, cheese and fresh orange juice."},
+      talk: {"they": "What do you have for breakfast?", "de": "Erzähl, was du zum Frühstück isst.", "useWords": ["I usually have", "bread", "muesli", "on Sundays"], "sample": "I usually have muesli. On Sundays I have fresh rolls."},
       story: {
         title: 'Frühstück für alle',
         de: 'Max holt Frühstück. Hör gut zu.',
@@ -154,6 +160,9 @@ export default {
           keywords: [['favourite', 'favorite'], ['lasagne', 'lasagna']],
         },
       ],
+      tip: {"de": "Vorlieben: „I love …“, „I like …“, „I'm not a big fan of …“ (= mag ich nicht so). Das klingt freundlicher als „I hate …“.", "en": "I'm not a big fan of fish."},
+      write: {"de": "Schreib, welches Essen du liebst und welches du nicht magst.", "useWords": ["I love", "I'm not a big fan of", "but"], "sample": "I love Italian food, but I'm not a big fan of very spicy dishes."},
+      talk: {"they": "Can you cook? What do you like to make?", "de": "Erzähl, was du gern kochst.", "useWords": ["I like to make", "It's easy", "my family loves"], "sample": "Yes! I like to make lasagne. My family loves it."},
       story: {
         title: 'Der Kochabend',
         de: 'Freunde kochen zusammen. Hör gut zu.',
@@ -188,7 +197,7 @@ export default {
       build: [
         { en: 'Does this contain milk?', de: 'Ist da Milch drin?', extra: ['inside'] },
         { en: 'Can you make it less spicy?', de: 'Können Sie es weniger scharf machen?', extra: ['fewer'] },
-        { en: 'I would like salad instead of chips.', de: 'Ich hätte gern Salat statt Pommes.', extra: ['fries'] },
+        { en: 'I would like salad instead of chips.', de: 'Ich hätte gern Salat statt Pommes.', extra: ['than'] },
       ],
       say: [
         {
@@ -210,6 +219,9 @@ export default {
           keywords: [['onions', 'onion'], ['without', 'no']],
         },
       ],
+      tip: {"de": "Sonderwünsche: „Can I have it without …?“ und „instead of“ (= statt): salad instead of chips.", "en": "Can I have it without onions?"},
+      write: {"de": "Schreib einem Restaurant, was du nicht essen kannst oder nicht magst.", "useWords": ["I'm allergic to", "I don't eat", "Is it possible"], "sample": "I don't eat meat. Is it possible to have the pasta without bacon?"},
+      talk: {"they": "Is there any food you don't eat?", "de": "Erzähl, was du nicht isst oder nicht verträgst.", "useWords": ["I don't eat", "I can't have", "I don't like"], "sample": "I eat everything, but I don't like mushrooms."},
       story: {
         title: 'Ein Abend mit Hindernissen',
         de: 'Leo geht mit seiner Mutter essen. Hör gut zu.',
@@ -242,7 +254,7 @@ export default {
         { en: 'Help yourself!', de: 'Bedien dich!' },
       ],
       build: [
-        { en: 'Dinner is ready in ten minutes.', de: 'Das Essen ist in zehn Minuten fertig.', extra: ['finished'] },
+        { en: 'Dinner will be ready in ten minutes.', de: 'Das Essen ist in zehn Minuten fertig.', extra: ['finished'] },
         { en: 'Would you like some more?', de: 'Möchtest du noch etwas?', extra: ['still'] },
         { en: 'Thank you for a lovely evening.', de: 'Danke für den schönen Abend.', extra: ['beautiful'] },
       ],
@@ -266,6 +278,9 @@ export default {
           keywords: [['no'], ['everything', 'anything']],
         },
       ],
+      tip: {"de": "Einladen: „Would you like to come for dinner?“ Antwort: „I'd love to!“ oder „Sorry, I can't, but thank you!“", "en": "I'd love to!"},
+      write: {"de": "Schreib eine Einladung zum Abendessen bei dir.", "useWords": ["Would you like to", "on", "I'm cooking"], "sample": "Would you like to come for dinner on Friday? I'm cooking a vegetable curry."},
+      talk: {"they": "What would you cook for guests?", "de": "Erzähl, was du für Gäste kochen würdest.", "useWords": ["I would make", "for dessert", "because"], "sample": "I would make lasagne, and chocolate cake for dessert."},
       story: {
         title: 'Die erste Einladung',
         de: 'Emma lädt neue Nachbarn ein. Hör gut zu.',
@@ -275,7 +290,7 @@ export default {
           'She asks if there is anything they do not eat.',
           'The woman says they both love vegetables but not mushrooms.',
           'Emma cooks a vegetable soup and roast chicken.',
-          'The neighbours bring a bottle of wine and some Canadian cookies.',
+          'The neighbours bring a bottle of wine and some Canadian biscuits.',
           'They talk about Canada, Germany and their favourite holidays.',
           'At midnight, they say thank you for a lovely evening and go home.',
         ],

@@ -20,7 +20,7 @@ export default {
       build: [
         { en: 'We would like two sunbeds and an umbrella.', de: 'Wir hätten gern zwei Liegen und einen Sonnenschirm.', extra: ['screen'] },
         { en: "Don't forget the sun cream.", de: 'Vergiss die Sonnencreme nicht.', extra: ['not'] },
-        { en: 'The waves are very big today.', de: 'Die Wellen sind heute sehr hoch.', extra: ['high'] },
+        { en: 'The waves are very big today.', de: 'Die Wellen sind heute sehr hoch.', extra: ['more'] },
       ],
       say: [
         {
@@ -42,6 +42,9 @@ export default {
           keywords: [['safe'], ['swim', 'swimming']],
         },
       ],
+      tip: {"de": "„How much is …?“ (ein Ding) und „How much are …?“ (mehrere): How much are the sunbeds?", "en": "How much are the sunbeds?"},
+      write: {"de": "Schreib, was du an einem perfekten Strandtag machst.", "useWords": ["I swim", "I read", "I eat"], "sample": "I swim in the morning, read a book and eat an ice cream."},
+      talk: {"they": "Do you like beach holidays?", "de": "Erzähl, ob du lieber Strand oder Berge magst und warum.", "useWords": ["I prefer", "because", "the sea", "the mountains"], "sample": "I prefer the mountains, because the beach is too hot for me."},
       story: {
         title: 'Ein Tag am Meer',
         de: 'Eine Familie fährt an den Strand. Hör gut zu.',
@@ -75,7 +78,7 @@ export default {
       ],
       build: [
         { en: 'When was this church built?', de: 'Wann wurde diese Kirche gebaut?', extra: ['become'] },
-        { en: 'Where does the tour finish?', de: 'Wo endet die Führung?', extra: ['end'] },
+        { en: 'Where does the tour finish?', de: 'Wo endet die Führung?', extra: ['ends'] },
         { en: 'Two adults, please.', de: 'Zwei Erwachsene, bitte.', extra: ['adult'] },
       ],
       say: [
@@ -98,6 +101,9 @@ export default {
           keywords: [['two'], ['adult', 'adults']],
         },
       ],
+      tip: {"de": "Fragen mit „When was … built?“ = Wann wurde … gebaut? Passiv in der Vergangenheit: was/were + 3. Form.", "en": "When was this church built?"},
+      write: {"de": "Schreib über eine Stadt, die dir gefallen hat.", "useWords": ["I visited", "beautiful", "old", "I liked"], "sample": "I visited Prague. The old town is beautiful and I liked the bridges."},
+      talk: {"they": "What do you like to see in a new city?", "de": "Erzähl, was du dir in einer neuen Stadt gern ansiehst.", "useWords": ["old churches", "museums", "markets", "I like walking"], "sample": "I like walking around the old town and visiting markets."},
       story: {
         title: 'Die alte Burg',
         de: 'Clara macht eine Führung mit. Hör gut zu.',
@@ -154,6 +160,9 @@ export default {
           keywords: [['where'], ['return', 'bring', 'back']],
         },
       ],
+      tip: {"de": "„Is … included?“ = Ist … inbegriffen? Sehr nützlich für Hotel, Auto und Touren.", "en": "Is breakfast included?"},
+      write: {"de": "Schreib eine kurze Anfrage an eine Autovermietung.", "useWords": ["I'd like to rent", "from … to …", "Is insurance included?"], "sample": "Hello, I'd like to rent a small car from Monday to Friday. Is insurance included?"},
+      talk: {"they": "Do you like driving?", "de": "Erzähl, ob du gern Auto fährst, auch im Ausland.", "useWords": ["I like", "I'm nervous", "on the left"], "sample": "Yes, but I'm a bit nervous in other countries."},
       story: {
         title: 'Mit dem Auto über die Insel',
         de: 'Peter und Eva mieten ein Auto. Hör gut zu.',
@@ -188,7 +197,7 @@ export default {
       build: [
         { en: 'What is the weather like tomorrow?', de: 'Wie wird das Wetter morgen?', extra: ['how'] },
         { en: 'It is very windy at the beach.', de: 'Am Strand ist es sehr windig.', extra: ['wind'] },
-        { en: 'Take a jacket with you.', de: 'Nimm eine Jacke mit.', extra: ['bring'] },
+        { en: 'Take a jacket with you.', de: 'Nimm eine Jacke mit.', extra: ['took'] },
       ],
       say: [
         {
@@ -210,6 +219,9 @@ export default {
           keywords: [['afternoon'], ['museum']],
         },
       ],
+      tip: {"de": "Zukunft beim Wetter: „It's going to rain.“ (man sieht es schon kommen) oder „It will be sunny tomorrow.“", "en": "It's going to rain this afternoon."},
+      write: {"de": "Schreib, wie das Wetter heute ist und was du deshalb machst.", "useWords": ["Today it's", "so I", "going to"], "sample": "Today it's cold and windy, so I'm going to stay at home."},
+      talk: {"they": "What's your favourite kind of weather?", "de": "Erzähl, welches Wetter du am liebsten magst.", "useWords": ["I love", "when it's", "not too hot"], "sample": "I love warm days, but not too hot. Spring is my favourite."},
       story: {
         title: 'Regen in Irland',
         de: 'Sam macht Urlaub in Irland. Hör gut zu.',
@@ -242,9 +254,9 @@ export default {
         { en: 'I would love to go back.', de: 'Ich würde sehr gern wieder hinfahren.' },
       ],
       build: [
-        { en: 'We visited a lot of old towns.', de: 'Wir haben viele alte Städte besucht.', extra: ['many'] },
+        { en: 'We visited a lot of old towns.', de: 'Wir haben viele alte Städte besucht.', extra: ['much'] },
         { en: 'The weather was perfect.', de: 'Das Wetter war perfekt.', extra: ['were'] },
-        { en: 'What did you like best?', de: 'Was hat dir am besten gefallen?', extra: ['most'] },
+        { en: 'What did you like best?', de: 'Was hat dir am besten gefallen?', extra: ['good'] },
       ],
       say: [
         {
@@ -266,6 +278,9 @@ export default {
           keywords: [['sea']],
         },
       ],
+      tip: {"de": "Vom Urlaub erzählen: „We went to …“, „We stayed in …“, „It was …“. Am Ende: „I would love to go back.“", "en": "We stayed in a small hotel by the sea."},
+      write: {"de": "Schreib über deinen schönsten Urlaub.", "useWords": ["We went to", "We stayed", "The best thing was"], "sample": "We went to Italy last summer. We stayed by the sea. The best thing was the food."},
+      talk: {"they": "Where was your last holiday?", "de": "Erzähl von deinem letzten Urlaub: wo, wie lange, wie es war.", "useWords": ["I went to", "for a week", "It was"], "sample": "I went to Austria for a week. It was very relaxing."},
       story: {
         title: 'Zurück aus Portugal',
         de: 'Nina erzählt von ihrem Urlaub. Hör gut zu.',

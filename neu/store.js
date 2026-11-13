@@ -4,6 +4,7 @@
 
 const KEY = 'miri-neu';
 const LOG_KEY = 'miri-neu-log';
+const WELT_KEY = 'miri-welt'; // the game's own save (neu/welt/welt.js)
 const PROGRESS_URL = 'https://aagbnrcsprmhcwllfmcn.supabase.co/functions/v1/progress';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -96,8 +97,13 @@ let saving = null;
 export function backup() {
   if (saving) return saving;
   const { run, ...data } = state; // the half-done lesson stays on the phone
-  saving = call({ action: 'put', code: state.code, data, updatedAt: state.updatedAt || Date.now() })
-    .then(() => { log('Gesichert'); return true; })
+  // The game world (Ralucas Welt) saves itself in its own key; it goes into the same online copy.
+  let welt = null;
+  try { welt = JSON.parse(localStorage.getItem(WELT_KEY) || 'null'); } catch { welt = null; }
+  if (welt) data.welt = welt;
+  const updatedAt = Math.max(state.updatedAt || 0, (welt && welt.at) || 0) || Date.now();
+  saving = call({ action: 'put', code: state.code, data, updatedAt })
+    .then((r) => { log(r.stale ? 'Online ist ein neuerer Stand – nicht überschrieben' : 'Gesichert'); return true; })
     .catch((e) => { log('Sicherung ging nicht: ' + e.message); return false; })
     .finally(() => { saving = null; });
   return saving;
@@ -110,8 +116,10 @@ export async function restore(code) {
   code = `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8, 12)}-${code.slice(12, 16)}`;
   const d = await call({ action: 'get', code });
   if (!d.data || d.data.app !== 'neu') return false;
-  state = { ...fresh(), ...d.data, code, run: null };
+  const { welt, ...rest } = d.data;
+  state = { ...fresh(), ...rest, code, run: null };
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ }
+  if (welt && typeof welt === 'object') { try { localStorage.setItem(WELT_KEY, JSON.stringify(welt)); } catch { /* ignore */ } }
   return true;
 }
 

@@ -40,17 +40,12 @@ import { MODELS } from './models.js';
 import friendData from './friends.js';
 import { startRecording, canRecord } from '../rec.js';
 import { getState, update, today, backup } from '../store.js';
+import { cardItems } from '../cards.js';
 import { sfx, pop, soundOn, setSound } from './fx.js';
 if (new URLSearchParams(location.search).has('fps')) document.body.classList.add('showfps');   // frame counter only for Freddy's speed tests: ?fps
-import travel from '../content/travel.js';
-import friends from '../content/friends.js';
-import doctor from '../content/doctor.js';
-import holiday from '../content/holiday.js';
-import cafe from '../content/cafe.js';
-import shopping from '../content/shopping.js';
+import { TOPICS } from '../content/index.js';
 
 // the "build the sentence" exercises of all lessons: { en, de, extra? }
-const TOPICS = [travel, friends, doctor, holiday, cafe, shopping];
 const SENTENCES = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.build || []));
 // more exercises at the question marks: say it in English (someone talks to her); repeat-after-me is kept but not used
 const SAYS = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.say || []));
@@ -65,12 +60,12 @@ function levelPool() {
 const BOX_DAYS = [1, 2, 4, 8, 16];
 function dueCards() {
   const st = getState(), c = st.cards || {}, now = today();
-  return TOPICS.flatMap((t) => t.lessons).filter((l) => (st.done || {})[l.id]).flatMap((l) => [...(l.repeat || []), ...(l.build || [])])
+  return TOPICS.flatMap((t) => t.lessons).filter((l) => (st.done || {})[l.id]).flatMap(cardItems)
     .filter((x) => { const k = c[audioKey(x.en)]; return !k || k.due <= now; });
 }
 function cardRight(it) {   // right at the first try in the game = "Gewusst" for that card
   const id = audioKey(it.en), st = getState();
-  if (!TOPICS.some((t) => t.lessons.some((l) => (st.done || {})[l.id] && [...(l.repeat || []), ...(l.build || [])].some((x) => x.en === it.en)))) return;
+  if (!TOPICS.some((t) => t.lessons.some((l) => (st.done || {})[l.id] && cardItems(l).some((x) => x.en === it.en)))) return;
   const old = (st.cards || {})[id]; if (old && old.due > today()) return;
   const box = Math.min(BOX_DAYS.length, ((old && old.box) || 0) + 1), d = new Date(); d.setDate(d.getDate() + BOX_DAYS[box - 1]);
   update((s) => { s.cards = s.cards || {}; s.cards[id] = { box, due: today(d) }; });
@@ -1869,13 +1864,19 @@ function start() {
     const [, label] = whatCanIDo(); if ($('act').textContent !== label) $('act').textContent = label;
   }
 
-  // saving: everything that matters, in this browser (not in Miri's app data)
+  // saving: everything that matters, in this browser; store.js backup() copies it online with her app data
   const KEY = 'miri-welt';
   function save() {
     try {
       localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), born, story, shop: [...owned], quests, tut, tutOff, seen, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
+    // copy to the online backup now and then (with Miri's lesson progress), not every 4 s
+    if (Date.now() - lastUpload > 120000) { lastUpload = Date.now(); try { backup(); } catch { /* offline */ } }
   }
+  let lastUpload = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { save(); lastUpload = Date.now(); try { backup(); } catch { /* offline */ } }
+  });
   function load() {
     let d = null;
     try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { d = null; }
