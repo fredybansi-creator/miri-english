@@ -10,6 +10,7 @@
 
 import * as THREE from '../vendor/three.module.min.js';
 import { makeFoxActor, webglOk } from '../fox3d.js';
+import { makeDogActor } from './hund.js';
 import { play } from '../audio.js';
 import { MODELS } from './models.js';
 import travel from '../content/travel.js';
@@ -262,7 +263,9 @@ function start() {
 
   // Raluca: `who` is moved and turned, the fox inside is shifted so that her middle is over the spot
   const who = new THREE.Group(); scene.add(who);
-  const actor = makeFoxActor(); actor.root.position.x = 0.1; actor.root.scale.setScalar(0.9);
+  // Raluca is the dog model from Blender; `?raluca=fuchs` shows the old code-built fox
+  const actor = /raluca=fuchs/.test(location.search) ? makeFoxActor() : makeDogActor(makeFoxActor);
+  actor.root.position.x = 0.1; actor.root.scale.setScalar(0.9);
   const body = new THREE.Group(); body.add(actor.root); who.add(body);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
@@ -694,7 +697,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
