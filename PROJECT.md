@@ -176,3 +176,8 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   "say it in English" (lessons' `say` items, voice check or typing); NO repeat-after-me (Freddy left it out).
   Every exercise at a mark gives 🟫 +3. Book → 🃏 Wörter üben: 5 found words, German → spell the English word, +1 🟫 each
   (not when she listened to the hint first).
+- Minimap + wolf (Freddy's wishes, 2026-11-13): minimap top left (north up, ? marks, friends, den, her arrow) with
+  "🧭 north-east" = English direction to the next question mark; tap it (key M) → big map with English place names
+  (tap = sound) and N/E/S/W words. Storm the wolf (`MODELS.wolf`, north forest) is a 5th friend in friends.js; with
+  5 hearts he follows Raluca (`a.follow`). Still to do in step 9 (needs the app): shop paid with lesson coins (an
+  animal shopkeeper, ask in English), daily quests built from the day's lesson words.

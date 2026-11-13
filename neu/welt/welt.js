@@ -2,6 +2,8 @@
 // Digging (🐾 Graben, hold it / key F): she digs away the earth block in front of her, like in a block game –
 // holes, tunnels through hills, ponds when she digs below the water. Mounds of earth hide a bone, coin, carrot,
 // worm, potato or – on the hill – a treasure.
+// Minimap (top left) says the way to the next question mark in English (north, south-east …); tap it for the big map
+// with English place names. Storm the wolf (north forest) is a friend too; with 5 hearts he walks with Raluca.
 // Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
 // at the den the 🏠 menu builds things (leaf bed, lamp, fence …) from earth and found things (English names, sound).
 // Step 6: animal friends (Olli the owl at the den, Rosie the rabbit, Hugo the hedgehog, Luna the owl on the hill)
@@ -316,6 +318,7 @@ function makeAnimals(scene, mat) {
   const HOLE = [[0, 0.015, 0, 0.3, 0.03, 0.3, 0x24170c], [0.2, 0.04, 0, 0.1, 0.08, 0.36, 0x7a5533], [-0.2, 0.04, 0, 0.1, 0.08, 0.36, 0x7a5533], [0, 0.04, 0.2, 0.3, 0.07, 0.1, 0x8a623c], [0, 0.04, -0.2, 0.3, 0.06, 0.1, 0x8a623c]];
   for (const a of list) if (a.kind === 'mouse') { const h = boxMesh(HOLE, mat); h.position.set(a.hx, at(Math.floor(a.hx), Math.floor(a.hz)), a.hz); scene.add(h); a.hole = h; }
   for (let i = 0; i < 3; i++) add('hedgehog', mid + (r() * 2 - 1) * 40, mid + (r() * 2 - 1) * 40, 12, { speed: 0.6, roam: 6 });
+  add('wolf', mid + 12, mid - 38, 6, { speed: 1.3, roam: 5 });
   add('owl', DEN[0] - 1, DEN[1] + 5, 3, { speed: 0, sit: true });
   add('owl', HILL[0] + 22, HILL[1] + 22, 8, { speed: 0, sit: true });
   // fish in every pond and along the rivers
@@ -358,6 +361,20 @@ function moveAnimals(list, dt, P, time) {
     a.g.visible = far < SEE; if (!a.g.visible) continue;
     a.t += dt;
     let moving = false, speed = a.speed;
+    if (a.follow) {   // Storm walks with her: a little behind and to the side
+      const bx = P.x + Math.cos(P.face) * 1.9 + Math.sin(P.face) * 0.9, bz = P.z - Math.sin(P.face) * 1.9 + Math.cos(P.face) * 0.9;
+      const tx = bx - a.x, tz = bz - a.z, td = Math.hypot(tx, tz);
+      a.t += dt; a.g.visible = true;
+      if (td > 22) { a.x = bx; a.z = bz; }
+      else if (td > 0.6) {
+        const sp = Math.min(7.5, 1.5 + td * 1.6), nx = a.x + (tx / td) * sp * dt, nz = a.z + (tz / td) * sp * dt;
+        if (!solid[Math.floor(nz) * SIZE + Math.floor(nx)]) { a.x = nx; a.z = nz; } else { a.x += (tz / td) * sp * dt; a.z -= (tx / td) * sp * dt; }
+        let df = Math.atan2(tz, -tx) - a.face; df = Math.atan2(Math.sin(df), Math.cos(df)); a.face += df * Math.min(1, dt * 8);
+      } else { let df = P.face - a.face; df = Math.atan2(Math.sin(df), Math.cos(df)); a.face += df * Math.min(1, dt * 3); }
+      const gy = Math.max(at(Math.floor(a.x), Math.floor(a.z)), WATER + 0.3); a.y += (gy - a.y) * Math.min(1, dt * 10);
+      a.g.position.set(a.x, a.y + (td > 0.6 ? Math.abs(Math.sin(a.t * 10)) * 0.08 : 0), a.z); a.g.rotation.y = a.face; a.g.rotation.z = 0;
+      continue;
+    }
     if (a.friend && !a.sit && far < 3.5) { a.wait = Math.max(a.wait, 0.5); let df = Math.atan2(-dz, dx) - a.face; df = Math.atan2(Math.sin(df), Math.cos(df)); a.face += df * Math.min(1, dt * 4); }
     if (a.kind === 'mouse') moving = mouseStep(a, dt, P, far);
     else if (a.sit) { let diff = Math.atan2(-dz, dx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); if (far < 12) a.face += diff * Math.min(1, dt * 3); }
@@ -412,7 +429,7 @@ function start() {
   const animals = makeAnimals(scene, boxMat);
   // the four animal friends: the owl at the den, the owl on the hill, the rabbit by the meadow, a hedgehog
   const owls = animals.filter((a) => a.kind === 'owl'), rabbits = animals.filter((a) => a.kind === 'rabbit'), hogs = animals.filter((a) => a.kind === 'hedgehog');
-  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits[rabbits.length - 1], hugo: hogs[0] };
+  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits[rabbits.length - 1], hugo: hogs[0], storm: animals.find((a) => a.kind === 'wolf') };
   const pals = friendData.friends.filter((f) => pick[f.id]).map((f) => {
     const a = pick[f.id]; a.friend = f.id; a.shy = 0; if (!a.sit) { a.speed = Math.min(a.speed, 1.1); a.roam = 4; }
     return { ...f, a, step: 0, acc: false, has: false };
@@ -448,6 +465,7 @@ function start() {
     if (e.code === 'KeyE' && !e.repeat) doAction();
     if (e.code === 'KeyF' && !e.repeat) startDig();
     if (e.code === 'KeyG' && !e.repeat) startBuild();
+    if (e.code === 'KeyM' && !e.repeat) { if (busy && $('closeMap')) $('closeMap').click(); else openMap(); }
     if (e.code === 'KeyH' && !e.repeat) { if (busy && $('closeHome')) $('closeHome').click(); else if (Math.hypot(DEN[0] + 0.5 - P.x, DEN[1] + 0.5 - P.z) < 6) openHome(); }
     if (e.code === 'KeyB' && !e.repeat) { if (busy && $('closeBook')) $('closeBook').click(); else openBook(); } });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
@@ -1047,7 +1065,7 @@ function start() {
     const head = (line) => `<div class="talk"><span class="who">${f.icon}</span><div><b>${f.name}</b> <span class="hearts">${hearts(f)}</span>
       <p class="en say">${esc(line.en)} <span class="spk">🔊</span></p><p class="small">${esc(line.de)}</p></div></div>`;
     const close = () => { if (talkRec) { talkRec.cancel(); talkRec = null; } $('sheet').classList.remove('open'); card.onclick = null; busy = false; save(); };
-    const gotHeart = () => { f.step++; f.acc = false; f.has = false; cheer = 1.2; save(); };
+    const gotHeart = () => { f.step++; f.acc = false; f.has = false; cheer = 1.2; if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Storm geht jetzt mit dir! 🐺  Storm walks with you.'); } save(); };
     let line;
     if (!st) {   // all tasks done: just a friendly word
       line = f.chat[Math.floor(Math.random() * f.chat.length)];
@@ -1124,6 +1142,64 @@ function start() {
       el.style.display = 'block'; el.style.transform = `translate(${((lv.x + 1) / 2) * window.innerWidth}px, ${((1 - lv.y) / 2) * window.innerHeight}px) translate(-50%, -100%)`;
     });
   }
+
+  // ---------------- minimap + big map: English direction words and place names
+  const DIRS = [['north', 'Norden'], ['north-east', 'Nordosten'], ['east', 'Osten'], ['south-east', 'Südosten'], ['south', 'Süden'], ['south-west', 'Südwesten'], ['west', 'Westen'], ['north-west', 'Nordwesten']];
+  const dirOf = (dx, dz) => DIRS[((Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) % 8) + 8) % 8];   // north = up on the map (−z)
+  const wolfA = pick.storm;
+  const PLACES = [
+    { en: 'the den', de: 'der Bau', x: DEN[0], z: DEN[1] }, { en: 'the big pond', de: 'der große Teich', x: PONDS[0][0], z: PONDS[0][1] },
+    { en: 'the hill', de: 'der Hügel', x: HILL[0], z: HILL[1] }, { en: 'the river', de: 'der Fluss', x: RIVERS[0][1][0], z: RIVERS[0][1][1] },
+    { en: 'the small pond', de: 'der kleine Teich', x: PONDS[1][0], z: PONDS[1][1] }, { en: 'the north pond', de: 'der Nordteich', x: PONDS[2][0], z: PONDS[2][1] },
+    ...(wolfA ? [{ en: 'the wolf forest', de: 'der Wolfswald', x: wolfA.hx, z: wolfA.hz }] : []),
+  ];
+  const mapPix = (() => {   // the whole map as a small picture, one pixel per block
+    const c = document.createElement('canvas'); c.width = c.height = SIZE; const g = c.getContext('2d'), img = g.createImageData(SIZE, SIZE);
+    for (let z = 0; z < SIZE; z++) for (let x = 0; x < SIZE; x++) {
+      const h = H[z * SIZE + x], i = (z * SIZE + x) * 4, forest = noise(x / 18 + 7, z / 18 + 3) > 0.52;
+      const col = h <= WATER ? [79, 160, 220] : h >= STONE ? [150, 152, 156] : solid[z * SIZE + x] ? [70, 110, 55] : forest ? [88, 150, 70] : [118, 186, 90];
+      const k = h <= WATER ? 1 : 0.85 + Math.min(h, 14) * 0.02;
+      img.data[i] = col[0] * k; img.data[i + 1] = col[1] * k; img.data[i + 2] = col[2] * k; img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0); return c;
+  })();
+  const mini = $('mini'), mg = mini.getContext('2d'), MR = 34;   // shows 2 × 34 blocks around her
+  function dot(g, x, y, r, col) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = col; g.fill(); }
+  function drawMini() {
+    const W = mini.width, sc = W / (MR * 2);
+    mg.clearRect(0, 0, W, W); mg.imageSmoothingEnabled = false;
+    mg.drawImage(mapPix, P.x - MR, P.z - MR, MR * 2, MR * 2, 0, 0, W, W);
+    const toS = (x, z) => [(x - P.x + MR) * sc, (z - P.z + MR) * sc];
+    for (const m of marks) if (!m.done) { const [sx, sy] = toS(m.x, m.z); if (sx > 0 && sy > 0 && sx < W && sy < W) { mg.fillStyle = '#ffc928'; mg.font = `bold ${W * 0.12}px sans-serif`; mg.textAlign = 'center'; mg.fillText('?', sx, sy + W * 0.04); } }
+    for (const f of pals) { const [sx, sy] = toS(f.a.x, f.a.z); if (sx > 0 && sy > 0 && sx < W && sy < W) dot(mg, sx, sy, W * 0.03, '#ff6fa8'); }
+    { const [sx, sy] = toS(DEN[0] + 0.5, DEN[1] + 0.5); mg.font = `${W * 0.11}px sans-serif`; mg.textAlign = 'center'; mg.fillText('🏠', sx, sy + W * 0.04); }
+    // Raluca: an arrow in her direction
+    mg.save(); mg.translate(W / 2, W / 2); mg.rotate(Math.atan2(-Math.cos(P.face), -Math.sin(P.face)) );
+    mg.beginPath(); mg.moveTo(0, -W * 0.07); mg.lineTo(W * 0.045, W * 0.05); mg.lineTo(-W * 0.045, W * 0.05); mg.closePath(); mg.fillStyle = '#e8702a'; mg.fill(); mg.strokeStyle = '#fff'; mg.lineWidth = 2; mg.stroke(); mg.restore();
+    mg.fillStyle = '#fff'; mg.font = `bold ${W * 0.11}px sans-serif`; mg.textAlign = 'center'; mg.fillText('N', W / 2, W * 0.12);
+    // the way to the next question mark, in English
+    const n = nearest();
+    $('way').innerHTML = n ? `🧭 <b>${dirOf(n.m.x - P.x, n.m.z - P.z)[0]}</b>` : '';
+  }
+  function openMap() {
+    if (busy) return;
+    busy = true; keys.clear(); input.x = input.y = 0;
+    const here = PLACES.map((pl) => ({ pl, d: Math.hypot(pl.x - P.x, pl.z - P.z) })).sort((a, b) => a.d - b.d)[0];
+    const sent = here.d < 14 ? `You are near ${here.pl.en}.` : `${here.pl.en[0].toUpperCase() + here.pl.en.slice(1)} is ${dirOf(here.pl.x - P.x, here.pl.z - P.z)[0]} of you.`;
+    $('card').innerHTML = `<p class="en say" data-t="${esc(sent)}">${esc(sent)} 🔊</p>
+      <div class="bigmap"><canvas id="bigMap" width="384" height="384"></canvas>
+      ${PLACES.map((pl) => `<button class="place" data-t="${esc(pl.en)}" style="left:${(pl.x / SIZE) * 100}%;top:${(pl.z / SIZE) * 100}%">${esc(pl.en)}</button>`).join('')}
+      <span class="cp n">N</span><span class="cp e">E</span><span class="cp s">S</span><span class="cp w">W</span></div>
+      <p class="small">N = north (Norden) · E = east (Osten) · S = south (Süden) · W = west (Westen). Tippe auf einen Ort, um ihn zu hören.</p>
+      <div class="row"><button class="btn primary" id="closeMap">Weiter spielen</button></div>`;
+    const g = $('bigMap').getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(mapPix, 0, 0, 384, 384);
+    dot(g, P.x * 2, P.z * 2, 7, '#e8702a'); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke();
+    $('sheet').classList.add('open');
+    play(sent);
+    $('card').onclick = (ev) => { const b = ev.target.closest('[data-t]'); if (b) play(b.dataset.t); };
+    $('closeMap').onclick = () => { $('sheet').classList.remove('open'); $('card').onclick = null; busy = false; };
+  }
+  $('miniWrap').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); openMap(); });
 
   // ---------------- digging: mounds of earth with something buried
   const digs = placeDigs();
@@ -1366,7 +1442,7 @@ function start() {
     if (Number.isFinite(d.earth)) earth = d.earth;
     if (d.spent && typeof d.spent === 'object') for (const [k, n] of Object.entries(d.spent)) if (word(k) && Number.isFinite(n)) spent[k] = n;
     for (const id of d.built || []) { const dd = DECOR.find((x) => x.id === id); if (dd) { built.add(id); showDecor(dd); } }
-    if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; } }
+    if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; if (f.id === 'storm' && f.step >= f.steps.length) f.a.follow = true; } }
     showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
     if (Number.isFinite(d.tday)) tday = d.tday;
@@ -1388,7 +1464,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1397,6 +1473,7 @@ function start() {
     drawTrail(dt);
     drawFinds();
     drawLabels();
+    if ((frames & 3) === 0) drawMini();
     drawDirt(dt);
     if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();
     if ((buildHold || keys.has('KeyG')) && !act && !busy) startBuild();
