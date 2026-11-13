@@ -130,6 +130,17 @@ def collect():
                 main.update(st["lines"])
                 for q in st.get("questions", []):
                     main.add(q["q"])
+    # the fox game: what the animal friends say (neu/welt/friends.js)
+    fr = load_module(ROOT / "neu" / "welt" / "friends.js")
+    for f in fr["friends"]:
+        for st in f["steps"]:
+            main.add(st["say"]["en"])
+            if st.get("thanks"):
+                main.add(st["thanks"]["en"])
+            for a in st.get("answers", []):
+                main.add(a)
+        for c in f.get("chat", []):
+            main.add(c["en"])
     clean = lambda xs: sorted({normalize(x) for x in xs if x and normalize(x)})
     return {"main": clean(main), "friend": clean(friend)}
 

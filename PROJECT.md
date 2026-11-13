@@ -161,3 +161,9 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   walk 4.6 m, run 7 m), freeze, then zig-zag home and hide 5–11 s. Fangen = she stands and listens (ears forward),
   then a high jump and a nose-first dive; the mouse may hear the jump (less when she sneaked up and is close).
   A caught mouse is held in her mouth, then eaten (+30 food).
+- Step 6 (2026-11-13): animal friends in `neu/welt/friends.js` (Olli the owl by the den, Rosie the rabbit on the
+  meadow, Hugo a hedgehog, Luna the owl on the hill), 5 steps each: "say" steps (Miri answers by voice through
+  `neu/rec.js` + the transcribe function with `check`, or by typing = simple word match) and "bring" steps (mouse,
+  fish, carrot, berries, worm, apple, crystal, treasure; digging finds the wanted worm/carrot more often). Each step =
+  one heart; name signs over their heads; friends + hearts at the top of the book; saved as `pals`. Their lines have no
+  Kokoro files yet (phone voice) – `tools/make_audio.py` now also collects friends.js, so Freddy's next run adds them.

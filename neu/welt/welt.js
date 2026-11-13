@@ -2,6 +2,8 @@
 // Digging (🐾 Graben, hold it / key F): she digs away the earth block in front of her, like in a block game –
 // holes, tunnels through hills, ponds when she digs below the water. Mounds of earth hide a bone, coin, carrot,
 // worm, potato or – on the hill – a treasure.
+// Step 6: animal friends (Olli the owl at the den, Rosie the rabbit, Hugo the hedgehog, Luna the owl on the hill)
+// talk easy English (friends.js); Miri answers by voice (server checks it) or typing, or brings them things → hearts.
 // Mice: they nibble and dash about; if they hear her they freeze, then zig-zag to their hole. Fox hunting like a real
 // fox: sneak close, listen, then a high jump and a dive nose-first; caught mice are carried, then eaten.
 // Step 4/5: fishing at the water; hidden things (feather, shell, crystal …) to find; the book (📖, key B) lists
@@ -20,6 +22,8 @@ import { makeFoxActor, webglOk } from '../fox3d.js';
 import { makeDogActor } from './hund.js';
 import { play } from '../audio.js';
 import { MODELS } from './models.js';
+import friendData from './friends.js';
+import { startRecording, canRecord } from '../rec.js';
 import travel from '../content/travel.js';
 import friends from '../content/friends.js';
 import doctor from '../content/doctor.js';
@@ -316,6 +320,7 @@ function moveAnimals(list, dt, P, time) {
     a.g.visible = far < SEE; if (!a.g.visible) continue;
     a.t += dt;
     let moving = false, speed = a.speed;
+    if (a.friend && !a.sit && far < 3.5) { a.wait = Math.max(a.wait, 0.5); let df = Math.atan2(-dz, dx) - a.face; df = Math.atan2(Math.sin(df), Math.cos(df)); a.face += df * Math.min(1, dt * 4); }
     if (a.kind === 'mouse') moving = mouseStep(a, dt, P, far);
     else if (a.sit) { let diff = Math.atan2(-dz, dx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); if (far < 12) a.face += diff * Math.min(1, dt * 3); }
     else {
@@ -367,6 +372,13 @@ function start() {
     scene.add(g); pieces.push({ g, land, bm, cx, cz, x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK });
   }
   const animals = makeAnimals(scene, boxMat);
+  // the four animal friends: the owl at the den, the owl on the hill, the rabbit by the meadow, a hedgehog
+  const owls = animals.filter((a) => a.kind === 'owl'), rabbits = animals.filter((a) => a.kind === 'rabbit'), hogs = animals.filter((a) => a.kind === 'hedgehog');
+  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits[rabbits.length - 1], hugo: hogs[0] };
+  const pals = friendData.friends.filter((f) => pick[f.id]).map((f) => {
+    const a = pick[f.id]; a.friend = f.id; a.shy = 0; if (!a.sit) { a.speed = Math.min(a.speed, 1.1); a.roam = 4; }
+    return { ...f, a, step: 0, acc: false, has: false };
+  });
   const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), new THREE.MeshLambertMaterial({ color: 0x4fa8e0, transparent: true, opacity: 0.72 }));
   water.rotation.x = -Math.PI / 2; water.position.set(mid, WATER + 0.72, mid); scene.add(water);
 
@@ -663,8 +675,10 @@ function start() {
   const fishNear = () => { let best = null, bd = 3.2; for (const a of animals) if (a.kind === 'fish' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   const mouseNear = () => { let best = null, bd = 4.5; for (const a of animals) if (a.kind === 'mouse' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   let caught = 0;
+  const palNear = () => { let best = null, bd = 2.7; for (const f of pals) { const d = Math.hypot(f.a.x - P.x, f.a.z - P.z); if (d < bd) { bd = d; best = f; } } return best; };
   function whatCanIDo() {
     if (nearDen()) return ['sleep', '😴 Schlafen'];
+    const pal = palNear(); if (pal) return ['talk', `💬 ${pal.name}`];
     if (mouseNear()) return ['pounce', '🐾 Fangen'];
     if (fishNear() && nearWater()) return ['fish', '🐟 Fischen'];
     if (nearBush()) return ['eat', '🫐 Fressen'];
@@ -675,6 +689,7 @@ function start() {
     if (act || busy || P.air) return;
     const [kind] = whatCanIDo();
     if (kind === 'sleep') { goSleep(); return; }
+    if (kind === 'talk') { openTalk(palNear()); return; }
     if (kind === 'sniff') sniff();
     if (kind === 'dig') { startDig(); return; }
     if (kind === 'fish') {   // she watches the water and snaps when a fish swims past (the closer, the better)
@@ -823,7 +838,10 @@ function start() {
       if (d < 1.3 && !busy && !act) pickUp(f);
     }
   }
-  function book(kind) { bookCount[kind] = (bookCount[kind] || 0) + 1; }
+  function book(kind) {
+    bookCount[kind] = (bookCount[kind] || 0) + 1;
+    for (const f of pals) { const st = f.steps[f.step]; if (st && st.want === kind && f.acc && !f.has) { f.has = true; setTimeout(() => toast(`Bring es zu ${f.name}! ${f.icon}`), 2600); } }
+  }
   const word = (k) => FIND_KINDS[k] || DIG_KINDS[k] || BOOK_EXTRA[k];
   let foundTimer = 0;
   function pickUp(f) {
@@ -841,7 +859,8 @@ function start() {
     const all = [...Object.keys(FIND_KINDS), ...Object.keys(DIG_KINDS), ...Object.keys(BOOK_EXTRA)];
     const known = all.filter((k) => bookCount[k]).length;
     const left = finds.filter((f) => !f.got).length + digs.filter((g) => !g.dug).length;
-    $('card').innerHTML = `<p class="small">Ralucas Buch · ${known} von ${all.length} Wörtern · noch ${left} Dinge versteckt</p>
+    $('card').innerHTML = `<div class="pals">${pals.map((f) => `<div><span>${f.icon}</span><b>${f.name}</b><small>${hearts(f)}</small></div>`).join('')}</div>
+      <p class="small">Ralucas Buch · ${known} von ${all.length} Wörtern · noch ${left} Dinge versteckt</p>
       <div class="book">${all.map((k) => { const w = word(k), n = bookCount[k] || 0;
         return n ? `<button class="entry" data-k="${k}"><span class="ic">${w.icon}</span><b>${w.en}</b><small>${w.de}</small><i>× ${n}</i></button>`
           : '<div class="entry unknown"><span class="ic">?</span><b>???</b><small>noch nicht gefunden</small></div>'; }).join('')}</div>
@@ -852,6 +871,106 @@ function start() {
     $('closeBook').onclick = () => { $('sheet').classList.remove('open'); $('card').onclick = null; busy = false; };
   }
   $('bookBtn').addEventListener('click', openBook);
+
+  // ---------------- animal friends: talking, tasks, hearts
+  function wantDug() { for (const f of pals) { const st = f.steps[f.step]; if (st && f.acc && !f.has && ['worm', 'carrot', 'potato', 'bone'].includes(st.want)) return st.want; } return null; }
+  const hearts = (f) => '❤️'.repeat(f.step) + '🤍'.repeat(f.steps.length - f.step);
+  const nWords = (t) => t.toLowerCase().replace(/[^a-z' ]/g, ' ').split(/\s+/).filter(Boolean);
+  function typedLevel(text, answers) {   // typing has no server check: compare the words with the example answers
+    const said = new Set(nWords(text)); let best = 0;
+    for (const a of answers) { const w = nWords(a); best = Math.max(best, w.filter((x) => said.has(x)).length / w.length); }
+    return best >= 0.85 ? 'great' : best >= 0.55 ? 'good' : 'try';
+  }
+  function stillThere(kind) {   // can she still get one of these?
+    if (FIND_KINDS[kind]) return finds.some((f) => f.kind === kind && !f.got);
+    if (kind === 'treasure') return digs.some((g) => g.kind === kind && !g.dug);
+    return true;
+  }
+  let talkRec = null;
+  function openTalk(f) {
+    if (!f || busy) return;
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const card = $('card'), st = f.steps[f.step];
+    const head = (line) => `<div class="talk"><span class="who">${f.icon}</span><div><b>${f.name}</b> <span class="hearts">${hearts(f)}</span>
+      <p class="en say">${esc(line.en)} <span class="spk">🔊</span></p><p class="small">${esc(line.de)}</p></div></div>`;
+    const close = () => { if (talkRec) { talkRec.cancel(); talkRec = null; } $('sheet').classList.remove('open'); card.onclick = null; busy = false; save(); };
+    const gotHeart = () => { f.step++; f.acc = false; f.has = false; cheer = 1.2; save(); };
+    let line;
+    if (!st) {   // all tasks done: just a friendly word
+      line = f.chat[Math.floor(Math.random() * f.chat.length)];
+      card.innerHTML = head(line) + `<p class="small">${f.name} ist deine Freundin / dein Freund! ❤️</p><div class="row"><button class="btn primary" id="bye">Tschüss!</button></div>`;
+    } else if (st.want) {
+      const w = word(st.want);
+      if (f.acc && f.has) {
+        line = st.thanks;
+        card.innerHTML = head(line) + `<p class="ok">${w.icon} ${w.en} gebracht! +1 ❤️</p><div class="row"><button class="btn primary" id="next">Weiter</button></div>`;
+        gotHeart();
+      } else {
+        line = st.say;
+        card.innerHTML = head(line) + `<p class="task">Aufgabe: ${w.icon} <b>${w.en}</b> <span class="small">(${w.de})</span> ${f.acc ? '– du hast noch keins.' : ''}</p>
+          <div class="row"><button class="btn" id="bye">Später</button><button class="btn primary" id="ok">${f.acc ? 'Okay' : 'Okay, mach ich!'}</button></div>`;
+      }
+    } else {
+      line = st.say;
+      card.innerHTML = head(line) + `<p class="task">Antworte auf Englisch: <b>${esc(st.task)}</b></p>
+        <div id="talkRes"></div><p class="small" id="talkStatus"></p>
+        <div class="row talkbtns">${canRecord() ? '<button class="btn primary" id="mic">🎤 Sprechen</button>' : ''}<button class="btn" id="typeBtn">⌨️ Tippen</button></div>
+        <form class="typed" id="typed" hidden><input id="typedIn" autocomplete="off" autocapitalize="sentences" placeholder="Auf Englisch schreiben …"><button class="btn primary">OK</button></form>
+        <div class="row"><button class="btn" id="bye">Später</button></div>`;
+      const status = (t) => { $('talkStatus').textContent = t; };
+      const result = (level, said, corrected, praise) => {
+        const ok = level === 'great' || level === 'good';
+        $('talkRes').innerHTML = ok
+          ? `<p class="ok">${level === 'great' ? 'Super! 🎉' : 'Gut gemacht! 👍'} +1 ❤️</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}${corrected && corrected !== said ? `<p class="en">${esc(corrected)}</p>` : ''}`
+          : `<p class="no">Noch nicht ganz.</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}${praise ? `<p class="small">${esc(praise)}</p>` : ''}<p class="small">Zum Beispiel:</p><p class="en say2">${esc(corrected || st.answers[0])} <span class="spk">🔊</span></p>`;
+        if (ok) { card.querySelector('.talkbtns').remove(); $('typed').hidden = true; card.querySelector('#bye').outerHTML = '<button class="btn primary" id="next">Weiter</button>'; $('next').onclick = () => { close(); setTimeout(() => openTalk(f), 300); }; gotHeart(); play(corrected || said || st.answers[0]); }
+        else status('Versuch es noch einmal.');
+      };
+      const check = { they: st.say.en, de: st.task, answers: st.answers };
+      const hint = `Raluca the fox answers ${f.name} the ${f.kind}, who asked: "${st.say.en}"`;
+      if ($('mic')) $('mic').onclick = async () => {
+        const mic = $('mic');
+        if (talkRec) {   // second tap: stop and check
+          const r0 = talkRec; talkRec = null; mic.disabled = true; mic.textContent = '⏳ Moment …'; status('Ich höre mir das an …');
+          const r = await r0.stop(); mic.disabled = false; mic.textContent = '🎤 Sprechen';
+          if (r.error === 'cancelled') return;
+          if (r.error) { status(r.error); return; }
+          if (r.check) result(r.check.level, r.text, r.check.corrected, r.check.praise);
+          else result(typedLevel(r.text, st.answers), r.text, '', '');
+          return;
+        }
+        mic.disabled = true; mic.textContent = '⏳ Mikro startet …';
+        try { talkRec = await startRecording((sec) => status(`Jetzt sprechen! ${sec} s`), () => mic.click(), check, hint); }
+        catch (e) { status(e.message); mic.disabled = false; mic.textContent = '🎤 Sprechen'; return; }
+        mic.disabled = false; mic.textContent = '■ Fertig'; status('Jetzt sprechen! Dann auf „Fertig“ tippen.');
+      };
+      $('typeBtn').onclick = () => { $('typed').hidden = !$('typed').hidden; if (!$('typed').hidden) $('typedIn').focus(); };
+      $('typed').onsubmit = (ev) => { ev.preventDefault(); const t = $('typedIn').value.trim(); if (t) result(typedLevel(t, st.answers), t, '', ''); };
+    }
+    $('sheet').classList.add('open');
+    card.onclick = (ev) => { if (ev.target.closest('.say')) play(line.en); const s2 = ev.target.closest('.say2'); if (s2) play(s2.textContent.replace('🔊', '').trim()); };
+    if ($('bye')) $('bye').onclick = close;
+    if ($('next')) $('next').onclick = () => { close(); if (f.step < f.steps.length) setTimeout(() => openTalk(f), 300); };
+    if ($('ok')) $('ok').onclick = () => {
+      if (!f.acc) { f.acc = true; if (!stillThere(st.want) && bookCount[st.want]) f.has = true; }
+      const w = word(st.want); close(); toast(f.has ? `Du hast schon ${w.icon} ${w.en}! Gib es ${f.name}.` : `Finde: ${w.icon} ${w.en} (${w.de})`);
+    };
+    play(line.en);
+  }
+  // name signs over the friends' heads
+  const labels = pals.map((f) => { const d = document.createElement('div'); d.className = 'lab'; $('labels').appendChild(d); return d; });
+  const lv = new THREE.Vector3();
+  function drawLabels() {
+    pals.forEach((f, i) => {
+      const el = labels[i], a = f.a, d = Math.hypot(a.x - P.x, a.z - P.z);
+      lv.set(a.x, a.y + (a.kind === 'owl' ? 1.15 : 0.8), a.z).project(camera);
+      if (busy || d > 30 || lv.z > 1 || Math.abs(lv.x) > 1.1 || Math.abs(lv.y) > 1.1) { el.style.display = 'none'; return; }
+      const st = f.steps[f.step];
+      const badge = !st ? '❤️' : st.want && f.acc ? (f.has ? '✅' : word(st.want).icon) : '💬';
+      const html = `${f.name} <span>${badge}</span>`; if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
+      el.style.display = 'block'; el.style.transform = `translate(${((lv.x + 1) / 2) * window.innerWidth}px, ${((1 - lv.y) / 2) * window.innerHeight}px) translate(-50%, -100%)`;
+    });
+  }
 
   // ---------------- digging: mounds of earth with something buried
   const digs = placeDigs();
@@ -931,6 +1050,7 @@ function start() {
     for (let k = 0; k < 6; k++) dirt(x + 0.5, h - 0.6, z + 0.5);
     earth++;
     if (a0.mound) digUp(a0.mound);
+    else if (wantDug() && Math.random() < 0.3) digUp({ kind: wantDug(), g: new THREE.Group(), x: x + 0.5, z: z + 0.5 });   // a friend wants it: easier to find
     else if (Math.random() < 0.08) {   // sometimes there is something in the earth
       const r = Math.random(), kind = r < 0.55 ? 'worm' : r < 0.75 ? 'bone' : r < 0.9 ? 'carrot' : 'potato';
       digUp({ kind, g: new THREE.Group(), x: x + 0.5, z: z + 0.5 });
@@ -1003,7 +1123,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1016,6 +1136,7 @@ function start() {
       if (cells.length) reland(cells);
     }
     if (Number.isFinite(d.earth)) earth = d.earth;
+    if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; } }
     showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
     if (Number.isFinite(d.tday)) tday = d.tday;
@@ -1037,7 +1158,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, pals, openTalk, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1045,6 +1166,7 @@ function start() {
     moveAnimals(animals, dt, P, time);
     drawTrail(dt);
     drawFinds();
+    drawLabels();
     drawDirt(dt);
     if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();
     const e = sky();
