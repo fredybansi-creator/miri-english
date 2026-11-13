@@ -6,6 +6,9 @@
 // a shelf with the things she found, all with English name signs (tap = sound). Walk out through the door.
 // Step 9 (the game joins the app): Pip the rabbit has a shop next to the den, paid with the lesson coins of the app;
 // Miri must ask for each thing in English. 📜 daily quests use today's lesson (build 2, say 2, spell 3 words).
+// Step 8, the family: Finn the fox (east forest) is a friend; with 5 hearts he moves into the den. After a night in
+// the den with him, three cubs (Mia, Leo, Kiki) are born. They call Raluca "Mum", learn English with her, grow with
+// every heart and walk with her after 5 hearts.
 // Minimap (top left) says the way to the next question mark in English (north, south-east …); tap it for the big map
 // with English place names. Storm the wolf (north forest) is a friend too; with 5 hearts he walks with Raluca.
 // Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
@@ -340,6 +343,8 @@ function makeAnimals(scene, mat) {
   PONDS.forEach(([px, pz, pr], i) => { for (let k = 0; k < (i === 0 ? 7 : i === 3 ? 2 : 4); k++) add('fish', px, pz, pr * 0.6, { speed: 1.3, swim: true, roam: pr * 0.5, jump: 4 + r() * 10 }, deep); });
   for (const RV of RIVERS) for (let i = 0; i < RV.length - 1; i++) for (let k = 0; k < 2; k++) { const t = r(); add('fish', RV[i][0] + (RV[i + 1][0] - RV[i][0]) * t, RV[i][1] + (RV[i + 1][1] - RV[i][1]) * t, 3, { speed: 1.5, swim: true, roam: 5, jump: 4 + r() * 10 }, deep); }
   add('rabbit', DEN[0] - 7, DEN[1] - 8, 2, { speed: 0, sit: true, shop: true, shy: 0 });   // Pip, the shopkeeper
+  add('fox', mid + 46, mid + 6, 8, { speed: 1.0, roam: 4 });   // Finn
+  for (let i = 1; i <= 3; i++) add('fox', DEN[0] - 5, DEN[1] + 1, 3, { speed: 1.4, roam: 3, cub: i, hidden: true, hop: 0.12 });   // the cubs, born later
   return list;
 }
 /** a mouse: nibbles and dashes about near its hole; if it hears the fox it freezes, then zig-zags home and hides */
@@ -369,7 +374,7 @@ function mouseStep(a, dt, P, far) {
 }
 function moveAnimals(list, dt, P, time) {
   for (const a of list) {
-    if (a.held) { a.g.visible = false; continue; }   // in Raluca's mouth
+    if (a.held || a.hidden) { a.g.visible = false; continue; }   // in Raluca's mouth / a cub not born yet
     if (a.gone > 0 && a.kind === 'mouse') { a.gone -= dt; a.g.visible = false; if (a.gone <= 0) { a.x = a.tx = a.hx; a.z = a.tz = a.hz; a.wait = 1 + Math.random() * 2; a.state = ''; a.calm = 1.5; } continue; }
     if (a.gone > 0) { a.gone -= dt; a.g.visible = false; if (a.gone <= 0) { a.x = a.hx + (Math.random() * 2 - 1) * a.roam; a.z = a.hz + (Math.random() * 2 - 1) * a.roam; if (!walkable(a.x, a.z, at(Math.floor(a.x), Math.floor(a.z)))) { a.x = a.hx; a.z = a.hz; } a.tx = a.x; a.tz = a.z; } continue; }
     const dx = a.x - P.x, dz = a.z - P.z, far = Math.hypot(dx, dz);
@@ -378,7 +383,7 @@ function moveAnimals(list, dt, P, time) {
     let moving = false, speed = a.speed;
     if (a.follow && P.x < 0) { a.g.visible = false; continue; }   // she is in the den
     if (a.follow) {   // Storm walks with her: a little behind and to the side
-      const bx = P.x + Math.cos(P.face) * 1.9 + Math.sin(P.face) * 0.9, bz = P.z - Math.sin(P.face) * 1.9 + Math.cos(P.face) * 0.9;
+      const [fb, fs] = a.fo || [1.9, 0.9], bx = P.x + Math.cos(P.face) * fb + Math.sin(P.face) * fs, bz = P.z - Math.sin(P.face) * fb + Math.cos(P.face) * fs;
       const tx = bx - a.x, tz = bz - a.z, td = Math.hypot(tx, tz);
       a.t += dt; a.g.visible = true;
       if (td > 22) { a.x = bx; a.z = bz; }
@@ -445,7 +450,8 @@ function start() {
   const animals = makeAnimals(scene, boxMat);
   // the four animal friends: the owl at the den, the owl on the hill, the rabbit by the meadow, a hedgehog
   const owls = animals.filter((a) => a.kind === 'owl'), rabbits = animals.filter((a) => a.kind === 'rabbit'), hogs = animals.filter((a) => a.kind === 'hedgehog');
-  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits.filter((a) => !a.shop).at(-1), hugo: hogs[0], storm: animals.find((a) => a.kind === 'wolf') };
+  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits.filter((a) => !a.shop).at(-1), hugo: hogs[0], storm: animals.find((a) => a.kind === 'wolf'), finn: animals.find((a) => a.kind === 'fox' && !a.cub),
+    mia: animals.find((a) => a.cub === 1), leo: animals.find((a) => a.cub === 2), kiki: animals.find((a) => a.cub === 3) };
   const pals = friendData.friends.filter((f) => pick[f.id]).map((f) => {
     const a = pick[f.id]; a.friend = f.id; a.shy = 0; if (!a.sit) { a.speed = Math.min(a.speed, 1.1); a.roam = 4; }
     return { ...f, a, step: 0, acc: false, has: false };
@@ -854,7 +860,7 @@ function start() {
   const fishNear = () => { let best = null, bd = 3.2; for (const a of animals) if (a.kind === 'fish' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   const mouseNear = () => { let best = null, bd = 4.5; for (const a of animals) if (a.kind === 'mouse' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   let caught = 0;
-  const palNear = () => { let best = null, bd = 2.7; for (const f of pals) { const d = Math.hypot(f.a.x - P.x, f.a.z - P.z); if (d < bd) { bd = d; best = f; } } return best; };
+  const palNear = () => { let best = null, bd = 2.7; for (const f of pals) { if (f.a.hidden) continue; const d = Math.hypot(f.a.x - P.x, f.a.z - P.z); if (d < bd) { bd = d; best = f; } } return best; };
   function whatCanIDo() {
     if (inside) return Math.hypot(P.x - NEST[0], P.z - NEST[1]) < 1.8 ? ['sleep', '😴 Schlafen'] : ['out', '🚪 Rausgehen'];
     if (nearDen()) return ['in', '🚪 Reingehen'];
@@ -998,7 +1004,9 @@ function start() {
       if (night) tday = 0.27; else tday = (tday + 0.08) % 1;
       needs.energy = 100; warned.energy = false;
       $('fade').style.opacity = 0;
-      setTimeout(() => { act = null; toast((night ? 'Guten Morgen! ☀️  Good morning, Raluca!' : 'Ein kleines Nickerchen. 😴  a nap') + (built.has('bed') ? ' 🍂 Im Blätterbett schläft sie super.' : '')); save(); }, 900);
+      const cubsNow = !born && finnHome();
+      if (cubsNow) { born = true; for (const f of pals) family(f, false); }
+      setTimeout(() => { act = null; if (cubsNow) { sfx('heart'); pop('🦊🦊🦊'); toast('Drei Babys! Mia, Leo und Kiki 🦊  Three cubs! Say hello to them.'); save(); return; } toast((night ? 'Guten Morgen! ☀️  Good morning, Raluca!' : 'Ein kleines Nickerchen. 😴  a nap') + (built.has('bed') ? ' 🍂 Im Blätterbett schläft sie super.' : '')); save(); }, 900);
     }, 1800);
   }
 
@@ -1048,7 +1056,7 @@ function start() {
     const all = [...Object.keys(FIND_KINDS), ...Object.keys(DIG_KINDS), ...Object.keys(BOOK_EXTRA)];
     const known = all.filter((k) => bookCount[k]).length;
     const left = finds.filter((f) => !f.got).length + digs.filter((g) => !g.dug).length;
-    $('card').innerHTML = `<div class="pals">${pals.map((f) => `<div><span>${f.icon}</span><b>${f.name}</b><small>${hearts(f)}</small></div>`).join('')}</div>
+    $('card').innerHTML = `<div class="pals">${pals.filter((f) => !f.a.hidden).map((f) => `<div><span>${f.icon}</span><b>${f.name}</b><small>${hearts(f)}</small></div>`).join('')}</div>
       <p class="small">Ralucas Buch · ${known} von ${all.length} Wörtern · noch ${left} Dinge versteckt</p>
       <div class="book">${all.map((k) => { const w = word(k), n = bookCount[k] || 0;
         return n ? `<button class="entry" data-k="${k}"><span class="ic">${w.icon}</span><b>${w.en}</b><small>${w.de}</small><i>× ${n}</i></button>`
@@ -1104,7 +1112,7 @@ function start() {
     const head = (line) => `<div class="talk"><span class="who">${f.icon}</span><div><b>${f.name}</b> <span class="hearts">${hearts(f)}</span>
       <p class="en say">${esc(line.en)} <span class="spk">🔊</span></p><p class="small">${esc(line.de)}</p></div></div>`;
     const close = () => { if (talkRec) { talkRec.cancel(); talkRec = null; } $('sheet').classList.remove('open'); card.onclick = null; busy = false; save(); };
-    const gotHeart = () => { sfx('heart'); pop(`❤️ ${f.name}`); f.step++; f.acc = false; f.has = false; cheer = 1.2; if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Storm geht jetzt mit dir! 🐺  Storm walks with you.'); } save(); };
+    const gotHeart = () => { sfx('heart'); pop(`❤️ ${f.name}`); f.step++; f.acc = false; f.has = false; cheer = 1.2; family(f, true); if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Storm geht jetzt mit dir! 🐺  Storm walks with you.'); } save(); };
     let line;
     if (!st) {   // all tasks done: just a friendly word
       line = f.chat[Math.floor(Math.random() * f.chat.length)];
@@ -1173,6 +1181,7 @@ function start() {
   function drawLabels() {
     pals.forEach((f, i) => {
       const el = labels[i], a = f.a, d = Math.hypot(a.x - P.x, a.z - P.z);
+      if (a.hidden) { el.style.display = 'none'; return; }
       lv.set(a.x, a.y + (a.kind === 'owl' ? 1.15 : 0.8), a.z).project(camera);
       if (busy || d > 30 || lv.z > 1 || Math.abs(lv.x) > 1.1 || Math.abs(lv.y) > 1.1) { el.style.display = 'none'; return; }
       const st = f.steps[f.step];
@@ -1180,6 +1189,23 @@ function start() {
       const html = `${f.name} <span>${badge}</span>`; if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
       el.style.display = 'block'; el.style.transform = `translate(${((lv.x + 1) / 2) * window.innerWidth}px, ${((1 - lv.y) / 2) * window.innerHeight}px) translate(-50%, -100%)`;
     });
+  }
+
+  // ---------------- the family: Finn moves in, cubs are born, grow and walk with her
+  let born = false;
+  const finnF = pals.find((f) => f.id === 'finn');
+  const finnHome = () => !!finnF && finnF.step >= finnF.steps.length;
+  function family(f, now) {
+    const a = f.a, done = f.step >= f.steps.length;
+    if (f.id === 'finn' && done && !a.home) {   // he lives at the den now
+      a.home = true; a.hx = a.x = DEN[0] - 4.5; a.hz = a.z = DEN[1] - 2.5; a.tx = a.x; a.tz = a.z; a.roam = 2.5; a.y = at(Math.floor(a.x), Math.floor(a.z));
+      if (now) setTimeout(() => toast('Finn wohnt jetzt bei dir im Bau! 🦊❤️  Finn lives with you now. Schlaf im Bau …'), 1200);
+    }
+    if (f.cub) {
+      a.hidden = !born;
+      a.g.scale.setScalar(0.45 + Math.min(f.step, 5) * 0.09);   // they grow with every heart
+      if (done && !a.follow) { a.follow = true; a.fo = [[2.6, -1.1], [3.2, 0.2], [2.4, 1.6]][a.cub - 1]; if (now) setTimeout(() => toast(`${f.name} ist groß und geht jetzt mit dir! 🦊  ${f.name} walks with you.`), 1200); }
+    }
   }
 
   // ---------------- inside the den
@@ -1483,7 +1509,7 @@ function start() {
     mg.drawImage(mapPix, P.x - MR, P.z - MR, MR * 2, MR * 2, 0, 0, W, W);
     const toS = (x, z) => [(x - P.x + MR) * sc, (z - P.z + MR) * sc];
     for (const m of marks) if (!m.done) { const [sx, sy] = toS(m.x, m.z); if (sx > 0 && sy > 0 && sx < W && sy < W) { mg.fillStyle = '#ffc928'; mg.font = `bold ${W * 0.12}px sans-serif`; mg.textAlign = 'center'; mg.fillText('?', sx, sy + W * 0.04); } }
-    for (const f of pals) { const [sx, sy] = toS(f.a.x, f.a.z); if (sx > 0 && sy > 0 && sx < W && sy < W) dot(mg, sx, sy, W * 0.03, '#ff6fa8'); }
+    for (const f of pals) { if (f.a.hidden) continue; const [sx, sy] = toS(f.a.x, f.a.z); if (sx > 0 && sy > 0 && sx < W && sy < W) dot(mg, sx, sy, W * 0.03, '#ff6fa8'); }
     { const [sx, sy] = toS(DEN[0] + 0.5, DEN[1] + 0.5); mg.font = `${W * 0.11}px sans-serif`; mg.textAlign = 'center'; mg.fillText('🏠', sx, sy + W * 0.04); }
     // Raluca: an arrow in her direction
     mg.save(); mg.translate(W / 2, W / 2); mg.rotate(Math.atan2(-Math.cos(P.face), -Math.sin(P.face)) );
@@ -1742,7 +1768,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), shop: [...owned], quests, tut, tutOff, seen, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), born, shop: [...owned], quests, tut, tutOff, seen, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1758,6 +1784,7 @@ function start() {
     if (d.spent && typeof d.spent === 'object') for (const [k, n] of Object.entries(d.spent)) if (word(k) && Number.isFinite(n)) spent[k] = n;
     for (const id of d.built || []) { const dd = DECOR.find((x) => x.id === id); if (dd) { built.add(id); showDecor(dd); } }
     if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; if (f.id === 'storm' && f.step >= f.steps.length) f.a.follow = true; } }
+    born = !!d.born; for (const f of pals) family(f, false);
     for (const id of d.shop || []) if (SHOPLIST.some((it) => it.id === id && it.room)) owned.add(id);
     if (Number.isInteger(d.tut)) tut = d.tut; tutOff = !!d.tutOff; if (d.seen && typeof d.seen === 'object') Object.assign(seen, d.seen);
     if (d.quests && d.quests.day === today() && Array.isArray(d.quests.n)) quests = d.quests;
@@ -1782,7 +1809,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, tutIndex: () => tut, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, family, isBorn: () => born, doSleep: () => goSleep(), tutIndex: () => tut, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;

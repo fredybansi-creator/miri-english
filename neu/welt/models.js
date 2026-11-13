@@ -155,6 +155,19 @@ function wolf() {   // a friendly grey wolf, a bit bigger than Raluca; looks to 
   for (let i = 0; i < 4; i++) M.add(-2 + i * 3, -1 + i * 3, 12, 12.4, -2.6 + r(), 2.6 - r(), dark);   // darker back
   return M.boxes;
 }
+function fox() {   // Finn and the cubs: a red fox (same build as the wolf, smaller, white tail tip, black socks); looks to −x
+  const M = maker(0.062), o = 0xd9772b, dark = 0x2a1d16, light = 0xf3e6d6, r = rnd(41);
+  M.add(-4, 9, 6, 11.5, -3, 3, o); M.add(-3, 8, 5.4, 6.2, -2.3, 2.3, light);                        // body, belly
+  M.add(-5.5, -1, 6.5, 12.5, -3.1, 3.1, shade(o, 1.04)); M.add(-6, -4, 7, 11.5, -2.8, 2.8, light);   // chest
+  M.add(-10, -4.5, 10.5, 15.5, -2.6, 2.6, o); M.add(-14, -9.5, 10.7, 12.9, -1.3, 1.3, o); M.add(-13.4, -9.5, 10.5, 11.4, -1.3, 1.3, light);   // head, snout
+  M.add(-14.5, -13.8, 12, 13, -0.6, 0.6, 0x1b1b1b);                                               // nose
+  M.both(-10.2, -9.9, 13.4, 14.4, 1, 2, 0x1b1410); M.both(-10.25, -10.1, 13.8, 14.4, 1.1, 1.5, 0xf2d24a); // eyes
+  M.both(-8, -5, 15.5, 19.5, 0.8, 2.8, o); M.both(-7.7, -5.3, 15.5, 18.5, 1.1, 2.5, dark);         // ears
+  for (const [x0, z] of [[-4, 1.2], [6, 1.2]]) { M.both(x0, x0 + 2.1, 0, 6.5, z, z + 1.6, o); M.both(x0, x0 + 2.1, 0, 3, z, z + 1.6, dark); }   // legs, black socks
+  M.add(9, 13, 8.5, 11.5, -1.6, 1.6, o); M.add(13, 17, 7.5, 11, -1.9, 1.9, shade(o, 0.95)); M.add(17, 19.5, 7.6, 10.6, -1.5, 1.5, light);   // bushy tail, white tip
+  for (let i = 0; i < 3; i++) M.add(-1 + i * 3, i * 3, 11.5, 11.8, -2.4 + r(), 2.4 - r(), shade(o, 0.9));
+  return M.boxes;
+}
 function owl() {
   const M = maker(0.06), f = 0x8a6642, dark = 0x6b4c30, cream = 0xeadcc0, org = 0xf0a030;
   M.add(-3, 3, 2, 11, -3.5, 3.5, f); M.add(-3.5, -3, 3, 9, -2.6, 2.6, cream);
@@ -205,6 +218,7 @@ export const MODELS = {
   rabbit: def('rabbit', 'Hase', rabbit(), { animal: true }),
   owl: def('owl', 'Eule', owl(), { animal: true }),
   wolf: def('wolf', 'Wolf', wolf(), { animal: true }),
+  fox: def('fox', 'Fuchs', fox(), { animal: true }),
   hedgehog: def('hedgehog', 'Igel', hedgehog(), { animal: true }),
   fish: def('fish', 'Fisch', fish(), { animal: true }),
 };

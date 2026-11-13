@@ -196,3 +196,7 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   splash, right answer, coin, heart; on/off in the book) and floating pops (🟫 +3, ❤️, 🪙). Question marks use only
   the lessons Miri has done + the next one (min. first 3) via `levelPool()`. The frame counter shows only with `?fps`.
   Playwright tests must fake `**/functions/v1/**` (the shop/quests call backup()).
+- Step 8, family (2026-11-13): Finn the fox (`MODELS.fox`, east forest ~mid+46) is a friend in friends.js; with 5 hearts
+  he moves to the den (`family()` in welt.js). The next sleep in the den nest → 3 cubs Mia/Leo/Kiki are born (`born`
+  in the save). Cubs are friends too (`cub: true`): family English, food to bring; they grow with every heart and
+  follow her after 5 (`a.fo` offsets). New lines use the phone voice until tools/make_audio.py is run.
