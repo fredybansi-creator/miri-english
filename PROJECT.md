@@ -191,3 +191,8 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   pillow, please?"). Bought den things stand in the den room (`ROOMSHOP`). 📜 daily quests from today's lesson
   (lesson done today, else the next one): build 2, answer 2, spell 3 gap words; 🟫 +3 each, all = 🪙 +5. Keys are
   ignored while typing in an answer box (spaces used to be eaten by the jump key).
+- Polish (2026-11-13, before step 8): 🦉 Olli's guided start (`TUT` in welt.js: 7 tips, one at a time, each stays until
+  done, pulsing button; ✕ = off, back on in the book 📖). Sounds made in code (`neu/welt/fx.js`: step, dig, catch,
+  splash, right answer, coin, heart; on/off in the book) and floating pops (🟫 +3, ❤️, 🪙). Question marks use only
+  the lessons Miri has done + the next one (min. first 3) via `levelPool()`. The frame counter shows only with `?fps`.
+  Playwright tests must fake `**/functions/v1/**` (the shop/quests call backup()).

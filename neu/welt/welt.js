@@ -33,6 +33,8 @@ import { MODELS } from './models.js';
 import friendData from './friends.js';
 import { startRecording, canRecord } from '../rec.js';
 import { getState, update, today, backup } from '../store.js';
+import { sfx, pop, soundOn, setSound } from './fx.js';
+if (new URLSearchParams(location.search).has('fps')) document.body.classList.add('showfps');   // frame counter only for Freddy's speed tests: ?fps
 import travel from '../content/travel.js';
 import friends from '../content/friends.js';
 import doctor from '../content/doctor.js';
@@ -45,6 +47,13 @@ const TOPICS = [travel, friends, doctor, holiday, cafe, shopping];
 const SENTENCES = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.build || []));
 // more exercises at the question marks: say it in English (someone talks to her); repeat-after-me is kept but not used
 const SAYS = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.say || []));
+// the question marks use only the lessons Miri has done plus the next one (at least the first 3), so it gets harder slowly
+function levelPool() {
+  const done = getState().done || {}, L = TOPICS.flatMap((t) => t.lessons);
+  let n = L.findIndex((l) => !done[l.id]); if (n < 0) n = L.length - 1;
+  const use = L.slice(0, Math.max(3, n + 1));
+  return { builds: use.flatMap((l) => l.build || []), says: use.flatMap((l) => l.say || []) };
+}
 const REPEATS = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.repeat || []));
 const MARKS = 10;            // question marks in the world
 
@@ -479,6 +488,7 @@ function start() {
     if (e.code === 'KeyB' && !e.repeat) { if (busy && $('closeBook')) $('closeBook').click(); else openBook(); } });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
+  let stepT = 0;
   let yaw = -1.25, lookedAt = 0, pitch = 0.42, stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
   const stick = $('stick'), knob = $('knob');
   stage.addEventListener('pointerdown', (e) => {
@@ -555,6 +565,7 @@ function start() {
       const pad = 0.3;
       if (!blocked(P.x + vx + Math.sign(vx) * pad, P.z, P.y)) P.x += vx;
       if (!blocked(P.x, P.z + vz + Math.sign(vz) * pad, P.y)) P.z += vz;
+      if (!P.air && P.speed > 0.8) { stepT -= dt * P.speed; if (stepT <= 0) { stepT = 1.5; if (!P.sneak) sfx(inWater ? 'splash' : 'step'); } }
       // the camera slowly turns to stay behind her (not while walking towards the camera, not right after looking around)
       if (my > -0.35 && performance.now() - lookedAt > 1500 && !busy) {
         let d = Math.atan2(Math.cos(P.face), -Math.sin(P.face)) - yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -648,14 +659,15 @@ function start() {
       if (marks.some((m) => Math.hypot(m.x - x, m.z - z) < 14)) continue;
       marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: null });
     }
-    const o = rng(900 + round), idx = SENTENCES.map((_, i) => i).sort(() => o() - 0.5);
-    const o2 = rng(1900 + round), sIdx = SAYS.map((_, i) => i).sort(() => o2() - 0.5), rIdx = REPEATS.map((_, i) => i).sort(() => o2() - 0.5);
+    const { builds: SENT, says: SAY } = levelPool();
+    const o = rng(900 + round), idx = SENT.map((_, i) => i).sort(() => o() - 0.5);
+    const o2 = rng(1900 + round), sIdx = SAY.map((_, i) => i).sort(() => o2() - 0.5), rIdx = REPEATS.map((_, i) => i).sort(() => o2() - 0.5);
     // build the sentence and say it in English take turns (no repeat-after-me: Freddy left it out)
     marks.forEach((m, i) => {
       m.type = ['build', 'say'][i % 2];
-      if (m.type === 'say' && !SAYS.length) m.type = 'build';
+      if (m.type === 'say' && !SAY.length) m.type = 'build';
       if (m.type === 'repeat' && !REPEATS.length) m.type = 'build';
-      m.item = m.type === 'say' ? SAYS[sIdx[i % sIdx.length]] : m.type === 'repeat' ? REPEATS[rIdx[i % rIdx.length]] : SENTENCES[idx[i % idx.length]];
+      m.item = m.type === 'say' ? SAYS[sIdx[i % sIdx.length]] : m.type === 'repeat' ? REPEATS[rIdx[i % rIdx.length]] : SENT[idx[i % idx.length]];
     });
     found = 0; showCount();
   }
@@ -750,6 +762,7 @@ function start() {
       onResult(level, said, corrected, praise) {
         const ok = level === 'great' || level === 'good', best = corrected || answers[0];
         if (ok) {
+          sfx('right');
           $('mBox').innerHTML = '';
           $('result').innerHTML = `<p class="ok">${level === 'great' ? 'Super! 🎉' : 'Gut gemacht! 👍'} 🟫 +3</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}<p class="en say2" data-t="${esc(best)}">${esc(best)} 🔊</p>`;
           card.querySelector('#later').outerHTML = '<button class="btn primary" id="next">Weiter</button>';
@@ -778,7 +791,7 @@ function start() {
       draw();
       if (chosen.length === letters.length) {
         const got = chosen.map((x) => x.c).join(''), want = letters.map((x) => x.c).join('');
-        if (got === want) { $('sAns').className = 'answer spell right'; box.onclick = null; play(wordEn); setTimeout(onRight, 700); }
+        if (got === want) { sfx('right'); $('sAns').className = 'answer spell right'; box.onclick = null; play(wordEn); setTimeout(onRight, 700); }
         else { wrong++; $('sAns').className = 'answer spell wrong'; $('sRes').innerHTML = wrong >= 2 ? `<p class="no">Richtig ist: <b>${esc(wordEn)}</b></p>` : '<p class="no">Fast! Nochmal.</p>'; setTimeout(() => { chosen = []; draw(); if (wrong >= 2) $('sRes').innerHTML = `<p class="small">Richtig ist: <b>${esc(wordEn)}</b></p>`; }, 900); }
       }
     };
@@ -811,6 +824,7 @@ function start() {
     $('check').onclick = () => {
       if (same(chosen.map((t) => t.w).join(' '), item.en)) {
         locked = true; $('answer').className = 'answer right';
+        sfx('right');
         $('result').innerHTML = `<p class="ok">Richtig! 🎉 🟫 +3</p><p class="en">${esc(item.en)}</p>`;
         card.querySelector('.row').innerHTML = '<button class="btn" id="hear">🔊 Anhören</button><button class="btn primary" id="next">Weiter</button>';
         play(item.en);
@@ -937,7 +951,7 @@ function start() {
         } else if (act.t - act.leapt > 0.25 && !P.air) {   // landed, nose in the grass
           const d = Math.hypot(m.x - P.x, m.z - P.z);
           if (d < 1.05 && !(m.gone > 0)) {
-            m.held = true; m.state = ''; caught++; book('mouse'); cheer = 0;
+            m.held = true; m.state = ''; caught++; book('mouse'); cheer = 0; sfx('catch');
             act = { kind: 'catch', t: 0, d: 3, target: m };
             toast(caught === 1 ? 'Gefangen! 🐭  a mouse – Raluca is a good hunter!' : 'Gefangen! 🐭  a mouse');
           } else {
@@ -959,8 +973,8 @@ function start() {
       }
       if (act.kind === 'fish' && act.t >= act.d) {
         const f = act.target, d = Math.hypot(f.x - P.x, f.z - P.z); f.speed = act.keep || 1.3;
-        if (d < 3.3 && Math.random() < (d < 2 ? 0.9 : 0.7)) { f.gone = 30; book('fish'); needs.food = Math.min(100, needs.food + 35); cheer = 0.8; toast('Ein Fisch! 🐟  a fish'); }
-        else toast('Platsch! Der Fisch ist weggeschwommen. Nochmal!');
+        if (d < 3.3 && Math.random() < (d < 2 ? 0.9 : 0.7)) { f.gone = 30; book('fish'); sfx('catch'); needs.food = Math.min(100, needs.food + 35); cheer = 0.8; toast('Ein Fisch! 🐟  a fish'); }
+        else { sfx('splash'); toast('Platsch! Der Fisch ist weggeschwommen. Nochmal!'); }
         act = null; save(); return;
       }
       if (act.t >= act.d && act.kind !== 'sleep') {
@@ -1029,6 +1043,7 @@ function start() {
   }
   function openBook() {
     if (busy) return;
+    seen.book = 1;
     busy = true; keys.clear(); input.x = input.y = 0;
     const all = [...Object.keys(FIND_KINDS), ...Object.keys(DIG_KINDS), ...Object.keys(BOOK_EXTRA)];
     const known = all.filter((k) => bookCount[k]).length;
@@ -1039,11 +1054,14 @@ function start() {
         return n ? `<button class="entry" data-k="${k}"><span class="ic">${w.icon}</span><b>${w.en}</b><small>${w.de}</small><i>× ${n}</i></button>`
           : '<div class="entry unknown"><span class="ic">?</span><b>???</b><small>noch nicht gefunden</small></div>'; }).join('')}</div>
       <p class="small">Tippe auf ein Wort, um es zu hören.</p>
-      <div class="row">${known ? '<button class="btn" id="practice">🃏 Wörter üben (🟫 +1)</button>' : ''}<button class="btn primary" id="closeBook">Weiter spielen</button></div>`;
+      <div class="row">${known ? '<button class="btn" id="practice">🃏 Wörter üben (🟫 +1)</button>' : ''}<button class="btn primary" id="closeBook">Weiter spielen</button></div>
+      <div class="row"><button class="btn" id="sound">${soundOn() ? '🔊 Töne: an' : '🔇 Töne: aus'}</button><button class="btn" id="tips">🦉 Tipps von Olli</button></div>`;
     $('sheet').classList.add('open');
     $('card').onclick = (ev) => { const b = ev.target.closest('.entry[data-k]'); if (b) play(word(b.dataset.k).en); };
     $('closeBook').onclick = () => { $('sheet').classList.remove('open'); $('card').onclick = null; busy = false; };
     if ($('practice')) $('practice').onclick = (e2) => { e2.stopPropagation(); practice(all.filter((k) => bookCount[k]), 0, 0); };
+    $('sound').onclick = (e2) => { e2.stopPropagation(); setSound(!soundOn()); $('sound').textContent = soundOn() ? '🔊 Töne: an' : '🔇 Töne: aus'; sfx('pop'); };
+    $('tips').onclick = (e2) => { e2.stopPropagation(); tut = 0; tutOff = false; tutShown = -1; $('sheet').classList.remove('open'); $('card').onclick = null; busy = false; save(); };
   }
   // word practice: the German word and the picture → spell the English word; 5 words, each right one = 1 earth
   function practice(keysKnown, n, right) {
@@ -1086,7 +1104,7 @@ function start() {
     const head = (line) => `<div class="talk"><span class="who">${f.icon}</span><div><b>${f.name}</b> <span class="hearts">${hearts(f)}</span>
       <p class="en say">${esc(line.en)} <span class="spk">🔊</span></p><p class="small">${esc(line.de)}</p></div></div>`;
     const close = () => { if (talkRec) { talkRec.cancel(); talkRec = null; } $('sheet').classList.remove('open'); card.onclick = null; busy = false; save(); };
-    const gotHeart = () => { f.step++; f.acc = false; f.has = false; cheer = 1.2; if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Storm geht jetzt mit dir! 🐺  Storm walks with you.'); } save(); };
+    const gotHeart = () => { sfx('heart'); pop(`❤️ ${f.name}`); f.step++; f.acc = false; f.has = false; cheer = 1.2; if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Storm geht jetzt mit dir! 🐺  Storm walks with you.'); } save(); };
     let line;
     if (!st) {   // all tasks done: just a friendly word
       line = f.chat[Math.floor(Math.random() * f.chat.length)];
@@ -1279,6 +1297,7 @@ function start() {
   const NUMS = { 5: 'five', 8: 'eight', 10: 'ten', 15: 'fifteen', 20: 'twenty', 25: 'twenty-five', 30: 'thirty', 40: 'forty' };
   function openShop() {
     if (busy) return;
+    seen.shop = 1;
     busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
     const card = $('card'); let mic = null;
     const close = () => { if (mic) mic.cancel(); $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
@@ -1312,6 +1331,7 @@ function start() {
             save(); cheer = 1;
             const thanks = `Here you are! That's ${NUMS[it.price] || it.price} coins. Thank you!`;
             $('mBox').innerHTML = '';
+            sfx('coin'); pop(`🪙 −${it.price}`);
             $('result').innerHTML = `<p class="ok">Super! ${it.icon} gekauft · 🪙 −${it.price}</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}<p class="en say" data-t="${esc(thanks)}">🐰 ${esc(thanks)} 🔊</p>
               <p class="small">${it.room ? 'Es steht jetzt in deinem Bau. 🏠' : 'Lecker! Raluca hat es gleich gegessen.'}</p>`;
             card.querySelector('#back').outerHTML = '<button class="btn primary" id="back">Weiter</button>';
@@ -1357,6 +1377,7 @@ function start() {
   }
   function openQuests() {
     if (busy || inside) return;
+    seen.quests = 1;
     busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
     const { l, q } = questsToday(), card = $('card');
     const says = l.say || [], builds = l.build || [], words = questWords(l);
@@ -1371,7 +1392,7 @@ function start() {
     $('sheet').classList.add('open');
     const step = (i) => {
       q.n[i]++; earn(3); cheer = 1;
-      if (!q.paid && need.every((n, k) => q.n[k] >= n)) { q.paid = true; update((st) => { st.coins += 5; }); try { backup(); } catch { /* offline */ } setTimeout(() => toast('📜 Alle Aufgaben geschafft! 🪙 +5 Münzen'), 600); }
+      if (!q.paid && need.every((n, k) => q.n[k] >= n)) { q.paid = true; update((st) => { st.coins += 5; }); setTimeout(() => { sfx('coin'); pop('🪙 +5'); }, 900); try { backup(); } catch { /* offline */ } setTimeout(() => toast('📜 Alle Aufgaben geschafft! 🪙 +5 Münzen'), 600); }
       save(); setTimeout(openQuests, 300);
     };
     card.onclick = (ev) => {
@@ -1394,6 +1415,45 @@ function start() {
     spellInto($('spell'), w, () => { play(s.en); onRight(); });
   }
   $('questBtn').addEventListener('click', openQuests);
+
+  // ---------------- 🦉 guided start: Olli shows one thing at a time (a tip stays until she has done it)
+  const seen = { book: 0, quests: 0, shop: 0 };
+  let tut = 0, tutOff = false, tutStart = null, tutShown = -1;
+  const olli = pals.find((f) => f.id === 'olli');
+  const TUT = [
+    { de: 'Hallo Raluca! Ich bin Olli. Lauf los: Daumen unten links auf den Bildschirm und schieben.', en: "Hello Raluca! Let's go for a walk.",
+      done: () => tutStart && Math.hypot(P.x - tutStart[0], P.z - tutStart[1]) > 6 },
+    { de: 'Oben rechts zeigt der Pfeil zum nächsten ❓. Lauf hin – dort wartet eine kleine Englisch-Aufgabe.', en: 'Follow the arrow to the question mark.',
+      done: () => found > 0 || marks.some((m) => m.done), el: 'goal' },
+    { de: 'Der grüne Knopf unten rechts macht Sachen: Wasser trinken 💧, Beeren fressen 🫐, Mäuse fangen 🐭. Probier es!', en: 'Are you hungry? Are you thirsty?',
+      done: () => caught > 0 || ['water', 'berries', 'fish', 'mouse'].some((k) => bookCount[k]), el: 'act' },
+    { de: 'Alles, was du findest, kommt mit dem englischen Wort in dein Buch. Tippe auf 📖.', en: 'This is your book.',
+      done: () => seen.book, el: 'bookBtn' },
+    { de: 'Komm zu mir an den Bau 🏠 und tippe auf „💬 Olli“. Ich möchte dich etwas fragen!', en: 'Come to the den. I have a question for you.',
+      done: () => !olli || olli.step > 0 },
+    { de: '📜 Jeden Tag gibt es Aufgaben aus deiner Lektion. Alle drei = 🪙 +5 Münzen!', en: 'Here are your tasks for today.',
+      done: () => seen.quests, el: 'questBtn' },
+    { de: 'Pip 🐰 hat einen Laden neben dem Bau. Dort kaufst du mit deinen Münzen ein – auf Englisch!', en: 'Visit Pip and buy something.',
+      done: () => seen.shop },
+  ];
+  function tutCheck() {
+    if (!tutStart) tutStart = [P.x, P.z];
+    while (tut < TUT.length && TUT[tut].done()) { tut++; if (tutShown >= 0) sfx('pop'); save(); }
+    const show = !tutOff && tut < TUT.length && !busy && !inside ? tut : -1;
+    if (show === tutShown) return;
+    for (const t of TUT) if (t.el && $(t.el)) $(t.el).classList.remove('pulse');
+    tutShown = show;
+    const box = $('tut');
+    if (show < 0) { box.classList.remove('show'); return; }
+    const t = TUT[show];
+    box.innerHTML = `<span class="ic">🦉</span><span class="tx"><b>${esc(t.en)} 🔊</b><small>${esc(t.de)}</small></span><button id="tutX" aria-label="Tipps aus">✕</button>`;
+    box.classList.add('show');
+    if (t.el && $(t.el)) $(t.el).classList.add('pulse');
+    box.onclick = (e) => {
+      if (e.target.id === 'tutX') { tutOff = true; tutShown = -2; box.classList.remove('show'); if (t.el && $(t.el)) $(t.el).classList.remove('pulse'); toast('Tipps aus. Du kannst sie im Buch 📖 wieder anmachen.'); save(); return; }
+      play(t.en, { role: 'friend' });
+    };
+  }
 
   // ---------------- minimap + big map: English direction words and place names
   const DIRS = [['north', 'Norden'], ['north-east', 'Nordosten'], ['east', 'Osten'], ['south-east', 'Südosten'], ['south', 'Süden'], ['south-west', 'Südwesten'], ['west', 'Westen'], ['north-west', 'Nordwesten']];
@@ -1530,6 +1590,7 @@ function start() {
     if (whyNot(x, z)) return;
     setHeight(x, z, h - 1); reland([[x, z]]);
     for (let k = 0; k < 6; k++) dirt(x + 0.5, h - 0.6, z + 0.5);
+    sfx('dig');
     earth++;
     if (a0.mound) digUp(a0.mound);
     else if (wantDug() && Math.random() < 0.3) digUp({ kind: wantDug(), g: new THREE.Group(), x: x + 0.5, z: z + 0.5 });   // a friend wants it: easier to find
@@ -1540,7 +1601,7 @@ function start() {
     if (H[Math.floor(P.z) * SIZE + Math.floor(P.x)] < P.y - 0.6) { P.air = true; P.vy = 0; }   // the block under her: she drops in
     showEarth(); save();
   }
-  function earn(n) { earth += n; showEarth(); }
+  function earn(n) { earth += n; showEarth(); if (n > 0) pop(`🟫 +${n}`); }
   const showEarth = () => { $('earth').textContent = `🟫 ${earth}`; $('earth').style.display = earth ? 'block' : 'none'; $('build').style.display = earth ? 'block' : 'none'; };
   // building: one earth block onto the block in front of her (a wall, steps up a hill, a bridge over water)
   let buildHold = false;
@@ -1681,7 +1742,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), shop: [...owned], quests, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), shop: [...owned], quests, tut, tutOff, seen, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1698,6 +1759,7 @@ function start() {
     for (const id of d.built || []) { const dd = DECOR.find((x) => x.id === id); if (dd) { built.add(id); showDecor(dd); } }
     if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; if (f.id === 'storm' && f.step >= f.steps.length) f.a.follow = true; } }
     for (const id of d.shop || []) if (SHOPLIST.some((it) => it.id === id && it.room)) owned.add(id);
+    if (Number.isInteger(d.tut)) tut = d.tut; tutOff = !!d.tutOff; if (d.seen && typeof d.seen === 'object') Object.assign(seen, d.seen);
     if (d.quests && d.quests.day === today() && Array.isArray(d.quests.n)) quests = d.quests;
     showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
@@ -1720,7 +1782,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, tutIndex: () => tut, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1731,6 +1793,7 @@ function start() {
     drawLabels();
     if ((frames & 3) === 0 && !inside) drawMini();
     drawRoomLabels(); drawPipLabel();
+    if ((frames & 15) === 0) tutCheck();
     if (inside && !moving && !busy && P.x < ROOM[0] - RW + 0.35 && Math.abs(P.z - ROOM[1]) < 1) goInside(false);   // walked out of the door
     drawDirt(dt);
     if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();
