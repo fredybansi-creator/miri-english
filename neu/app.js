@@ -64,12 +64,14 @@ const ICON = {
   cards: '<rect x="3.5" y="6" width="13" height="15" rx="2.5"/><path d="M8 3.5h10a2.5 2.5 0 0 1 2.5 2.5v12"/>',
   raluca: '<path d="M5 4l4 5h6l4-5 1 9c0 4-3.6 7-8 7s-8-3-8-7z"/><circle cx="9.5" cy="12.5" r="1" fill="currentColor"/><circle cx="14.5" cy="12.5" r="1" fill="currentColor"/>',
   progress: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  welt: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5S9.4 5.9 12 3.5z"/>',
 };
 const TABS = [
   { id: 'today', label: 'Heute', show: () => home() },
   { id: 'lessons', label: 'Lektionen', show: () => lessonsTab() },
   { id: 'cards', label: 'Karten', show: () => cardsTab() },
   { id: 'raluca', label: 'Raluca', show: () => ralucaTab() },
+  { id: 'welt', label: 'Welt', show: () => weltTab() },
   { id: 'progress', label: 'Fortschritt', show: () => progressTab() },
 ];
 const tabbar = document.getElementById('tabbar');
@@ -397,6 +399,30 @@ function ralucaTab(cheer = false) {
   }));
   app.querySelectorAll('[data-on]').forEach((b) => b.addEventListener('click', () => { wear(b.dataset.on); redraw(false); }));
   app.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { takeOff(b.dataset.off); redraw(false); }));
+}
+
+// ---------------------------------------------------------------- Welt: the open-world game (neu/welt/)
+function weltTab() {
+  let w = null;
+  try { w = JSON.parse(localStorage.getItem('miri-welt') || 'null'); } catch { w = null; }
+  const q = w && w.quests && w.quests.day === today() ? w.quests : null;
+  const qDone = q ? q.n.filter((n, i) => n >= [2, 2, 3][i]).length : 0;
+  const words = w && w.book ? Object.keys(w.book).length : 0;
+  const hearts = w && w.pals ? Object.values(w.pals).reduce((a, v) => a + (v[0] || 0), 0) : 0;
+  tabScreen('welt', `
+    <header class="top"><h1>Ralucas Welt</h1>${hud()}</header>
+    <div class="card welt-card">
+      <div class="welt-pic" aria-hidden="true">🦊🌲🏞️🦉</div>
+      <p>Lauf mit Raluca durch ihre Welt: Mäuse jagen, fischen, graben, den Bau einrichten und mit den Tieren <b>Englisch sprechen</b>.</p>
+      <ul class="small welt-list">
+        <li>📜 Aufgaben für heute aus deiner Lektion: ${qDone} von 3 geschafft ${qDone === 3 ? '🎉' : '· alle drei = 🪙 +5'}</li>
+        <li>🛒 Bei Pip, dem Hasen, kaufst du mit deinen Münzen ein – auf Englisch!</li>
+        <li>📖 ${words} Wörter im Buch · ❤️ ${hearts} Herzen bei den Tier-Freunden</li>
+      </ul>
+      <a class="btn primary big" href="welt/">${w ? 'Weiterspielen' : 'Spielen'} ▶</a>
+      <p class="small muted">Tipp: Das Spiel braucht etwas Kraft – am besten mit vollem Akku.</p>
+    </div>
+  `);
 }
 
 // ---------------------------------------------------------------- Fortschritt
