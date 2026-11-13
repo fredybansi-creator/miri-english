@@ -135,3 +135,10 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   the den in the middle, forest by noise, hill (north-west), 4 ponds (`PONDS`), 3 rivers (`RIVERS`). Animals
   (`makeAnimals` / `moveAnimals`): rabbits and mice run away from Raluca, hedgehogs, two owls, fish in every pond and
   river that jump now and then. About 180–240k triangles and ~100 draw calls in view (half of them are Raluca).
+- Raluca is the real dog (2026-11-13, Freddy's wish): a 3D model made in Blender from a photo of Raluca –
+  `neu/welt/raluca.glb` (about 12k triangles, 0.5 MB, colours stored in the points, skeleton, clips Survey / Walk / Run / Sit),
+  built by `tools/make_raluca.py` (run with Blender's Python: `pip install bpy`, then `python tools/make_raluca.py`).
+  `neu/welt/hund.js` `makeDogActor()` loads it (`neu/vendor/GLTFLoader.js`) and has the same `pose()` numbers as
+  `makeFoxActor()`, so the game code did not change; it turns the bones itself and does not use the clips yet.
+  If the file does not load, the fox appears. `/neu/welt/?raluca=fuchs` shows the old fox. Only the game uses the dog:
+  the start page of the app still shows the code-built fox (tricks, clothes). Her eyes do not blink yet.
