@@ -1,4 +1,4 @@
-// Ralucas Welt – step 0, the speed test: Raluca walks over a small block world.
+// Ralucas Welt – step 2, the world: meadow with the den, forest, hill, river and pond; animals walk around.
 // Question marks stand in the world; when she walks into one, an English exercise opens (build the sentence).
 // Phone: thumb stick (left half of the screen), drag elsewhere to look around, button to jump.
 // Laptop: W A S D or arrow keys, space to jump, drag with the mouse to look around.
@@ -8,6 +8,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { makeFoxActor, webglOk } from '../fox3d.js';
 import { play } from '../audio.js';
+import { MODELS } from './models.js';
 import travel from '../content/travel.js';
 import friends from '../content/friends.js';
 import doctor from '../content/doctor.js';
@@ -19,8 +20,10 @@ import shopping from '../content/shopping.js';
 const SENTENCES = [travel, friends, doctor, holiday, cafe, shopping].flatMap((t) => t.lessons.flatMap((l) => l.build || []));
 const MARKS = 10;            // question marks in the world
 
-const SIZE = 112;            // blocks per side
+const SIZE = 192;            // blocks per side
+const CHUNK = 16;            // the world is cut into pieces of 16 × 16 blocks; far pieces are not drawn
 const WATER = 2;             // blocks at or below this height are under water
+const SEE = 54;              // how far she can see (fog)
 const $ = (id) => document.getElementById(id);
 
 // ------------------------------------------------------------------ random numbers that are the same every time
@@ -33,20 +36,39 @@ function noise(x, z) {
   return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
 }
 
-// ------------------------------------------------------------------ the land: one height per block
-const H = new Int8Array(SIZE * SIZE);
-const solid = new Uint8Array(SIZE * SIZE); // tree trunks and rocks: Raluca cannot walk through
-const at = (x, z) => (x < 0 || z < 0 || x >= SIZE || z >= SIZE ? 9 : H[z * SIZE + x]);
+// ------------------------------------------------------------------ the map: meadow (middle, with the den), forest,
+// a hill in the north-west, a pond in the east and a river from the hill to the pond
 const mid = SIZE / 2;
-for (let z = 0; z < SIZE; z++) for (let x = 0; x < SIZE; x++) {
-  let n = noise(x / 26, z / 26) * 0.62 + noise(x / 11 + 40, z / 11 + 40) * 0.28 + noise(x / 5 + 90, z / 5 + 90) * 0.1;
-  const d = Math.hypot(x - mid, z - mid);
-  n = n * 8 + 0.9;
-  n += Math.max(0, 1 - d / 7) * (4 - n) * 0.9;                 // a flat meadow in the middle (start)
-  const pond = Math.hypot(x - mid - 13, z - mid + 4); n -= Math.max(0, 1 - pond / 9) * 4;   // a pond next to it
-  n += Math.max(0, (d - (mid - 9)) / 3);                        // hills at the edge keep her inside
-  H[z * SIZE + x] = Math.max(0, Math.min(12, Math.round(n)));
+const HILL = [mid - 46, mid - 44], POND = [mid + 36, mid + 8], DEN = [mid + 6, mid - 1];
+// ponds: [x, z, radius] – the big one in the east, one in the south-west, one in the north-east, a small one by the meadow
+const PONDS = [[POND[0], POND[1], 15], [mid - 40, mid + 38, 11], [mid + 30, mid - 50, 9], [mid - 14, mid + 16, 5.5]];
+const RIVER = [[mid - 30, mid - 22], [mid - 14, mid - 16], [mid + 2, mid - 13], [mid + 16, mid - 4], [mid + 30, mid + 6]];
+// rivers: from the hill to the big pond, from the north pond down to it, and from the south-west pond across to it
+const RIVERS = [RIVER, [[mid + 30, mid - 46], [mid + 42, mid - 30], [mid + 34, mid - 14], [mid + 37, mid]],
+  [[mid - 36, mid + 40], [mid - 18, mid + 47], [mid + 4, mid + 41], [mid + 22, mid + 28], [mid + 32, mid + 16]]];
+function riverDist(x, z) {
+  let best = 1e9;
+  for (const RV of RIVERS) for (let i = 0; i < RV.length - 1; i++) {
+    const [ax, az] = RV[i], [bx, bz] = RV[i + 1], dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+  }
+  return best + Math.sin(x * 0.35) * 0.9 + Math.sin(z * 0.27) * 0.7;   // a wobbly bank
 }
+const H = new Int8Array(SIZE * SIZE);
+const solid = new Uint8Array(SIZE * SIZE); // tree trunks, rocks, the den: Raluca cannot walk through
+const at = (x, z) => (x < 0 || z < 0 || x >= SIZE || z >= SIZE ? 20 : H[z * SIZE + x]);
+for (let z = 0; z < SIZE; z++) for (let x = 0; x < SIZE; x++) {
+  let n = 3.2 + noise(x / 30, z / 30) * 3 + noise(x / 12 + 40, z / 12 + 40) * 1.3;
+  const d = Math.hypot(x - mid, z - mid);
+  const hill = Math.max(0, 1 - Math.hypot(x - HILL[0], z - HILL[1]) / 34); n += hill * hill * 13 + (hill > 0.2 ? noise(x / 4, z / 4) * 1.5 : 0);
+  const flat = Math.min(1, Math.max(0, 1.5 - Math.hypot(x - mid - 2, z - mid) / 9)); n += (4 - n) * flat;           // the meadow around the den
+  for (const [px, pz, pr] of PONDS) n -= Math.max(0, 1 - Math.hypot(x - px, z - pz) / pr) * 6;                    // the ponds
+  const rv = riverDist(x, z); if (rv < 5) n = Math.min(n, 1.4 + Math.max(0, rv - 2.2) * 1.3);                    // the river bed and its banks
+  n += Math.max(0, (d - (mid - 10)) / 2.5);                                                                      // hills at the edge keep her inside
+  H[z * SIZE + x] = Math.max(0, Math.min(19, Math.round(n)));
+}
+const STONE = 11;   // from this height up the ground is stone
 
 // ------------------------------------------------------------------ small pixel texture for block detail
 function pixelTexture() {
@@ -57,7 +79,8 @@ function pixelTexture() {
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-function buildLand(tex) {
+/** the ground of one piece of the map (x0..x0+CHUNK, z0..z0+CHUNK) as one mesh */
+function buildLand(mat, x0, z0) {
   const pos = [], col = [], uv = [], nor = [], idx = [];
   const c = new THREE.Color();
   const quad = (p, n, color, vTop) => {
@@ -66,17 +89,17 @@ function buildLand(tex) {
     uv.push(0, 0, 1, 0, 1, vTop, 0, vTop);
     idx.push(i, i + 1, i + 2, i, i + 2, i + 3);
   };
-  for (let z = 0; z < SIZE; z++) for (let x = 0; x < SIZE; x++) {
+  for (let z = z0; z < z0 + CHUNK; z++) for (let x = x0; x < x0 + CHUNK; x++) {
     const h = at(x, z), r = hash(x + 500, z + 500);
-    if (h <= WATER) c.setRGB(0.86 + r * 0.06, 0.78 + r * 0.06, 0.55 + r * 0.05, THREE.SRGBColorSpace);           // sand
-    else if (h >= 9) c.setRGB(0.62 + r * 0.06, 0.63 + r * 0.06, 0.64 + r * 0.06, THREE.SRGBColorSpace);          // stone
-    else c.setRGB(0.42 + r * 0.1 + (h - 3) * 0.012, 0.72 + r * 0.1, 0.33 + r * 0.06, THREE.SRGBColorSpace);      // grass
+    const wet = h === WATER + 1 && (at(x + 1, z) <= WATER || at(x - 1, z) <= WATER || at(x, z + 1) <= WATER || at(x, z - 1) <= WATER);
+    if (h <= WATER || (wet && r < 0.6)) c.setRGB(0.86 + r * 0.06, 0.78 + r * 0.06, 0.55 + r * 0.05, THREE.SRGBColorSpace);      // sand
+    else if (h >= STONE) c.setRGB(0.62 + r * 0.06, 0.63 + r * 0.06, 0.64 + r * 0.06, THREE.SRGBColorSpace);      // stone
+    else { const f = noise(x / 18 + 7, z / 18 + 3) > 0.52 ? 0.9 : 1; c.setRGB((0.42 + r * 0.1 + (h - 3) * 0.012) * f, (0.72 + r * 0.1) * f, (0.33 + r * 0.06) * f, THREE.SRGBColorSpace); }   // grass (darker in the forest)
     quad([[x, h, z + 1], [x + 1, h, z + 1], [x + 1, h, z], [x, h, z]], [0, 1, 0], c, 1);
-    // sides, only where the neighbour is lower
     const side = (nh, p, n) => {
       if (nh >= h) return;
-      if (h >= 9) c.setRGB(0.5, 0.51, 0.53, THREE.SRGBColorSpace); else c.setRGB(0.55 + r * 0.05, 0.4 + r * 0.04, 0.27, THREE.SRGBColorSpace);
-      const s = n[1] === 0 && n[2] !== 0 ? 0.82 : 0.68; c.multiplyScalar(s);
+      if (h >= STONE) c.setRGB(0.5, 0.51, 0.53, THREE.SRGBColorSpace); else c.setRGB(0.55 + r * 0.05, 0.4 + r * 0.04, 0.27, THREE.SRGBColorSpace);
+      c.multiplyScalar(n[2] !== 0 ? 0.82 : 0.68);
       quad(p(nh), n, c, h - nh);
     };
     side(at(x, z + 1), (b) => [[x, b, z + 1], [x + 1, b, z + 1], [x + 1, h, z + 1], [x, h, z + 1]], [0, 0, 1]);
@@ -90,55 +113,114 @@ function buildLand(tex) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
-  return new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }));
+  g.computeBoundingSphere(); return new THREE.Mesh(g, mat);
 }
 
-// ------------------------------------------------------------------ trees, rocks and flowers: all blocks in ONE mesh
-function buildThings(tex) {
-  const boxes = []; // [x, y, z, sx, sy, sz, color]
-  const r = rng(2026);
-  const c = new THREE.Color();
-  for (let i = 0; i < 1500; i++) {
-    const x = 3 + Math.floor(r() * (SIZE - 6)), z = 3 + Math.floor(r() * (SIZE - 6));
-    const h = at(x, z), d = Math.hypot(x - mid, z - mid), kind = r();
-    if (h <= WATER || h >= 9 || solid[z * SIZE + x] || d < 4) continue;
-    const forest = noise(x / 14 + 7, z / 14 + 3);
-    if (kind < 0.16 * (forest > 0.5 ? 2.2 : 0.35) && d > 6) {
-      // tree: trunk + a rounded crown of leaf blocks
-      if ([[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([a, b]) => solid[(z + b) * SIZE + x + a])) continue;
-      const th = 3 + Math.floor(r() * 3), pine = r() < 0.3;
-      solid[z * SIZE + x] = 1;
-      boxes.push([x + 0.5, h + th / 2, z + 0.5, 0.7, th, 0.7, c.setRGB(0.43, 0.29, 0.17, THREE.SRGBColorSpace).getHex()]);
-      const layers = pine ? [[2, 0], [2, 1], [1, 2], [1, 3], [0, 4]] : [[1, 0], [2, 1], [2, 2], [1, 3]];
-      for (const [rad, dy] of layers) for (let a = -rad; a <= rad; a++) for (let b = -rad; b <= rad; b++) {
-        if (rad > 0 && Math.abs(a) === rad && Math.abs(b) === rad && (rad > 1 || r() < 0.5)) continue; // cut the corners
-        if (a === 0 && b === 0 && dy === 0) continue;
-        const v = r() * 0.08;
-        if (pine) c.setRGB(0.16 + v, 0.42 + v, 0.27 + v, THREE.SRGBColorSpace); else c.setRGB(0.25 + v, 0.58 + v * 1.6, 0.22 + v, THREE.SRGBColorSpace);
-        boxes.push([x + 0.5 + a, h + th - 0.5 + dy, z + 0.5 + b, 1, 1, 1, c.getHex()]);
-      }
-    } else if (kind < 0.24) {
-      // rock
-      const s = 0.6 + r() * 0.7; solid[z * SIZE + x] = s > 0.9 ? 1 : 0;
-      const v = 0.52 + r() * 0.12;
-      boxes.push([x + 0.5, h + s * 0.35, z + 0.5, s, s * 0.7, s * 0.9, c.setRGB(v, v, v + 0.02, THREE.SRGBColorSpace).getHex()]);
-      boxes.push([x + 0.5 + s * 0.3, h + s * 0.2, z + 0.5 - s * 0.25, s * 0.55, s * 0.4, s * 0.55, c.setRGB(v - 0.06, v - 0.06, v - 0.04, THREE.SRGBColorSpace).getHex()]);
-    } else if (kind < 0.62) {
-      // flower: stem + head
-      const fx = x + 0.2 + r() * 0.6, fz = z + 0.2 + r() * 0.6, fh = 0.25 + r() * 0.2;
-      boxes.push([fx, h + fh / 2, fz, 0.06, fh, 0.06, 0x3f8f3a]);
-      boxes.push([fx, h + fh + 0.07, fz, 0.2, 0.14, 0.2, [0xffffff, 0xffd84a, 0xff7f9e, 0xb48cff, 0xff9a3d][Math.floor(r() * 5)]]);
-    } else {
-      // tuft of grass
-      for (let k = 0; k < 3; k++) { const gh = 0.18 + r() * 0.22; boxes.push([x + 0.15 + r() * 0.7, h + gh / 2, z + 0.15 + r() * 0.7, 0.08, gh, 0.08, c.setRGB(0.3, 0.6 + r() * 0.1, 0.25, THREE.SRGBColorSpace).getHex()]); }
-    }
-  }
-  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ map: tex }), boxes.length);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
+// ------------------------------------------------------------------ trees, bushes, rocks … : the models of models.js,
+// all boxes of one map piece in ONE instanced mesh
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+function boxMesh(boxes, mat) {
+  const mesh = new THREE.InstancedMesh(BOX, mat, boxes.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), c = new THREE.Color();
   boxes.forEach((b, i) => { p.set(b[0], b[1], b[2]); s.set(b[3], b[4], b[5]); m.compose(p, q, s); mesh.setMatrixAt(i, m); mesh.setColorAt(i, c.setHex(b[6])); });
-  mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
-  mesh.frustumCulled = false;
+  mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.computeBoundingSphere();   // so pieces behind the camera are not drawn
   return mesh;
+}
+/** put a model at (x, y, z), turned by `turn` quarter turns; the boxes go into the list of their map piece */
+function place(lists, name, x, y, z, turn = 0, scale = 1) {
+  const list = lists[Math.floor(z / CHUNK) * (SIZE / CHUNK) + Math.floor(x / CHUNK)];
+  if (!list) return;
+  for (const b of MODELS[name].boxes) {
+    let bx = b[0], bz = b[2], sx = b[3], sz = b[5];
+    for (let k = 0; k < (turn & 3); k++) { [bx, bz] = [-bz, bx]; [sx, sz] = [sz, sx]; }
+    list.push([x + bx * scale, y + b[1] * scale, z + bz * scale, sx * scale, b[4] * scale, sz * scale, b[6]]);
+  }
+}
+const nearWater = (x, z, n) => { for (let a = -n; a <= n; a += n) for (let b = -n; b <= n; b += n) if (at(x + a, z + b) <= WATER) return true; return false; };
+function plant() {
+  const lists = Array.from({ length: (SIZE / CHUNK) ** 2 }, () => []);
+  const r = rng(2026);
+  const free = (x, z, n) => { for (let a = -n; a <= n; a++) for (let b = -n; b <= n; b++) if (solid[(z + b) * SIZE + x + a]) return false; return true; };
+  // the den: on the meadow, the door looks to the start
+  place(lists, 'den', DEN[0] + 0.5, at(DEN[0], DEN[1]), DEN[1] + 0.5);
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) solid[(DEN[1] + b) * SIZE + DEN[0] + a] = 1;
+  place(lists, 'flowers', DEN[0] - 1.6, at(DEN[0] - 2, DEN[1] + 2), DEN[1] + 2.4); place(lists, 'mushroom', DEN[0] - 1.5, at(DEN[0] - 2, DEN[1] - 2), DEN[1] - 1.8);
+  for (let z = 4; z < SIZE - 4; z++) for (let x = 4; x < SIZE - 4; x++) {
+    const h = at(x, z), d = Math.hypot(x - mid, z - mid), k = r(), turn = Math.floor(r() * 4);
+    if (h <= WATER) continue;
+    if (solid[z * SIZE + x] || d > mid - 6) continue;
+    const forest = noise(x / 18 + 7, z / 18 + 3) > 0.52, meadow = Math.hypot(x - mid - 2, z - mid) < 11, wet = nearWater(x, z, 1), y = h;
+    const cx = x + 0.5, cz = z + 0.5;
+    if (h >= STONE) { if (k < 0.03) { place(lists, 'rock', cx, y, cz, turn, 1 + r() * 1.2); solid[z * SIZE + x] = 1; } continue; }
+    if (wet) { if (k < 0.3) place(lists, 'reeds', cx, y, cz, turn); else if (k < 0.34) place(lists, 'rock', cx, y, cz, turn, 0.7); continue; }
+    if (!meadow && k < (forest ? 0.05 : 0.005) && free(x, z, 2) && Math.abs(at(x + 1, z) - h) < 2 && Math.abs(at(x, z + 1) - h) < 2) {
+      const kind = h >= 8 || z < mid - 38 ? 'pine' : nearWater(x, z, 7) || r() < 0.18 ? 'birch' : r() < 0.2 ? 'pine' : 'oak';
+      place(lists, kind, cx, y, cz, turn, 0.9 + r() * 0.35); solid[z * SIZE + x] = 1; continue;
+    }
+    if (k > 0.1 && k < 0.112 && !meadow) { place(lists, 'bush', cx, y, cz, turn, 0.9 + r() * 0.4); solid[z * SIZE + x] = 1; }
+    else if (k > 0.2 && k < 0.206) { place(lists, 'rock', cx, y, cz, turn, 0.8 + r() * 0.8); solid[z * SIZE + x] = 1; }
+    else if (k > 0.3 && k < (forest ? 0.306 : 0.3015) && free(x, z, 1)) { place(lists, 'log', cx, y, cz, turn); solid[z * SIZE + x] = 1; }
+    else if (k > 0.4 && k < (forest ? 0.412 : 0.401)) place(lists, 'mushroom', cx, y, cz, turn, 0.45 + r() * 0.4);
+    else if (k > 0.5 && k < (forest ? 0.505 : 0.522)) place(lists, 'flowers', cx, y, cz, turn, 0.8 + r() * 0.5);
+    else if (k > 0.7 && k < 0.74) for (let i = 0; i < 3; i++) { const gh = 0.18 + r() * 0.22; lists[Math.floor(z / CHUNK) * (SIZE / CHUNK) + Math.floor(x / CHUNK)].push([x + 0.15 + r() * 0.7, h + gh / 2, z + 0.15 + r() * 0.7, 0.08, gh, 0.08, 0x4d9a40]); }
+  }
+  return lists;
+}
+
+// ------------------------------------------------------------------ animals: each one is a small instanced mesh that moves
+const walkable = (x, z, fromH) => { const xi = Math.floor(x), zi = Math.floor(z), h = at(xi, zi); return h > WATER && h < STONE + 3 && !solid[zi * SIZE + xi] && Math.abs(h - fromH) <= 1; };
+function makeAnimals(scene, mat) {
+  const list = [], r = rng(99);
+  const spot = (cx, cz, rad, ok) => { for (let i = 0; i < 300; i++) { const x = cx + (r() * 2 - 1) * rad, z = cz + (r() * 2 - 1) * rad; if (x > 6 && z > 6 && x < SIZE - 6 && z < SIZE - 6 && ok(Math.floor(x), Math.floor(z))) return [x, z]; } return null; };
+  const land = (x, z) => at(x, z) > WATER && at(x, z) < STONE && !solid[z * SIZE + x];
+  const add = (kind, cx, cz, rad, opt, ok = land) => {
+    const s = spot(cx, cz, rad, ok); if (!s) return;
+    const mesh = boxMesh(MODELS[kind].boxes, mat); const g = new THREE.Group(); g.add(mesh); scene.add(g);
+    list.push({ kind, g, x: s[0], z: s[1], hx: s[0], hz: s[1], y: at(Math.floor(s[0]), Math.floor(s[1])), face: r() * 6, tx: s[0], tz: s[1], wait: r() * 3, t: r() * 10, speed: 1, roam: 7, hop: 0, shy: 0, ...opt });
+  };
+  for (let i = 0; i < 7; i++) add('rabbit', mid + (r() * 2 - 1) * 60, mid + (r() * 2 - 1) * 60, 12, { speed: 2.6, hop: 0.28, shy: 4.5, roam: 9 });
+  add('rabbit', mid - 4, mid + 6, 4, { speed: 2.6, hop: 0.28, shy: 4.5, roam: 6 });
+  for (let i = 0; i < 9; i++) add('mouse', mid + (r() * 2 - 1) * 55, mid + (r() * 2 - 1) * 55, 12, { speed: 2.2, shy: 3.5, roam: 5 });
+  add('mouse', mid + 3, mid + 7, 4, { speed: 2.2, shy: 3.5, roam: 5 });
+  for (let i = 0; i < 3; i++) add('hedgehog', mid + (r() * 2 - 1) * 40, mid + (r() * 2 - 1) * 40, 12, { speed: 0.6, roam: 6 });
+  add('owl', DEN[0] - 1, DEN[1] + 5, 3, { speed: 0, sit: true });
+  add('owl', HILL[0] + 22, HILL[1] + 22, 8, { speed: 0, sit: true });
+  // fish in every pond and along the rivers
+  const deep = (x, z) => at(x, z) <= 1;
+  PONDS.forEach(([px, pz, pr], i) => { for (let k = 0; k < (i === 0 ? 7 : i === 3 ? 2 : 4); k++) add('fish', px, pz, pr * 0.6, { speed: 1.3, swim: true, roam: pr * 0.5, jump: 4 + r() * 10 }, deep); });
+  for (const RV of RIVERS) for (let i = 0; i < RV.length - 1; i++) for (let k = 0; k < 2; k++) { const t = r(); add('fish', RV[i][0] + (RV[i + 1][0] - RV[i][0]) * t, RV[i][1] + (RV[i + 1][1] - RV[i][1]) * t, 3, { speed: 1.5, swim: true, roam: 5, jump: 4 + r() * 10 }, deep); }
+  return list;
+}
+function moveAnimals(list, dt, P, time) {
+  for (const a of list) {
+    const dx = a.x - P.x, dz = a.z - P.z, far = Math.hypot(dx, dz);
+    a.g.visible = far < SEE; if (!a.g.visible) continue;
+    a.t += dt;
+    let moving = false, speed = a.speed;
+    if (a.sit) { let diff = Math.atan2(-dz, dx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); if (far < 12) a.face += diff * Math.min(1, dt * 3); }
+    else {
+      if (a.shy && far < a.shy) { a.tx = a.x + (dx / (far || 1)) * 6; a.tz = a.z + (dz / (far || 1)) * 6; a.wait = 0; speed = a.speed * 2.2; }
+      const tx = a.tx - a.x, tz = a.tz - a.z, td = Math.hypot(tx, tz);
+      if (a.wait > 0) a.wait -= dt;
+      else if (td < 0.25) { a.wait = 0.6 + Math.random() * 3.5; a.tx = a.hx + (Math.random() * 2 - 1) * a.roam; a.tz = a.hz + (Math.random() * 2 - 1) * a.roam; }
+      else {
+        const nx = a.x + (tx / td) * speed * dt, nz = a.z + (tz / td) * speed * dt;
+        const ok = a.swim ? at(Math.floor(nx), Math.floor(nz)) <= 1 : walkable(nx, nz, at(Math.floor(a.x), Math.floor(a.z)));
+        if (ok) { a.x = nx; a.z = nz; moving = true; let diff = Math.atan2(tz, -tx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); a.face += diff * Math.min(1, dt * 8); }
+        else { a.tx = a.x; a.tz = a.z; a.wait = 0.3; }
+      }
+    }
+    let ground = a.swim ? WATER + 0.25 + Math.sin(a.t * 1.3) * 0.12 : at(Math.floor(a.x), Math.floor(a.z));
+    let leap = 0;
+    if (a.swim) { a.jump -= dt; if (a.jump < 0) { leap = Math.sin((-a.jump / 0.9) * Math.PI) * 1.1; if (a.jump < -0.9) a.jump = 6 + Math.random() * 14; } }   // now and then a fish jumps
+    ground += leap;
+    a.y += (ground - a.y) * Math.min(1, dt * 10);
+    const hop = moving && a.hop ? Math.abs(Math.sin(a.t * 9)) * a.hop : 0;
+    a.g.position.set(a.x, a.y + hop, a.z);
+    a.g.rotation.y = a.face + (a.swim ? Math.sin(a.t * 6) * 0.15 : 0);
+    a.g.rotation.z = a.swim && a.jump < 0 ? Math.cos((-a.jump / 0.9) * Math.PI) * -0.9 : moving && !a.swim && !a.hop ? Math.sin(a.t * 18) * 0.05 : 0;
+  }
 }
 
 // ------------------------------------------------------------------ start
@@ -151,14 +233,21 @@ function start() {
   const scene = new THREE.Scene();
   const SKY = 0xbfe3f6;
   scene.background = new THREE.Color(SKY);
-  scene.fog = new THREE.Fog(SKY, 34, 62);
+  scene.fog = new THREE.Fog(SKY, 36, SEE);
   const camera = new THREE.PerspectiveCamera(52, 1, 0.2, 70);
   scene.add(new THREE.HemisphereLight(0xffffff, 0x9ab07f, 1.7));
   const sun = new THREE.DirectionalLight(0xfff2d8, 1.9); sun.position.set(-3, 6, 4); scene.add(sun);
 
   const tex = pixelTexture();
-  scene.add(buildLand(tex));
-  scene.add(buildThings(tex));
+  // the map in pieces: ground + things per piece; pieces that are too far away are switched off
+  const landMat = new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }), boxMat = new THREE.MeshLambertMaterial({ map: tex });
+  const lists = plant(), pieces = [];
+  for (let cz = 0; cz < SIZE / CHUNK; cz++) for (let cx = 0; cx < SIZE / CHUNK; cx++) {
+    const g = new THREE.Group(); g.add(buildLand(landMat, cx * CHUNK, cz * CHUNK));
+    const boxes = lists[cz * (SIZE / CHUNK) + cx]; if (boxes.length) g.add(boxMesh(boxes, boxMat));
+    scene.add(g); pieces.push({ g, x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK });
+  }
+  const animals = makeAnimals(scene, boxMat);
   const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), new THREE.MeshLambertMaterial({ color: 0x4fa8e0, transparent: true, opacity: 0.72 }));
   water.rotation.x = -Math.PI / 2; water.position.set(mid, WATER + 0.72, mid); scene.add(water);
 
@@ -186,7 +275,7 @@ function start() {
   window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); } });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
-  let yaw = 0.6, pitch = 0.42, stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
+  let yaw = -1.25, pitch = 0.42, stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
   const stick = $('stick'), knob = $('knob');
   stage.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse' && e.clientX < window.innerWidth * 0.5 && stickId === null) {
@@ -222,7 +311,7 @@ function start() {
     if (solid[zi * SIZE + xi]) return true;
     return groundAt(x, z) - fromY > 1.05;                       // one block up is fine, more needs a jump
   };
-  const P = { x: mid + 0.5, z: mid + 0.5, y: 0, vy: 0, face: 0, speed: 0, phase: 0, air: false };
+  const P = { x: mid - 1.5, z: mid + 0.5, y: 0, vy: 0, face: 0, speed: 0, phase: 0, air: false };
   P.y = groundAt(P.x, P.z);
   const cam = new THREE.Vector3(), look = new THREE.Vector3();
   let time = 0, blink = 3, blinkT = -1;
@@ -308,9 +397,9 @@ function start() {
     const r = rng(77 + round * 13); marks = [];
     for (let tries = 0; tries < 4000 && marks.length < MARKS; tries++) {
       const x = 6 + Math.floor(r() * (SIZE - 12)), z = 6 + Math.floor(r() * (SIZE - 12)), h = at(x, z), d = Math.hypot(x - mid, z - mid);
-      if (h <= WATER || h >= 9 || solid[z * SIZE + x] || d < 7 || d > mid - 12) continue;
-      if (marks.length < 3 && d > 16) continue;                                   // the first three are close to the start
-      if (marks.some((m) => Math.hypot(m.x - x, m.z - z) < 9)) continue;
+      if (h <= WATER || h >= STONE + 4 || solid[z * SIZE + x] || d < 8 || d > mid - 14) continue;
+      if (marks.length < 3 && d > 22) continue;                                   // the first three are close to the start
+      if (marks.some((m) => Math.hypot(m.x - x, m.z - z) < 14)) continue;
       if (order.length === 0) order = SENTENCES.map((_, i) => i).sort(() => r() - 0.5);
       marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: SENTENCES[order.pop()] });
     }
@@ -403,11 +492,13 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt };
+  window.WELT = { P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS } };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     step(dt);
+    moveAnimals(animals, dt, P, time);
+    for (const pc of pieces) pc.g.visible = Math.hypot(pc.x - camera.position.x, pc.z - camera.position.z) < SEE + CHUNK * 0.72;
     renderer.render(scene, camera);
     frames++;
     if (now - since >= 1000) {
