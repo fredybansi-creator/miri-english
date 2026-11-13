@@ -181,3 +181,7 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   (tap = sound) and N/E/S/W words. Storm the wolf (`MODELS.wolf`, north forest) is a 5th friend in friends.js; with
   5 hearts he follows Raluca (`a.follow`). Still to do in step 9 (needs the app): shop paid with lesson coins (an
   animal shopkeeper, ask in English), daily quests built from the day's lesson words.
+- Big den (2026-11-13): den model at 1.6× with a 5×5 footprint; at the door the act button says "🚪 Reingehen". The
+  room is built far outside the map (`ROOM` x≈-60, floor y 4, `inside` flag switches walking/camera): nest (sleep
+  there), lantern, food store, shelf showing found things, English name signs (tap = sound). Walk out of the door or
+  "🚪 Rausgehen". Save stores the spot in front of the door.
