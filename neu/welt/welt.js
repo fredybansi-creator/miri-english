@@ -4,6 +4,8 @@
 // worm, potato or – on the hill – a treasure.
 // The den is big now (1.6×) and she can go in (🚪 Reingehen): a room with a nest (sleep there), lantern, food store,
 // a shelf with the things she found, all with English name signs (tap = sound). Walk out through the door.
+// Step 9 (the game joins the app): Pip the rabbit has a shop next to the den, paid with the lesson coins of the app;
+// Miri must ask for each thing in English. 📜 daily quests use today's lesson (build 2, say 2, spell 3 words).
 // Minimap (top left) says the way to the next question mark in English (north, south-east …); tap it for the big map
 // with English place names. Storm the wolf (north forest) is a friend too; with 5 hearts he walks with Raluca.
 // Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
@@ -30,6 +32,7 @@ import { play } from '../audio.js';
 import { MODELS } from './models.js';
 import friendData from './friends.js';
 import { startRecording, canRecord } from '../rec.js';
+import { getState, update, today, backup } from '../store.js';
 import travel from '../content/travel.js';
 import friends from '../content/friends.js';
 import doctor from '../content/doctor.js';
@@ -327,6 +330,7 @@ function makeAnimals(scene, mat) {
   const deep = (x, z) => at(x, z) <= 1;
   PONDS.forEach(([px, pz, pr], i) => { for (let k = 0; k < (i === 0 ? 7 : i === 3 ? 2 : 4); k++) add('fish', px, pz, pr * 0.6, { speed: 1.3, swim: true, roam: pr * 0.5, jump: 4 + r() * 10 }, deep); });
   for (const RV of RIVERS) for (let i = 0; i < RV.length - 1; i++) for (let k = 0; k < 2; k++) { const t = r(); add('fish', RV[i][0] + (RV[i + 1][0] - RV[i][0]) * t, RV[i][1] + (RV[i + 1][1] - RV[i][1]) * t, 3, { speed: 1.5, swim: true, roam: 5, jump: 4 + r() * 10 }, deep); }
+  add('rabbit', DEN[0] - 7, DEN[1] - 8, 2, { speed: 0, sit: true, shop: true, shy: 0 });   // Pip, the shopkeeper
   return list;
 }
 /** a mouse: nibbles and dashes about near its hole; if it hears the fox it freezes, then zig-zags home and hides */
@@ -432,7 +436,7 @@ function start() {
   const animals = makeAnimals(scene, boxMat);
   // the four animal friends: the owl at the den, the owl on the hill, the rabbit by the meadow, a hedgehog
   const owls = animals.filter((a) => a.kind === 'owl'), rabbits = animals.filter((a) => a.kind === 'rabbit'), hogs = animals.filter((a) => a.kind === 'hedgehog');
-  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits[rabbits.length - 1], hugo: hogs[0], storm: animals.find((a) => a.kind === 'wolf') };
+  const pick = { olli: owls[0], luna: owls[1], rosie: rabbits.filter((a) => !a.shop).at(-1), hugo: hogs[0], storm: animals.find((a) => a.kind === 'wolf') };
   const pals = friendData.friends.filter((f) => pick[f.id]).map((f) => {
     const a = pick[f.id]; a.friend = f.id; a.shy = 0; if (!a.sit) { a.speed = Math.min(a.speed, 1.1); a.roam = 4; }
     return { ...f, a, step: 0, acc: false, has: false };
@@ -695,7 +699,7 @@ function start() {
   let busy = false, cheer = 0;
   const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const same = (a, b) => { const n = (t) => t.toLowerCase().replace(/[.?!,]/g, '').replace(/\s+/g, ' ').trim(); return n(a) === n(b); };
-  function markDone(m) { m.done = true; found++; showCount(); cheer = 1.2; earn(3); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } }
+  function markDone(m) { if (m.onDone) { m.onDone(); return; } m.done = true; found++; showCount(); cheer = 1.2; earn(3); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } }
   /** answer by voice (checked on the server) or by typing; onResult(level, said, corrected, praise) */
   function micInto(box, { check, hint, answers, onResult }) {
     box.innerHTML = `<p class="small" id="mStatus"></p><div class="row">${canRecord() ? '<button class="btn primary" id="mMic">🎤 Sprechen</button>' : ''}<button class="btn" id="mType">⌨️ Tippen</button></div>
@@ -838,6 +842,7 @@ function start() {
   function whatCanIDo() {
     if (inside) return Math.hypot(P.x - NEST[0], P.z - NEST[1]) < 1.8 ? ['sleep', '😴 Schlafen'] : ['out', '🚪 Rausgehen'];
     if (nearDen()) return ['in', '🚪 Reingehen'];
+    if (pip && !inside && Math.hypot(pip.x - P.x, pip.z - P.z) < 2.6) return ['shop', '🛒 Pip'];
     const pal = palNear(); if (pal) return ['talk', `💬 ${pal.name}`];
     if (mouseNear()) return ['pounce', '🐾 Fangen'];
     if (fishNear() && nearWater()) return ['fish', '🐟 Fischen'];
@@ -852,6 +857,7 @@ function start() {
     if (kind === 'in') { goInside(true); return; }
     if (kind === 'out') { goInside(false); return; }
     if (kind === 'talk') { openTalk(palNear()); return; }
+    if (kind === 'shop') { openShop(); return; }
     if (kind === 'sniff') sniff();
     if (kind === 'dig') { startDig(); return; }
     if (kind === 'fish') {   // she watches the water and snaps when a fish swims past (the closer, the better)
@@ -1216,16 +1222,176 @@ function start() {
     moving = true; busy = true; $('fade').style.opacity = 1;
     setTimeout(() => {
       inside = yes; room.visible = yes; lamp.intensity = yes ? 6 : 0;
-      if (yes) { fillShelf(); P.x = ROOM[0] - RW + 2; P.z = ROOM[1]; P.face = Math.PI; yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face)); }
+      if (yes) { fillShelf(); fillRoomShop(); P.x = ROOM[0] - RW + 2; P.z = ROOM[1]; P.face = Math.PI; yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face)); }
       else { P.x = DEN[0] - 3.2; P.z = DEN[1] + 0.5; P.face = 0; yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face)); }
       P.y = groundAt(P.x, P.z); P.vy = 0; P.air = false;
       camera.position.set(P.x + Math.sin(yaw) * 3, P.y + 2, P.z + Math.cos(yaw) * 3);
-      for (const id of ['miniWrap', 'dig', 'build']) $(id).style.display = yes ? 'none' : ''; $('goal').style.display = yes ? 'none' : '';
+      for (const id of ['miniWrap', 'dig', 'build', 'questBtn']) $(id).style.display = yes ? 'none' : ''; $('goal').style.display = yes ? 'none' : '';
       $('fade').style.opacity = 0; busy = false;
       setTimeout(() => { moving = false; if (yes) toast('Ralucas Bau 🏠  Raluca\'s home – tippe auf die Schilder!'); }, 500);
       save();
     }, 700);
   }
+
+  // ---------------- Pip's shop (coins from the lessons in the app)
+  const pip = animals.find((a) => a.shop);
+  if (pip) {   // a little market stall behind Pip
+    const stall = boxMesh([[0, 0.45, 0, 1.6, 0.9, 0.6, 0x9a6b3d], [0, 0.92, 0, 1.7, 0.06, 0.7, 0xc58b45], [-0.75, 1.3, -0.25, 0.1, 1.6, 0.1, 0x7a5533], [0.75, 1.3, -0.25, 0.1, 1.6, 0.1, 0x7a5533],
+      [-0.6, 2.15, -0.05, 0.4, 0.08, 1.1, 0xd8473a], [-0.2, 2.15, -0.05, 0.4, 0.08, 1.1, 0xf3ead8], [0.2, 2.15, -0.05, 0.4, 0.08, 1.1, 0xd8473a], [0.6, 2.15, -0.05, 0.4, 0.08, 1.1, 0xf3ead8],
+      [-0.5, 1.02, 0, 0.2, 0.2, 0.2, 0xd8322c], [-0.2, 1.0, 0.1, 0.25, 0.12, 0.2, 0xe0a24a], [0.25, 1.02, 0, 0.18, 0.18, 0.18, 0x7b3fa0], [0.55, 1.05, 0, 0.12, 0.26, 0.12, 0x5aa04a]], boxMat);
+    stall.position.set(pip.x + 0.9, pip.y, pip.z - 0.9); stall.rotation.y = Math.PI / 4; scene.add(stall);
+  }
+  const pipLab = document.createElement('div'); pipLab.className = 'lab'; pipLab.innerHTML = 'Pip <span>🛒</span>'; $('labels').appendChild(pipLab);
+  function drawPipLabel() {
+    if (!pip || inside || busy) { pipLab.style.display = 'none'; return; }
+    lv.set(pip.x, pip.y + 0.8, pip.z); const d = Math.hypot(pip.x - P.x, pip.z - P.z); lv.project(camera);
+    if (d > 30 || lv.z > 1 || Math.abs(lv.x) > 1.1 || Math.abs(lv.y) > 1.1) { pipLab.style.display = 'none'; return; }
+    pipLab.style.display = 'block'; pipLab.style.transform = `translate(${((lv.x + 1) / 2) * window.innerWidth}px, ${((1 - lv.y) / 2) * window.innerHeight}px) translate(-50%, -100%)`;
+  }
+  // food is eaten at once; room things stand in the den
+  const SHOPLIST = [
+    { id: 'apple', en: 'an apple', de: 'einen Apfel', icon: '🍎', price: 5, food: 30 },
+    { id: 'sausage', en: 'a sausage', de: 'eine Wurst', icon: '🌭', price: 8, food: 60 },
+    { id: 'honey', en: 'a honey cake', de: 'einen Honigkuchen', icon: '🍯', price: 10, energy: 50 },
+    { id: 'candle', en: 'a candle', de: 'eine Kerze', icon: '🕯️', price: 15, room: true },
+    { id: 'pillow', en: 'a pillow', de: 'ein Kissen', icon: '🛏️', price: 20, room: true },
+    { id: 'plant', en: 'a plant', de: 'eine Pflanze', icon: '🪴', price: 25, room: true },
+    { id: 'picture', en: 'a picture', de: 'ein Bild', icon: '🖼️', price: 30, room: true },
+    { id: 'clock', en: 'a clock', de: 'eine Uhr', icon: '🕰️', price: 40, room: true },
+  ];
+  const owned = new Set();
+  const ROOMSHOP = {   // where the bought things stand in the den room
+    candle: [[3.3, 0.8, 3.2, 0.12, 0.22, 0.12, 0xf3ead8], [3.3, 0.96, 3.2, 0.05, 0.1, 0.05, 0xffb02e]],
+    pillow: [[2.3, 0.22, -2.6, 0.6, 0.18, 0.45, 0x5a8fd8], [2.3, 0.32, -2.6, 0.5, 0.04, 0.35, 0x7fb0f0]],
+    plant: [[-4.3, 0.3, -3.9, 0.6, 0.6, 0.6, 0xb8521a], [-4.3, 0.9, -3.9, 0.3, 0.8, 0.3, 0x3f8f3a], [-4.1, 1.3, -3.8, 0.4, 0.4, 0.4, 0x5aa04a], [-4.5, 1.1, -4.0, 0.35, 0.35, 0.35, 0x4a9a44]],
+    picture: [[1.5, 2.2, -4.45, 1.6, 1.1, 0.08, 0x7a5533], [1.5, 2.2, -4.4, 1.4, 0.9, 0.04, 0x8ec9f0], [1.3, 2.0, -4.37, 0.8, 0.3, 0.02, 0x5aa04a], [1.9, 2.4, -4.37, 0.25, 0.25, 0.02, 0xffd45a]],
+    clock: [[-1, 2.85, 4.45, 0.7, 0.7, 0.08, 0x9a6b3d], [-1, 2.85, 4.4, 0.55, 0.55, 0.04, 0xf3ead8], [-1, 2.95, 4.37, 0.04, 0.22, 0.02, 0x2c3328], [-0.93, 2.85, 4.37, 0.16, 0.04, 0.02, 0x2c3328]],
+  };
+  let roomShop = null;
+  function fillRoomShop() {
+    if (roomShop) { room.remove(roomShop); roomShop.geometry.dispose(); roomShop = null; }
+    const boxes = [...owned].flatMap((id) => ROOMSHOP[id] || []);
+    if (boxes.length) { roomShop = boxMesh(boxes, boxMat); room.add(roomShop); }
+  }
+  const coins = () => getState().coins || 0;
+  const NUMS = { 5: 'five', 8: 'eight', 10: 'ten', 15: 'fifteen', 20: 'twenty', 25: 'twenty-five', 30: 'thirty', 40: 'forty' };
+  function openShop() {
+    if (busy) return;
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const card = $('card'); let mic = null;
+    const close = () => { if (mic) mic.cancel(); $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
+    const hello = 'Hello! Welcome to my shop. What would you like?';
+    const list = () => {
+      if (mic) { mic.cancel(); mic = null; }
+      card.innerHTML = `<div class="talk"><span class="who">🐰</span><div><b>Pip</b> <span class="small">· der Laden</span><p class="en say" data-t="${esc(hello)}">${esc(hello)} 🔊</p></div></div>
+        <p class="small">Du hast <b>🪙 ${coins()} Münzen</b> (die gibt es für Lektionen in der App).</p>
+        <div class="decor">${SHOPLIST.map((it) => { const has = it.room && owned.has(it.id), ok = !has && coins() >= it.price;
+          return `<div class="item ${has ? 'done' : ''}"><span class="ic">${it.icon}</span><span class="nm"><b data-say="${it.en}">${it.en} 🔊</b><small>${it.de}${it.room ? ' · für den Bau' : it.food ? ' · gegen Hunger' : ' · gibt Energie'}</small><small>${has ? '✓ gekauft' : '🪙 ' + it.price}</small></span>
+          ${has ? '' : `<button class="btn ${ok ? 'primary' : ''}" data-id="${it.id}" ${ok ? '' : 'disabled'}>Kaufen</button>`}</div>`; }).join('')}</div>
+        <div class="row"><button class="btn primary" id="bye">Tschüss</button></div>`;
+      $('bye').onclick = (e) => { e.stopPropagation(); play('Goodbye! See you soon.', { role: 'friend' }); close(); };
+    };
+    const ask = (it) => {
+      const answers = [`Can I have ${it.en}, please?`, `I'd like ${it.en}, please.`, `${it.en[0].toUpperCase()}${it.en.slice(1)}, please.`];
+      card.innerHTML = `<div class="talk"><span class="who">🐰</span><div><b>Pip</b><p class="en say" data-t="What would you like?">What would you like? 🔊</p></div></div>
+        <p class="task">Frag auf Englisch: <b>Kann ich bitte ${esc(it.de)} haben?</b></p><div id="mBox"></div><div id="result"></div>
+        <div class="row"><button class="btn" id="back">Zurück</button></div>`;
+      play('What would you like?', { role: 'friend' });
+      mic = micInto($('mBox'), {
+        check: { they: 'What would you like?', de: `Kann ich bitte ${it.de} haben?`, answers }, hint: `She asks for ${it.en} in a shop.`, answers,
+        onResult(level, said, corrected) {
+          const okWord = nWords(said).includes(nWords(it.en).at(-1));
+          if ((level === 'great' || level === 'good') && okWord) {
+            if (coins() < it.price) { list(); return; }
+            update((st) => { st.coins -= it.price; }); try { backup(); } catch { /* offline */ }
+            if (it.room) { owned.add(it.id); if (inside) fillRoomShop(); }
+            if (it.food) needs.food = Math.min(100, needs.food + it.food);
+            if (it.energy) needs.energy = Math.min(100, needs.energy + it.energy);
+            save(); cheer = 1;
+            const thanks = `Here you are! That's ${NUMS[it.price] || it.price} coins. Thank you!`;
+            $('mBox').innerHTML = '';
+            $('result').innerHTML = `<p class="ok">Super! ${it.icon} gekauft · 🪙 −${it.price}</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}<p class="en say" data-t="${esc(thanks)}">🐰 ${esc(thanks)} 🔊</p>
+              <p class="small">${it.room ? 'Es steht jetzt in deinem Bau. 🏠' : 'Lecker! Raluca hat es gleich gegessen.'}</p>`;
+            card.querySelector('#back').outerHTML = '<button class="btn primary" id="back">Weiter</button>';
+            $('back').onclick = (e) => { e.stopPropagation(); list(); };
+            play(thanks, { role: 'friend' });
+          } else {
+            const best = corrected && okWord ? corrected : answers[0];
+            $('result').innerHTML = `<p class="no">Pip versteht dich noch nicht – versuch es noch einmal.</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}<p class="small">Zum Beispiel:</p><p class="en say" data-t="${esc(best)}">${esc(best)} 🔊</p>`;
+          }
+        },
+      });
+      $('back').onclick = (e) => { e.stopPropagation(); list(); };
+    };
+    card.onclick = (ev) => {
+      const s1 = ev.target.closest('[data-say]'); if (s1) { play(s1.dataset.say); return; }
+      const s2 = ev.target.closest('.say[data-t]'); if (s2) { play(s2.dataset.t, { role: 'friend' }); return; }
+      const b = ev.target.closest('.item button[data-id]'); if (b) { const it = SHOPLIST.find((x) => x.id === b.dataset.id); if (it && coins() >= it.price) ask(it); }
+    };
+    list(); $('sheet').classList.add('open');
+    play(hello, { role: 'friend' });
+  }
+
+  // ---------------- 📜 daily quests: today's lesson from the app
+  const ALL_LESSONS = TOPICS.flatMap((t) => t.lessons);
+  function todaysLesson() {
+    const done = getState().done || {};
+    const now = ALL_LESSONS.filter((l) => done[l.id] && done[l.id].date === today());
+    return now.at(-1) || ALL_LESSONS.find((l) => !done[l.id]) || ALL_LESSONS[Math.floor(Math.random() * ALL_LESSONS.length)];
+  }
+  const STOP = new Set(['the', 'and', 'you', 'your', 'have', 'this', 'that', 'with', 'what', 'where', 'there', 'their', 'they', 'them', 'from', 'would', 'could', 'please', 'about', 'some', 'like', 'want', 'need', 'much', 'many', 'very', 'just', 'when', 'then', 'than', 'here', 'been', 'were', 'will', 'does', 'into', 'also']);
+  function questWords(l) {
+    const seen = new Set(), out = [];
+    for (const r of [...(l.repeat || []), ...(l.build || [])]) for (const w of r.en.toLowerCase().replace(/[^a-z' ]/g, ' ').split(/\s+/)) {
+      if (w.length < 4 || w.length > 10 || w.includes("'") || STOP.has(w) || seen.has(w)) continue;
+      seen.add(w); out.push({ w, s: r });
+    }
+    return out.sort((a, b) => b.w.length - a.w.length).slice(0, 3);
+  }
+  let quests = null;
+  function questsToday() {
+    if (!quests || quests.day !== today()) quests = { day: today(), lesson: todaysLesson().id, n: [0, 0, 0], paid: false };
+    return { l: ALL_LESSONS.find((x) => x.id === quests.lesson) || todaysLesson(), q: quests };
+  }
+  function openQuests() {
+    if (busy || inside) return;
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const { l, q } = questsToday(), card = $('card');
+    const says = l.say || [], builds = l.build || [], words = questWords(l);
+    const need = [Math.min(2, builds.length), Math.min(2, says.length), Math.min(3, words.length)];
+    const rows = [['🧩', 'Bau Sätze aus der Lektion', 0], ['🗣️', 'Antworte auf Englisch', 1], ['🔤', 'Schreib Wörter der Lektion', 2]];
+    const allDone = need.every((n, i) => q.n[i] >= n);
+    card.innerHTML = `<p class="small">📜 Aufgaben für heute · aus deiner Lektion</p><p class="de">${esc(l.title)} <span class="small">· ${esc(l.en)}</span></p>
+      <div class="decor">${rows.map(([ic, t, i]) => { const ok = q.n[i] >= need[i];
+        return `<div class="item ${ok ? 'done' : ''}"><span class="ic">${ic}</span><span class="nm"><b>${t}</b><small>${Math.min(q.n[i], need[i])} von ${need[i]} · 🟫 +3 für jede</small></span>${ok ? '<span>✅</span>' : `<button class="btn primary" data-q="${i}">Los</button>`}</div>`; }).join('')}</div>
+      <p class="small">${allDone ? 'Alles geschafft! 🎉 Morgen gibt es neue Aufgaben.' : 'Alle drei geschafft = 🪙 +5 Münzen.'}</p>
+      <div class="row"><button class="btn primary" id="qClose">Weiter spielen</button></div>`;
+    $('sheet').classList.add('open');
+    const step = (i) => {
+      q.n[i]++; earn(3); cheer = 1;
+      if (!q.paid && need.every((n, k) => q.n[k] >= n)) { q.paid = true; update((st) => { st.coins += 5; }); try { backup(); } catch { /* offline */ } setTimeout(() => toast('📜 Alle Aufgaben geschafft! 🪙 +5 Münzen'), 600); }
+      save(); setTimeout(openQuests, 300);
+    };
+    card.onclick = (ev) => {
+      if (ev.target.id === 'qClose') { $('sheet').classList.remove('open'); card.onclick = null; busy = false; return; }
+      const b = ev.target.closest('[data-q]'); if (!b) return;
+      const i = Number(b.dataset.q); card.onclick = null; busy = false;
+      if (i === 0) openExercise({ type: 'build', item: builds[q.n[0] % builds.length], onDone: () => step(0) });
+      else if (i === 1) openSpeak({ type: 'say', item: says[q.n[1] % says.length], onDone: () => step(1) });
+      else spellQuest(words[q.n[2] % words.length], () => step(2));
+    };
+  }
+  function spellQuest({ w, s }, onRight) {
+    busy = true;
+    const gap = s.en.replace(new RegExp(`\\b${w}\\b`, 'i'), '_____');
+    $('card').innerHTML = `<p class="small">Welches Wort fehlt? Schreib es auf Englisch.</p><p class="en" style="font-size:19px">${esc(gap)}</p><p class="small">${esc(s.de)}</p>
+      <div class="row"><button class="btn" id="hearS">🔊 Satz anhören</button></div><div id="spell"></div><div class="row"><button class="btn" id="qBack">Später</button></div>`;
+    $('card').onclick = null;
+    $('hearS').onclick = () => play(s.en);
+    $('qBack').onclick = () => { busy = false; openQuests(); };
+    spellInto($('spell'), w, () => { play(s.en); onRight(); });
+  }
+  $('questBtn').addEventListener('click', openQuests);
 
   // ---------------- minimap + big map: English direction words and place names
   const DIRS = [['north', 'Norden'], ['north-east', 'Nordosten'], ['east', 'Osten'], ['south-east', 'Südosten'], ['south', 'Süden'], ['south-west', 'Südwesten'], ['west', 'Westen'], ['north-west', 'Nordwesten']];
@@ -1513,7 +1679,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), shop: [...owned], quests, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1529,6 +1695,8 @@ function start() {
     if (d.spent && typeof d.spent === 'object') for (const [k, n] of Object.entries(d.spent)) if (word(k) && Number.isFinite(n)) spent[k] = n;
     for (const id of d.built || []) { const dd = DECOR.find((x) => x.id === id); if (dd) { built.add(id); showDecor(dd); } }
     if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; if (f.id === 'storm' && f.step >= f.steps.length) f.a.follow = true; } }
+    for (const id of d.shop || []) if (SHOPLIST.some((it) => it.id === id && it.room)) owned.add(id);
+    if (d.quests && d.quests.day === today() && Array.isArray(d.quests.n)) quests = d.quests;
     showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
     if (Number.isFinite(d.tday)) tday = d.tday;
@@ -1550,7 +1718,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1560,7 +1728,7 @@ function start() {
     drawFinds();
     drawLabels();
     if ((frames & 3) === 0 && !inside) drawMini();
-    drawRoomLabels();
+    drawRoomLabels(); drawPipLabel();
     if (inside && !moving && !busy && P.x < ROOM[0] - RW + 0.35 && Math.abs(P.z - ROOM[1]) < 1) goInside(false);   // walked out of the door
     drawDirt(dt);
     if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();

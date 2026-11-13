@@ -244,3 +244,8 @@ body.in-session .tabbar { display: none; }
 .cheat { border-style: dashed; }
 .stage .fox3d { position: absolute; inset: 0; }
 .stage .fox3d canvas { display: block; width: 100%; height: 100%; }
+
+/* Welt tab (the open-world game) */
+.welt-pic { font-size: 44px; text-align: center; letter-spacing: 6px; padding: 18px 0; border-radius: 16px; background: linear-gradient(#bfe3f5, #cfe9b8); }
+.welt-list { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+a.btn { text-align: center; text-decoration: none; display: block; }
