@@ -123,3 +123,7 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
 - Step 0 (2026-11-13): speed test. 112×112 blocks from noise, one mesh for the land, one instanced mesh for all tree /
   rock / flower blocks, thumb stick + look drag + jump, W A S D on a laptop, frames-per-second display, the picture
   gets less sharp by itself below 40 fps. `window.WELT` is there for tests.
+- Question marks (2026-11-13, Freddy's wish): 10 spinning "?" stand in the world (one instanced mesh); walking into one
+  opens a "build the sentence" card with the `build` items of all lessons (audio via `neu/audio.js`, whose BASE now
+  comes from `import.meta.url`). Arrow + metres at the top right point to the nearest one. Progress is not saved yet and
+  gives no coins yet. Speaking exercises at question marks are still to do.
