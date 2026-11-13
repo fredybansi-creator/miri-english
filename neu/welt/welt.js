@@ -1,4 +1,11 @@
 // Ralucas Welt – step 2, the world: meadow with the den, forest, hill, river and pond; animals walk around.
+// Digging (🐾 Graben, hold it / key F): she digs away the earth block in front of her, like in a block game –
+// holes, tunnels through hills, ponds when she digs below the water. Mounds of earth hide a bone, coin, carrot,
+// worm, potato or – on the hill – a treasure.
+// Mice: they nibble and dash about; if they hear her they freeze, then zig-zag to their hole. Fox hunting like a real
+// fox: sneak close, listen, then a high jump and a dive nose-first; caught mice are carried, then eaten.
+// Step 4/5: fishing at the water; hidden things (feather, shell, crystal …) to find; the book (📖, key B) lists
+// every English word she has found, caught or eaten, with sound.
 // Hunting: sneak up on a mouse (stick only a little / Shift), then "Fangen" = pounce.
 // Step 3: hunger, thirst, energy; eat berries, drink, sleep in the den, sniff the way; day and night; saving.
 // The camera turns behind her by itself while she walks.
@@ -144,6 +151,7 @@ function place(lists, name, x, y, z, turn = 0, scale = 1) {
   }
 }
 const nearWater = (x, z, n) => { for (let a = -n; a <= n; a += n) for (let b = -n; b <= n; b += n) if (at(x + a, z + b) <= WATER) return true; return false; };
+const DECO = new Map();   // cell → [map piece, first box, last box] of flowers, grass, mushrooms on that block
 function plant() {
   const lists = Array.from({ length: (SIZE / CHUNK) ** 2 }, () => []);
   const r = rng(2026);
@@ -159,7 +167,7 @@ function plant() {
     const forest = noise(x / 18 + 7, z / 18 + 3) > 0.52, meadow = Math.hypot(x - mid - 2, z - mid) < 11, wet = nearWater(x, z, 1), y = h;
     const cx = x + 0.5, cz = z + 0.5;
     if (h >= STONE) { if (k < 0.03) { place(lists, 'rock', cx, y, cz, turn, 1 + r() * 1.2); solid[z * SIZE + x] = 1; } continue; }
-    if (wet) { if (k < 0.3) place(lists, 'reeds', cx, y, cz, turn); else if (k < 0.34) place(lists, 'rock', cx, y, cz, turn, 0.7); continue; }
+    if (wet) { if (k < 0.3) { const ci = Math.floor(z / CHUNK) * (SIZE / CHUNK) + Math.floor(x / CHUNK), from = lists[ci].length; place(lists, 'reeds', cx, y, cz, turn); DECO.set(z * SIZE + x, [ci, from, lists[ci].length]); } else if (k < 0.34) place(lists, 'rock', cx, y, cz, turn, 0.7); continue; }
     if (!meadow && k < (forest ? 0.05 : 0.005) && free(x, z, 2) && Math.abs(at(x + 1, z) - h) < 2 && Math.abs(at(x, z + 1) - h) < 2) {
       const kind = h >= 8 || z < mid - 38 ? 'pine' : nearWater(x, z, 7) || r() < 0.18 ? 'birch' : r() < 0.2 ? 'pine' : 'oak';
       const sc = 0.9 + r() * 0.35, rad = kind === 'birch' ? 1 : 2, low = Math.round(y + (kind === 'pine' ? 1.2 : 2.4) * sc);
@@ -170,11 +178,82 @@ function plant() {
     if (k > 0.1 && k < 0.112 && !meadow) { place(lists, 'bush', cx, y, cz, turn, 0.9 + r() * 0.4); solid[z * SIZE + x] = 1; BUSHES.push([cx, cz]); }
     else if (k > 0.2 && k < 0.206) { place(lists, 'rock', cx, y, cz, turn, 0.8 + r() * 0.8); solid[z * SIZE + x] = 1; }
     else if (k > 0.3 && k < (forest ? 0.306 : 0.3015) && free(x, z, 1)) { place(lists, 'log', cx, y, cz, turn); solid[z * SIZE + x] = 1; }
-    else if (k > 0.4 && k < (forest ? 0.412 : 0.401)) place(lists, 'mushroom', cx, y, cz, turn, 0.45 + r() * 0.4);
-    else if (k > 0.5 && k < (forest ? 0.505 : 0.522)) place(lists, 'flowers', cx, y, cz, turn, 0.8 + r() * 0.5);
-    else if (k > 0.7 && k < 0.74) for (let i = 0; i < 3; i++) { const gh = 0.18 + r() * 0.22; lists[Math.floor(z / CHUNK) * (SIZE / CHUNK) + Math.floor(x / CHUNK)].push([x + 0.15 + r() * 0.7, h + gh / 2, z + 0.15 + r() * 0.7, 0.08, gh, 0.08, 0x4d9a40]); }
+    else {
+      const ci = Math.floor(z / CHUNK) * (SIZE / CHUNK) + Math.floor(x / CHUNK), from = lists[ci].length;
+      if (k > 0.4 && k < (forest ? 0.412 : 0.401)) place(lists, 'mushroom', cx, y, cz, turn, 0.45 + r() * 0.4);
+      else if (k > 0.5 && k < (forest ? 0.505 : 0.522)) place(lists, 'flowers', cx, y, cz, turn, 0.8 + r() * 0.5);
+      else if (k > 0.7 && k < 0.74) for (let i = 0; i < 3; i++) { const gh = 0.18 + r() * 0.22; lists[ci].push([x + 0.15 + r() * 0.7, h + gh / 2, z + 0.15 + r() * 0.7, 0.08, gh, 0.08, 0x4d9a40]); }
+      if (lists[ci].length > from) DECO.set(z * SIZE + x, [ci, from, lists[ci].length]);
+    }
   }
   return lists;
+}
+
+
+// ------------------------------------------------------------------ things to find (step 5): small models + where they lie
+// boxes like in models.js: [x, y, z, sx, sy, sz, colour], about 0.4 big
+const FIND_KINDS = {
+  feather: { en: 'feather', de: 'Feder', icon: '🪶', boxes: [[0, 0.03, 0, 0.5, 0.03, 0.04, 0xf3efe6], [0.02, 0.04, 0.05, 0.36, 0.02, 0.07, 0xd8473a], [0.02, 0.04, -0.05, 0.36, 0.02, 0.07, 0xd8473a], [-0.2, 0.04, 0, 0.12, 0.02, 0.06, 0x3a3a3a]] },
+  pinecone: { en: 'pine cone', de: 'Tannenzapfen', icon: '🌲', boxes: [[0, 0.06, 0, 0.16, 0.12, 0.16, 0x7a4d2a], [0, 0.15, 0, 0.13, 0.08, 0.13, 0x8f5d33], [0, 0.22, 0, 0.09, 0.07, 0.09, 0x7a4d2a], [0, 0.28, 0, 0.04, 0.05, 0.04, 0x5c3a1f]] },
+  acorn: { en: 'acorn', de: 'Eichel', icon: '🌰', boxes: [[0, 0.07, 0, 0.12, 0.13, 0.12, 0xc58b45], [0, 0.16, 0, 0.15, 0.06, 0.15, 0x6e4a2b], [0, 0.21, 0, 0.03, 0.05, 0.03, 0x4f3420]] },
+  shell: { en: 'shell', de: 'Muschel', icon: '🐚', boxes: [[0, 0.04, 0, 0.26, 0.06, 0.18, 0xf6d9c9], [0, 0.07, 0, 0.2, 0.04, 0.14, 0xf3b9a8], [0, 0.09, 0, 0.12, 0.03, 0.1, 0xf6d9c9], [0.13, 0.04, 0, 0.06, 0.05, 0.07, 0xe0a690]] },
+  crystal: { en: 'crystal', de: 'Kristall', icon: '💎', boxes: [[0, 0.16, 0, 0.1, 0.32, 0.1, 0x9b7bff], [0.09, 0.1, 0.03, 0.08, 0.2, 0.08, 0x7fe0ff], [-0.08, 0.08, -0.03, 0.07, 0.16, 0.07, 0xc3a8ff], [0, 0.34, 0, 0.05, 0.05, 0.05, 0xe8ddff]] },
+  key: { en: 'key', de: 'Schlüssel', icon: '🗝️', boxes: [[-0.12, 0.03, 0, 0.14, 0.04, 0.14, 0xe5b93a], [-0.12, 0.035, 0, 0.06, 0.05, 0.06, 0x8a6a20], [0.06, 0.03, 0, 0.24, 0.035, 0.04, 0xe5b93a], [0.15, 0.03, 0.04, 0.04, 0.035, 0.06, 0xe5b93a], [0.1, 0.03, 0.04, 0.03, 0.035, 0.05, 0xe5b93a]] },
+  apple: { en: 'apple', de: 'Apfel', icon: '🍎', boxes: [[0, 0.11, 0, 0.2, 0.2, 0.2, 0xd8322c], [0, 0.11, 0, 0.16, 0.22, 0.16, 0xc22a25], [0, 0.24, 0, 0.03, 0.07, 0.03, 0x5c3a1f], [0.05, 0.26, 0, 0.08, 0.02, 0.05, 0x4caa40]] },
+  snail: { en: 'snail', de: 'Schnecke', icon: '🐌', boxes: [[0, 0.03, 0, 0.32, 0.05, 0.08, 0xd9c79a], [-0.17, 0.08, 0, 0.06, 0.08, 0.05, 0xd9c79a], [0.04, 0.13, 0, 0.18, 0.18, 0.1, 0xa86a35], [0.04, 0.13, 0, 0.1, 0.1, 0.11, 0xd6a35f], [0.04, 0.13, 0, 0.04, 0.04, 0.12, 0x7a4a22]] },
+  leaf: { en: 'leaf', de: 'Blatt', icon: '🍂', boxes: [[0, 0.02, 0, 0.3, 0.02, 0.18, 0xe58a2c], [0, 0.03, 0, 0.32, 0.015, 0.03, 0xb85d1a], [0.17, 0.02, 0, 0.08, 0.02, 0.03, 0x8a5a2a]] },
+};
+// things Raluca can dig up at a mound of earth
+const DIG_KINDS = {
+  bone: { en: 'bone', de: 'Knochen', icon: '🦴' }, coin: { en: 'coin', de: 'Münze', icon: '🪙' },
+  carrot: { en: 'carrot', de: 'Karotte', icon: '🥕' }, worm: { en: 'worm', de: 'Wurm', icon: '🪱' },
+  potato: { en: 'potato', de: 'Kartoffel', icon: '🥔' }, treasure: { en: 'treasure', de: 'Schatz', icon: '💰' },
+};
+const DIG_ORDER = ['bone', 'worm', 'carrot', 'coin', 'potato', 'bone', 'worm', 'coin', 'carrot', 'potato', 'worm', 'bone', 'coin', 'treasure'];
+function placeDigs() {
+  const r = rng(777), list = [];
+  for (let tries = 0; tries < 8000 && list.length < DIG_ORDER.length; tries++) {
+    const x = 8 + Math.floor(r() * (SIZE - 16)), z = 8 + Math.floor(r() * (SIZE - 16)), h = at(x, z), d = Math.hypot(x - mid, z - mid);
+    if (h <= WATER + 1 || h >= STONE || solid[z * SIZE + x] || d < (list.length < 2 ? 5 : 9) || d > (list.length < 2 ? 14 : mid - 12)) continue;
+    if (list.some((g) => Math.hypot(g.x - x, g.z - z) < 11)) continue;
+    if (Math.abs(x - DEN[0]) <= 3 && Math.abs(z - DEN[1]) <= 3) continue;
+    // the treasure lies far away, on the hill
+    const kind = DIG_ORDER[list.length];
+    if (kind === 'treasure' && Math.hypot(x - HILL[0], z - HILL[1]) > 20) continue;
+    list.push({ kind, x: x + 0.5, z: z + 0.5, y: h, dug: false });
+  }
+  return list;
+}
+const MOUND = [[0, 0.06, 0, 0.9, 0.12, 0.7, 0x8a623c], [0.05, 0.15, -0.02, 0.6, 0.1, 0.45, 0x7a5533], [-0.05, 0.22, 0.03, 0.3, 0.07, 0.25, 0x8a623c],
+  [0.3, 0.13, 0.22, 0.12, 0.06, 0.1, 0x6e4a2b], [-0.35, 0.1, -0.2, 0.14, 0.06, 0.12, 0x6e4a2b], [0.15, 0.28, 0.0, 0.05, 0.12, 0.05, 0x4d9a40]];
+// things the book also counts, though they are not lying around
+const BOOK_EXTRA = {
+  mouse: { en: 'mouse', de: 'Maus', icon: '🐭' }, fish: { en: 'fish', de: 'Fisch', icon: '🐟' },
+  berries: { en: 'berries', de: 'Beeren', icon: '🫐' }, water: { en: 'water', de: 'Wasser', icon: '💧' },
+};
+function placeFinds() {
+  const r = rng(4242), list = [];
+  const want = { feather: 4, pinecone: 3, acorn: 3, shell: 4, crystal: 3, key: 2, apple: 3, snail: 3, leaf: 3 };
+  const ok = {
+    shell: (x, z, h) => h === WATER + 1 && nearWater(x, z, 1),
+    crystal: (x, z, h) => h >= STONE - 3,
+    pinecone: (x, z, h) => z < mid - 25 && h < STONE,
+    snail: (x, z, h) => nearWater(x, z, 3) && h > WATER,
+    acorn: (x, z, h) => noise(x / 18 + 7, z / 18 + 3) > 0.52 && h < STONE,
+    leaf: (x, z, h) => noise(x / 18 + 7, z / 18 + 3) > 0.52 && h < STONE,
+    apple: (x, z, h) => noise(x / 18 + 7, z / 18 + 3) <= 0.52 && h < STONE,
+  };
+  for (const [kind, n] of Object.entries(want)) {
+    let got = 0;
+    for (let tries = 0; tries < 6000 && got < n; tries++) {
+      const x = 8 + Math.floor(r() * (SIZE - 16)), z = 8 + Math.floor(r() * (SIZE - 16)), h = at(x, z), d = Math.hypot(x - mid, z - mid);
+      if (h <= WATER || solid[z * SIZE + x] || d < 6 || d > mid - 12) continue;
+      if (ok[kind] && !ok[kind](x, z, h)) continue;
+      if (list.some((f) => Math.hypot(f.x - x, f.z - z) < 10)) continue;
+      list.push({ kind, x: x + 0.3 + r() * 0.4, z: z + 0.3 + r() * 0.4, y: h, spin: r() * 6, got: false }); got++;
+    }
+  }
+  return list;
 }
 
 // ------------------------------------------------------------------ animals: each one is a small instanced mesh that moves
@@ -192,6 +271,8 @@ function makeAnimals(scene, mat) {
   add('rabbit', mid - 4, mid + 6, 4, { speed: 2.6, hop: 0.28, shy: 4.5, roam: 6 });
   for (let i = 0; i < 9; i++) add('mouse', mid + (r() * 2 - 1) * 55, mid + (r() * 2 - 1) * 55, 12, { speed: 2.2, shy: 3.5, roam: 5 });
   add('mouse', mid + 3, mid + 7, 4, { speed: 2.2, shy: 3.5, roam: 5 });
+  const HOLE = [[0, 0.015, 0, 0.3, 0.03, 0.3, 0x24170c], [0.2, 0.04, 0, 0.1, 0.08, 0.36, 0x7a5533], [-0.2, 0.04, 0, 0.1, 0.08, 0.36, 0x7a5533], [0, 0.04, 0.2, 0.3, 0.07, 0.1, 0x8a623c], [0, 0.04, -0.2, 0.3, 0.06, 0.1, 0x8a623c]];
+  for (const a of list) if (a.kind === 'mouse') { const h = boxMesh(HOLE, mat); h.position.set(a.hx, at(Math.floor(a.hx), Math.floor(a.hz)), a.hz); scene.add(h); a.hole = h; }
   for (let i = 0; i < 3; i++) add('hedgehog', mid + (r() * 2 - 1) * 40, mid + (r() * 2 - 1) * 40, 12, { speed: 0.6, roam: 6 });
   add('owl', DEN[0] - 1, DEN[1] + 5, 3, { speed: 0, sit: true });
   add('owl', HILL[0] + 22, HILL[1] + 22, 8, { speed: 0, sit: true });
@@ -201,14 +282,42 @@ function makeAnimals(scene, mat) {
   for (const RV of RIVERS) for (let i = 0; i < RV.length - 1; i++) for (let k = 0; k < 2; k++) { const t = r(); add('fish', RV[i][0] + (RV[i + 1][0] - RV[i][0]) * t, RV[i][1] + (RV[i + 1][1] - RV[i][1]) * t, 3, { speed: 1.5, swim: true, roam: 5, jump: 4 + r() * 10 }, deep); }
   return list;
 }
+/** a mouse: nibbles and dashes about near its hole; if it hears the fox it freezes, then zig-zags home and hides */
+function mouseStep(a, dt, P, far) {
+  const hear = P.sneak ? 1.4 : P.speed > 4.2 ? 7 : P.speed > 0.4 ? 4.6 : 2.2;   // sneaking is quiet, running is loud
+  if (a.state !== 'flee' && a.state !== 'freeze' && (a.scare || (far < hear && !a.calm))) { a.state = a.scare ? 'flee' : 'freeze'; a.st = 0.3 + Math.random() * 0.5; }
+  a.scare = false; if (a.calm > 0) a.calm -= dt;
+  if (a.state === 'freeze') { a.st -= dt; if (a.st <= 0) a.state = 'flee'; return false; }
+  let tx, tz, speed;
+  if (a.state === 'flee') {
+    const bx = a.hx - a.x, bz = a.hz - a.z, bd = Math.hypot(bx, bz);
+    if (bd < 0.35) { a.gone = 5 + Math.random() * 6; a.state = ''; return false; }        // into the hole
+    const side = Math.sin(a.t * 11) * 0.9;                                                  // zig-zag
+    tx = bx / bd - (bz / bd) * side; tz = bz / bd + (bx / bd) * side; speed = 4.4;
+  } else {
+    const ox = a.tx - a.x, oz = a.tz - a.z, od = Math.hypot(ox, oz);
+    if (a.wait > 0) { a.wait -= dt; return false; }
+    if (od < 0.2) { a.wait = 0.4 + Math.random() * 2.2; a.tx = a.hx + (Math.random() * 2 - 1) * a.roam; a.tz = a.hz + (Math.random() * 2 - 1) * a.roam; return false; }
+    tx = ox; tz = oz; speed = 1.5;
+  }
+  const n = Math.hypot(tx, tz) || 1, nx = a.x + (tx / n) * speed * dt, nz = a.z + (tz / n) * speed * dt;
+  if (walkable(nx, nz, at(Math.floor(a.x), Math.floor(a.z)))) { a.x = nx; a.z = nz; }
+  else if (a.state === 'flee') { a.x += (a.hx - a.x) * Math.min(1, dt * 3); a.z += (a.hz - a.z) * Math.min(1, dt * 3); }   // squeezes through the grass
+  else { a.tx = a.x; a.tz = a.z; return false; }
+  let diff = Math.atan2(tz, -tx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); a.face += diff * Math.min(1, dt * 12);
+  return true;
+}
 function moveAnimals(list, dt, P, time) {
   for (const a of list) {
+    if (a.held) { a.g.visible = false; continue; }   // in Raluca's mouth
+    if (a.gone > 0 && a.kind === 'mouse') { a.gone -= dt; a.g.visible = false; if (a.gone <= 0) { a.x = a.tx = a.hx; a.z = a.tz = a.hz; a.wait = 1 + Math.random() * 2; a.state = ''; a.calm = 1.5; } continue; }
     if (a.gone > 0) { a.gone -= dt; a.g.visible = false; if (a.gone <= 0) { a.x = a.hx + (Math.random() * 2 - 1) * a.roam; a.z = a.hz + (Math.random() * 2 - 1) * a.roam; if (!walkable(a.x, a.z, at(Math.floor(a.x), Math.floor(a.z)))) { a.x = a.hx; a.z = a.hz; } a.tx = a.x; a.tz = a.z; } continue; }
     const dx = a.x - P.x, dz = a.z - P.z, far = Math.hypot(dx, dz);
     a.g.visible = far < SEE; if (!a.g.visible) continue;
     a.t += dt;
     let moving = false, speed = a.speed;
-    if (a.sit) { let diff = Math.atan2(-dz, dx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); if (far < 12) a.face += diff * Math.min(1, dt * 3); }
+    if (a.kind === 'mouse') moving = mouseStep(a, dt, P, far);
+    else if (a.sit) { let diff = Math.atan2(-dz, dx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); if (far < 12) a.face += diff * Math.min(1, dt * 3); }
     else {
       if (a.shy && far < a.shy * (P.sneak ? 0.4 : 1)) { a.tx = a.x + (dx / (far || 1)) * 6; a.tz = a.z + (dz / (far || 1)) * 6; a.wait = 0; speed = a.speed * 2.2; }
       const tx = a.tx - a.x, tz = a.tz - a.z, td = Math.hypot(tx, tz);
@@ -253,9 +362,9 @@ function start() {
   const landMat = new THREE.MeshLambertMaterial({ vertexColors: true, map: tex }), boxMat = new THREE.MeshLambertMaterial({ map: tex });
   const lists = plant(), pieces = [];
   for (let cz = 0; cz < SIZE / CHUNK; cz++) for (let cx = 0; cx < SIZE / CHUNK; cx++) {
-    const g = new THREE.Group(); g.add(buildLand(landMat, cx * CHUNK, cz * CHUNK));
-    const boxes = lists[cz * (SIZE / CHUNK) + cx]; if (boxes.length) g.add(boxMesh(boxes, boxMat));
-    scene.add(g); pieces.push({ g, x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK });
+    const g = new THREE.Group(), land = buildLand(landMat, cx * CHUNK, cz * CHUNK); g.add(land);
+    const boxes = lists[cz * (SIZE / CHUNK) + cx], bm = boxes.length ? boxMesh(boxes, boxMat) : null; if (bm) g.add(bm);
+    scene.add(g); pieces.push({ g, land, bm, cx, cz, x: (cx + 0.5) * CHUNK, z: (cz + 0.5) * CHUNK });
   }
   const animals = makeAnimals(scene, boxMat);
   const water = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), new THREE.MeshLambertMaterial({ color: 0x4fa8e0, transparent: true, opacity: 0.72 }));
@@ -267,6 +376,7 @@ function start() {
   const actor = /raluca=fuchs/.test(location.search) ? makeFoxActor() : makeDogActor(makeFoxActor);
   actor.root.position.x = 0.1; actor.root.scale.setScalar(0.9);
   const body = new THREE.Group(); body.add(actor.root); who.add(body);
+  const mouthMouse = boxMesh(MODELS.mouse.boxes, boxMat); mouthMouse.visible = false; who.add(mouthMouse);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
 
@@ -281,10 +391,13 @@ function start() {
   const keys = new Set();
   const input = { x: 0, y: 0, jump: false };
   const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · E: Aktion · Maus: umsehen';
+  $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · E: Aktion · F: graben · Maus: umsehen';
   if (!touch) $('jump').style.display = 'none';
   setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); } if (e.code === 'KeyE' && !e.repeat) doAction(); });
+  window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); }
+    if (e.code === 'KeyE' && !e.repeat) doAction();
+    if (e.code === 'KeyF' && !e.repeat) startDig();
+    if (e.code === 'KeyB' && !e.repeat) { if (busy && $('closeBook')) $('closeBook').click(); else openBook(); } });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
   let yaw = -1.25, lookedAt = 0, pitch = 0.42, stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
@@ -369,7 +482,7 @@ function start() {
     const g = groundAt(P.x, P.z);
     if (input.jump && !P.air) { P.vy = 7.4; P.air = true; }
     input.jump = false;
-    if (act && act.kind === 'pounce' && P.air) {   // the pounce carries her forward
+    if (act && act.kind === 'pounce' && act.leapt && P.air) {   // the pounce carries her forward
       const vx = act.vx * dt, vz = act.vz * dt;
       if (!blocked(P.x + vx + Math.sign(vx) * 0.3, P.z, P.y + 1)) P.x += vx;
       if (!blocked(P.x, P.z + vz + Math.sign(vz) * 0.3, P.y + 1)) P.z += vz;
@@ -396,7 +509,11 @@ function start() {
     if (P.sneak && !P.air && !act) { p.bodyY = -0.08; p.headNod += 0.12; p.earL -= 0.15; p.earR -= 0.15; p.tailUp -= 0.15; }
     if (weak && !P.air) { p.earL += 0.4; p.earR += 0.4; p.tailUp -= 0.2; p.headNod += 0.1; }
     if (act) actPose(p);
-    if (P.air) { const t = Math.max(-1, Math.min(1, P.vy / 7.4)); p.fl = p.fr = -0.7 * (0.4 + Math.abs(t)); p.bl = p.br = 0.8 * (0.4 + Math.abs(t)); p.pitch = t * 0.22; p.tailUp = 0.35; }
+    if (P.air && act && act.kind === 'pounce') {
+      const t = Math.max(-1, Math.min(1, P.vy / 8.6));
+      p.pitch = t > 0 ? t * 0.55 : t * 1.05; p.headNod = t > 0 ? -0.1 : -t * 0.35;
+      p.fl = p.fr = t > 0 ? 0.5 : -1.2; p.bl = p.br = 0.9; p.tail = 0; p.tailUp = 0.45; p.earL = p.earR = -0.3;
+    } else if (P.air) { const t = Math.max(-1, Math.min(1, P.vy / 7.4)); p.fl = p.fr = -0.7 * (0.4 + Math.abs(t)); p.bl = p.br = 0.8 * (0.4 + Math.abs(t)); p.pitch = t * 0.22; p.tailUp = 0.35; }
     blink -= dt; if (blink < 0) { blinkT = 0; blink = 2.5 + Math.random() * 3; }
     if (blinkT >= 0) { blinkT += dt; p.blink = Math.sin(Math.min(1, blinkT / 0.16) * Math.PI); if (blinkT > 0.16) blinkT = -1; }
     if (act && act.kind === 'sleep') p.blink = 1;
@@ -405,6 +522,11 @@ function start() {
     const sink = inWater ? -0.22 : 0;
     who.position.set(P.x, P.y + bob + sink, P.z);
     who.rotation.y = P.face;
+    if (act && act.kind === 'catch') {   // the mouse hangs from her mouth, then gets smaller while she eats
+      mouthMouse.visible = true; const eat = Math.max(0, act.t - 1.6) / 1.4;
+      mouthMouse.position.set(-0.5 - eat * 0.05, act.t < 1.6 ? 0.8 : 0.3 - eat * 0.1, 0); mouthMouse.rotation.set(0, Math.PI / 2, act.t < 1.6 ? 0.9 + Math.sin(time * 9) * 0.1 : 0);
+      mouthMouse.scale.setScalar(0.6 * (1 - eat * 0.85));
+    } else mouthMouse.visible = false;
     shadow.position.set(P.x, g + 0.02, P.z); shadow.visible = !inWater;
     const sh = 1 / (1 + Math.max(0, P.y - g) * 0.5); shadow.scale.setScalar(sh);
 
@@ -538,11 +660,13 @@ function start() {
   const nearBush = () => BUSHES.some(([x, z]) => Math.hypot(x - P.x, z - P.z) < 1.9);
   const nearWater = () => { if (P.y < WATER + 0.5) return true; for (let a = 0; a < 8; a++) { const t = (a / 8) * Math.PI * 2; if (at(Math.floor(P.x + Math.cos(t) * 1.3), Math.floor(P.z + Math.sin(t) * 1.3)) <= WATER) return true; } return false; };
   const nearDen = () => Math.hypot(DEN[0] + 0.5 - P.x, DEN[1] + 0.5 - P.z) < 3.4;
+  const fishNear = () => { let best = null, bd = 3.2; for (const a of animals) if (a.kind === 'fish' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   const mouseNear = () => { let best = null, bd = 4.5; for (const a of animals) if (a.kind === 'mouse' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   let caught = 0;
   function whatCanIDo() {
     if (nearDen()) return ['sleep', '😴 Schlafen'];
     if (mouseNear()) return ['pounce', '🐾 Fangen'];
+    if (fishNear() && nearWater()) return ['fish', '🐟 Fischen'];
     if (nearBush()) return ['eat', '🫐 Fressen'];
     if (nearWater()) return ['drink', '💧 Trinken'];
     return ['sniff', '👃 Schnüffeln'];
@@ -552,11 +676,15 @@ function start() {
     const [kind] = whatCanIDo();
     if (kind === 'sleep') { goSleep(); return; }
     if (kind === 'sniff') sniff();
-    if (kind === 'pounce') {   // jump at the mouse: a little short or long, so a good spot (close, sneaked up) matters
-      const m = mouseNear(), dx = m.x - P.x, dz = m.z - P.z, d = Math.hypot(dx, dz);
-      P.face = Math.atan2(dz, -dx); P.vy = 6.2; P.air = true;
-      const reach = Math.min(d, 3.6) / 0.6;   // the jump lasts about 0.6 s
-      act = { kind, t: 0, d: 2, target: m, vx: (dx / d) * reach, vz: (dz / d) * reach };
+    if (kind === 'dig') { startDig(); return; }
+    if (kind === 'fish') {   // she watches the water and snaps when a fish swims past (the closer, the better)
+      const f = fishNear(); P.face = Math.atan2(f.z - P.z, -(f.x - P.x));
+      act = { kind, t: 0, d: 1.9, target: f, keep: f.speed }; f.speed = 0; f.tx = f.x; f.tz = f.z;
+      return;
+    }
+    if (kind === 'pounce') {   // like a real fox: stand still and listen, then a high jump and down nose-first
+      const m = mouseNear(); P.face = Math.atan2(m.z - P.z, -(m.x - P.x));
+      act = { kind, t: 0, d: 9, target: m, sneaked: P.sneak || P.speed < 0.3 };
       return;
     }
     act = { kind, t: 0, d: kind === 'eat' ? 1.8 : kind === 'drink' ? 2.2 : 1.6 };
@@ -573,8 +701,27 @@ function start() {
     } else if (act.kind === 'sniff') {
       const down = Math.min(1, t / 0.25, (act.d - t) / 0.25);
       p.headNod = 0.5 * down + Math.sin(t * 28) * 0.05 * down; p.headTurn = Math.sin(t * 4) * 0.35 * down; p.earL = p.earR = -0.2 * down; p.tailUp = 0.3;
+    } else if (act.kind === 'dig') {
+      // nose down, front paws scrape fast, tail up
+      const down = Math.min(1, act.t / 0.25), w = Math.sin(act.t * 26);
+      p.pitch = -0.2 * down; p.bodyY = -0.06 * down; p.headNod = 0.55 * down; p.fl = (-0.5 + w * 0.6) * down; p.fr = (-0.5 - w * 0.6) * down;
+      p.bl = p.br = 0.15 * down; p.tail = Math.sin(act.t * 12) * 0.5; p.tailUp = 0.45;
+    } else if (act.kind === 'fish') {
+      // watch the water, then a quick snap down at the end
+      const k = act.t / act.d, snap = k > 0.8 ? Math.sin(((k - 0.8) / 0.2) * Math.PI) : 0;
+      p.pitch = -0.1 - snap * 0.25; p.headNod = 0.45 + snap * 0.6 + Math.sin(act.t * 3) * 0.05 * (1 - snap); p.fl = p.fr = -0.2 - snap * 0.4; p.tail = Math.sin(act.t * 5) * 0.25; p.tailUp = 0.3; p.earL = p.earR = -0.25;
     } else if (act.kind === 'pounce') {
-      // the jump pose comes from the air pose below
+      if (!act.leapt) {   // crouch, ears forward, head tilts – she listens for the mouse in the grass
+        const down = Math.min(1, t / 0.2);
+        p.bodyY = -0.12 * down; p.headNod = 0.3 * down; p.headTurn = Math.sin(t * 7) * 0.18; p.earL = p.earR = -0.4 * down; p.tail = 0; p.tailUp = 0.1;
+        p.bl = p.br = 0.25 * down; p.fl = p.fr = -0.1 * down;
+      }
+    } else if (act.kind === 'catch') {   // the mouse in her mouth, head up and proud, then eat it
+      if (t < 1.6) { p.headNod = -0.25; p.tail = Math.sin(t * 12) * 0.7; p.tailUp = 0.5; p.earL = p.earR = -0.2; }
+      else { const k2 = t - 1.6; p.pitch = -0.12; p.headNod = 0.8 + Math.sin(k2 * 16) * 0.07; p.fl = p.fr = -0.15; p.tail = Math.sin(t * 7) * 0.5; p.tailUp = 0.25; }
+    } else if (act.kind === 'miss') {   // nose in the snow… er, grass: a short moment stuck, then shake
+      const k2 = Math.min(1, t / 0.15) * Math.min(1, (act.d - t) / 0.3);
+      p.pitch = -0.45 * k2; p.headNod = 0.6 * k2; p.fl = p.fr = -0.6 * k2; p.bl = p.br = 0.3 * k2; p.tailUp = 0.55 * k2; p.headTurn = t > 0.5 ? Math.sin(t * 30) * 0.3 : 0;
     } else if (act.kind === 'sleep') {
       Object.assign(p, { bodyY: -0.34, fl: -1.45, fr: -1.45, bl: 1.45, br: 1.45, flS: 0.9, frS: 0.9, blS: 0.7, brS: 0.7, headNod: 0.25, earL: 0.4, earR: 0.4, tail: 0, tailUp: -0.3 });
     }
@@ -588,15 +735,48 @@ function start() {
     if (act) {
       act.t += dt;
       if (act.face != null) { let d = act.face - P.face; d = Math.atan2(Math.sin(d), Math.cos(d)); P.face += d * Math.min(1, dt * 8); }
-      if (act.kind === 'pounce' && act.t > 0.2 && !P.air) {
-        const m = act.target, d = Math.hypot(m.x - P.x, m.z - P.z);
-        if (d < 1.3 && !(m.gone > 0)) { m.gone = 25; caught++; needs.food = Math.min(100, needs.food + 30); cheer = 0.8; toast(caught === 1 ? 'Gefangen! 🐭  a mouse – Raluca is a good hunter!' : 'Gefangen! 🐭  a mouse'); }
-        else toast(d < 3 ? 'Knapp daneben! Schleich dich näher an.' : 'Die Maus ist weg! Langsam anschleichen hilft.');
+      if (act.kind === 'pounce') {
+        const m = act.target;
+        if (!act.leapt) {
+          const dx = m.x - P.x, dz = m.z - P.z, d = Math.hypot(dx, dz) || 1;
+          P.face += Math.atan2(Math.sin(Math.atan2(dz, -dx) - P.face), Math.cos(Math.atan2(dz, -dx) - P.face)) * Math.min(1, dt * 10);
+          if (act.t >= 0.65) {   // jump! the mouse may hear it – less often when she sneaked up and is close
+            const air = (2 * 8.6) / 21, err = (Math.random() - 0.5) * 0.25 * d / 3, reach = Math.min(d + err, 4.2) / air;
+            act.leapt = act.t; act.vx = (dx / d) * reach; act.vz = (dz / d) * reach; P.vy = 8.6; P.air = true;
+            const hearIt = (act.sneaked ? 0.12 : 0.45) + (d > 3.2 ? 0.25 : 0) + (m.state === 'flee' ? 1 : 0);
+            if (Math.random() < hearIt) m.scare = true; else { m.wait = Math.max(m.wait || 0, 1.5); m.tx = m.x; m.tz = m.z; }
+          }
+        } else if (act.t - act.leapt > 0.25 && !P.air) {   // landed, nose in the grass
+          const d = Math.hypot(m.x - P.x, m.z - P.z);
+          if (d < 1.05 && !(m.gone > 0)) {
+            m.held = true; m.state = ''; caught++; book('mouse'); cheer = 0;
+            act = { kind: 'catch', t: 0, d: 3, target: m };
+            toast(caught === 1 ? 'Gefangen! 🐭  a mouse – Raluca is a good hunter!' : 'Gefangen! 🐭  a mouse');
+          } else {
+            act = { kind: 'miss', t: 0, d: 0.9 };
+            toast(d < 2.5 ? 'Knapp daneben! Die Maus hat dich gehört.' : 'Die Maus ist weg! Langsam anschleichen, dann springen.');
+          }
+          return;
+        }
+      }
+      if (act.kind === 'catch' && act.t >= act.d) {
+        const m = act.target; m.held = false; m.gone = 25; mouthMouse.visible = false;
+        needs.food = Math.min(100, needs.food + 30); act = null; cheer = 0.6; save(); return;
+      }
+      if (act.kind === 'miss' && act.t >= act.d) { act = null; return; }
+      if (act.kind === 'dig') {
+        if (act.t > 0.15 && Math.random() < dt * 30) dirt(act.x + 0.5, H[act.z * SIZE + act.x] + 0.1, act.z + 0.5);
+        if (act.t >= act.d) { const a0 = act; act = null; digDone(a0); return; }
+      }
+      if (act.kind === 'fish' && act.t >= act.d) {
+        const f = act.target, d = Math.hypot(f.x - P.x, f.z - P.z); f.speed = act.keep || 1.3;
+        if (d < 3.3 && Math.random() < (d < 2 ? 0.9 : 0.7)) { f.gone = 30; book('fish'); needs.food = Math.min(100, needs.food + 35); cheer = 0.8; toast('Ein Fisch! 🐟  a fish'); }
+        else toast('Platsch! Der Fisch ist weggeschwommen. Nochmal!');
         act = null; save(); return;
       }
       if (act.t >= act.d && act.kind !== 'sleep') {
-        if (act.kind === 'eat') { needs.food = Math.min(100, needs.food + 40); toast('Mmm, Beeren! 🫐  berries'); }
-        if (act.kind === 'drink') { needs.water = 100; toast('Ahh, frisches Wasser! 💧  water'); }
+        if (act.kind === 'eat') { book('berries'); needs.food = Math.min(100, needs.food + 40); toast('Mmm, Beeren! 🫐  berries'); }
+        if (act.kind === 'drink') { book('water'); needs.water = 100; toast('Ahh, frisches Wasser! 💧  water'); }
         act = null; save();
       }
     }
@@ -624,8 +804,158 @@ function start() {
   const trailMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.14, 0.14, 0.14), new THREE.MeshBasicMaterial({ color: 0xfff09a }), TRAIL);
   trailMesh.frustumCulled = false; trailMesh.visible = false; scene.add(trailMesh);
   let trail = null;
+  // ---------------- things to find + the collection book
+  const finds = placeFinds();
+  const bookCount = {};   // kind → how many found / caught / eaten
+  for (const f of finds) {
+    const g = new THREE.Group(); g.add(boxMesh(FIND_KINDS[f.kind].boxes, boxMat));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff3a0, transparent: true, opacity: 0.35, depthWrite: false }));
+    glow.position.y = 0.03; g.add(glow);
+    g.position.set(f.x, f.y, f.z); g.scale.setScalar(1.3); scene.add(g); f.g = g;
+  }
+  function drawFinds() {
+    for (const f of finds) {
+      if (f.got) { f.g.visible = false; continue; }
+      const d = Math.hypot(f.x - P.x, f.z - P.z); f.g.visible = d < SEE * 0.75;
+      if (!f.g.visible) continue;
+      f.g.children[0].rotation.y = f.spin + time * 0.8; f.g.children[0].position.y = 0.06 + Math.sin(time * 2.4 + f.spin) * 0.05;
+      f.g.children[1].material.opacity = 0.25 + Math.sin(time * 3 + f.spin) * 0.12;
+      if (d < 1.3 && !busy && !act) pickUp(f);
+    }
+  }
+  function book(kind) { bookCount[kind] = (bookCount[kind] || 0) + 1; }
+  const word = (k) => FIND_KINDS[k] || DIG_KINDS[k] || BOOK_EXTRA[k];
+  let foundTimer = 0;
+  function pickUp(f) {
+    f.got = true; book(f.kind); cheer = 0.6;
+    const w = FIND_KINDS[f.kind], first = bookCount[f.kind] === 1;
+    $('found').innerHTML = `<span class="ic">${w.icon}</span><span><b>${w.en}</b><small>${w.de}${first ? ' · neu im Buch!' : ''}</small></span><span class="say">🔊</span>`;
+    $('found').classList.add('show'); clearTimeout(foundTimer); foundTimer = setTimeout(() => $('found').classList.remove('show'), 4200);
+    $('found').onclick = () => play(w.en);
+    play(w.en);
+    save();
+  }
+  function openBook() {
+    if (busy) return;
+    busy = true; keys.clear(); input.x = input.y = 0;
+    const all = [...Object.keys(FIND_KINDS), ...Object.keys(DIG_KINDS), ...Object.keys(BOOK_EXTRA)];
+    const known = all.filter((k) => bookCount[k]).length;
+    const left = finds.filter((f) => !f.got).length + digs.filter((g) => !g.dug).length;
+    $('card').innerHTML = `<p class="small">Ralucas Buch · ${known} von ${all.length} Wörtern · noch ${left} Dinge versteckt</p>
+      <div class="book">${all.map((k) => { const w = word(k), n = bookCount[k] || 0;
+        return n ? `<button class="entry" data-k="${k}"><span class="ic">${w.icon}</span><b>${w.en}</b><small>${w.de}</small><i>× ${n}</i></button>`
+          : '<div class="entry unknown"><span class="ic">?</span><b>???</b><small>noch nicht gefunden</small></div>'; }).join('')}</div>
+      <p class="small">Tippe auf ein Wort, um es zu hören.</p>
+      <div class="row"><button class="btn primary" id="closeBook">Weiter spielen</button></div>`;
+    $('sheet').classList.add('open');
+    $('card').onclick = (ev) => { const b = ev.target.closest('.entry[data-k]'); if (b) play(word(b.dataset.k).en); };
+    $('closeBook').onclick = () => { $('sheet').classList.remove('open'); $('card').onclick = null; busy = false; };
+  }
+  $('bookBtn').addEventListener('click', openBook);
+
+  // ---------------- digging: mounds of earth with something buried
+  const digs = placeDigs();
+  for (const g of digs) {
+    const grp = new THREE.Group(); grp.add(boxMesh(MOUND, boxMat));
+    grp.position.set(g.x, g.y, g.z); grp.rotation.y = g.x * 1.7; scene.add(grp); g.g = grp;
+  }
+  const showDig = (g) => { g.g.visible = !g.dug; };
+  function digNear() { for (const g of digs) if (!g.dug && Math.hypot(g.x - P.x, g.z - P.z) < 1.7) return g; return null; }
+  // flying bits of earth while she digs
+  const DIRT = 14, dirtMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), new THREE.MeshLambertMaterial({ color: 0x7a5533 }), DIRT);
+  dirtMesh.frustumCulled = false; scene.add(dirtMesh);
+  const bits = Array.from({ length: DIRT }, () => ({ t: 9 }));
+  function dirt(x, y, z) {
+    const b = bits.find((q) => q.t > 0.8) || bits[0];
+    const back = P.face; // throw the earth backwards, behind her
+    Object.assign(b, { t: 0, x, y: y + 0.2, z, vx: Math.cos(back) * 2 + (Math.random() - 0.5), vy: 2.5 + Math.random() * 1.5, vz: -Math.sin(back) * 2 + (Math.random() - 0.5) });
+  }
+  const dm = new THREE.Matrix4(), dq = new THREE.Quaternion(), dp = new THREE.Vector3(), dsc = new THREE.Vector3();
+  function drawDirt(dt) {
+    bits.forEach((b, i) => {
+      b.t += dt;
+      if (b.t < 0.8) { b.vy -= 12 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; }
+      dp.set(b.x || 0, b.y || -50, b.z || 0); dsc.setScalar(b.t < 0.8 ? 1 : 0); dm.compose(dp, dq, dsc); dirtMesh.setMatrixAt(i, dm);
+    });
+    dirtMesh.instanceMatrix.needsUpdate = true;
+  }
+  // ---------------- digging blocks: the earth block in front of her goes away (or the one she stands on)
+  const changed = new Map();   // cell → new height (saved)
+  let earth = 0, digHold = false, digTold = 0;
+  function frontCell() {
+    const g = digNear(); if (g) return [Math.floor(g.x), Math.floor(g.z), g];
+    const fx = -Math.cos(P.face), fz = Math.sin(P.face), px = Math.floor(P.x), pz = Math.floor(P.z);
+    for (const k of [0.75, 1.1, 1.5]) { const x = Math.floor(P.x + fx * k), z = Math.floor(P.z + fz * k); if (x !== px || z !== pz) return [x, z, null]; }
+    return [px, pz, null];
+  }
+  function whyNot(x, z) {
+    const i = z * SIZE + x, h = H[i];
+    if (x < 3 || z < 3 || x > SIZE - 4 || z > SIZE - 4) return 'Hier geht es nicht weiter.';
+    if (Math.abs(x - DEN[0]) <= 2 && Math.abs(z - DEN[1]) <= 2) return 'Nicht am eigenen Bau graben! 🏠';
+    if (solid[i]) return 'Da steht etwas im Weg.';
+    if (h >= STONE) return 'Stein ist zu hart zum Graben. 🪨';
+    if (h <= 1) return 'Tiefer geht es nicht.';
+    if (h <= WATER && P.y < WATER + 0.5) return null;   // she may dig under water too: the pond gets deeper
+    return null;
+  }
+  function startDig() {
+    if (act || busy || P.air) return;
+    const [x, z, g] = frontCell(), no = whyNot(x, z);
+    if (no) { if (performance.now() - digTold > 2500) { toast(no); digTold = performance.now(); } return; }
+    P.face = Math.atan2(z + 0.5 - P.z, -(x + 0.5 - P.x));
+    act = { kind: 'dig', t: 0, d: g ? 1.6 : 0.85, x, z, mound: g };
+  }
+  function setHeight(x, z, h) {
+    const i = z * SIZE + x; H[i] = h; changed.set(i, h);
+    const dc = DECO.get(i);   // flowers / grass on that block are gone
+    if (dc) { const pc = pieces[dc[0]], zero = new THREE.Matrix4().makeScale(0, 0, 0); for (let k = dc[1]; k < dc[2]; k++) pc.bm.setMatrixAt(k, zero); pc.bm.instanceMatrix.needsUpdate = true; DECO.delete(i); }
+    for (const f of finds) if (Math.floor(f.x) === x && Math.floor(f.z) === z) { f.y = h; f.g.position.y = h; }
+    for (const m of marks) if (Math.floor(m.x) === x && Math.floor(m.z) === z) m.y = h;
+    for (const a of animals) if (a.hole && Math.floor(a.hx) === x && Math.floor(a.hz) === z) a.hole.position.y = h;
+  }
+  function reland(cells) {
+    const todo = new Set();
+    for (const [x, z] of cells) for (const [a, b] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const cx = Math.floor((x + a) / CHUNK), cz = Math.floor((z + b) / CHUNK);
+      if (cx >= 0 && cz >= 0 && cx < SIZE / CHUNK && cz < SIZE / CHUNK) todo.add(cz * (SIZE / CHUNK) + cx);
+    }
+    for (const ci of todo) {
+      const pc = pieces[ci], land = buildLand(landMat, pc.cx * CHUNK, pc.cz * CHUNK);
+      pc.g.remove(pc.land); pc.land.geometry.dispose(); pc.g.add(land); pc.land = land;
+    }
+  }
+  function digDone(a0) {
+    const { x, z } = a0, h = H[z * SIZE + x];
+    if (whyNot(x, z)) return;
+    setHeight(x, z, h - 1); reland([[x, z]]);
+    for (let k = 0; k < 6; k++) dirt(x + 0.5, h - 0.6, z + 0.5);
+    earth++;
+    if (a0.mound) digUp(a0.mound);
+    else if (Math.random() < 0.08) {   // sometimes there is something in the earth
+      const r = Math.random(), kind = r < 0.55 ? 'worm' : r < 0.75 ? 'bone' : r < 0.9 ? 'carrot' : 'potato';
+      digUp({ kind, g: new THREE.Group(), x: x + 0.5, z: z + 0.5 });
+    }
+    if (H[Math.floor(P.z) * SIZE + Math.floor(P.x)] < P.y - 0.6) { P.air = true; P.vy = 0; }   // the block under her: she drops in
+    showEarth(); save();
+  }
+  const showEarth = () => { $('earth').textContent = `🟫 ${earth}`; $('earth').style.display = earth ? 'block' : 'none'; };
+  $('dig').addEventListener('pointerdown', (e) => { e.preventDefault(); digHold = true; startDig(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('dig').addEventListener(ev, () => { digHold = false; });
+  function digUp(g) {
+    g.dug = true; if (g.g.parent) showDig(g); book(g.kind); cheer = 0.8;
+    const w = DIG_KINDS[g.kind], first = bookCount[g.kind] === 1;
+    if (g.kind === 'carrot' || g.kind === 'potato') needs.food = Math.min(100, needs.food + 20);
+    $('found').innerHTML = `<span class="ic">${w.icon}</span><span><b>${g.kind === 'treasure' ? 'a treasure!' : w.en}</b><small>${w.de}${first ? ' · neu im Buch!' : ''}</small></span><span class="say">🔊</span>`;
+    $('found').classList.add('show'); clearTimeout(foundTimer); foundTimer = setTimeout(() => $('found').classList.remove('show'), 4200);
+    $('found').onclick = () => play(w.en);
+    play(w.en);
+  }
+
   function sniff() {
-    const n = nearest();
+    // the nearest open question mark, hidden thing or mound of earth
+    let n = nearest();
+    for (const g of digs) { if (g.dug) continue; const d = Math.hypot(g.x - P.x, g.z - P.z); if (!n || d < n.d) n = { m: g, d }; }
+    for (const f of finds) { if (f.got) continue; const d = Math.hypot(f.x - P.x, f.z - P.z); if (!n || d < n.d) n = { m: f, d }; }
     if (!n) { toast('Hier riecht nichts Neues.'); return; }
     const pts = [], len = Math.min(n.d, 14), dx = (n.m.x - P.x) / n.d, dz = (n.m.z - P.z) / n.d;
     for (let i = 0; i < TRAIL; i++) { const k = 1 + (i / (TRAIL - 1)) * (len - 1), x = P.x + dx * k, z = P.z + dz * k; pts.push([x, z, groundAt(x, z)]); }
@@ -673,16 +1003,26 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
     let d = null;
     try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { d = null; }
     if (!d || d.v !== 1) return;
+    if (Array.isArray(d.holes)) {
+      const cells = [];
+      for (const [i, h] of d.holes) if (Number.isInteger(i) && i >= 0 && i < H.length && Number.isInteger(h) && h >= 1 && h <= H[i]) { setHeight(i % SIZE, Math.floor(i / SIZE), h); cells.push([i % SIZE, Math.floor(i / SIZE)]); }
+      if (cells.length) reland(cells);
+    }
+    if (Number.isFinite(d.earth)) earth = d.earth;
+    showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
     if (Number.isFinite(d.tday)) tday = d.tday;
     if (Number.isFinite(d.caught)) caught = d.caught;
+    if (d.book && typeof d.book === 'object') for (const [k, n] of Object.entries(d.book)) if (word(k) && Number.isFinite(n)) bookCount[k] = n;
+    for (const i of d.got || []) if (finds[i]) finds[i].got = true;
+    for (const i of d.dug || []) if (digs[i]) { digs[i].dug = true; showDig(digs[i]); }
     for (const k of ['food', 'water', 'energy']) if (Number.isFinite(d[k])) needs[k] = Math.max(30, d[k]);   // after a break she is never starving
     if (d.round > 0) { round = d.round; placeMarks(); }
     for (const i of d.done || []) if (marks[i] && !marks[i].done) { marks[i].done = true; found++; }
@@ -697,13 +1037,16 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     step(dt);
     moveAnimals(animals, dt, P, time);
     drawTrail(dt);
+    drawFinds();
+    drawDirt(dt);
+    if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();
     const e = sky();
     if ((frames & 7) === 0) showNeeds(e);
     for (const pc of pieces) pc.g.visible = Math.hypot(pc.x - camera.position.x, pc.z - camera.position.z) < SEE + CHUNK * 0.72;
@@ -723,4 +1066,4 @@ function start() {
   requestAnimationFrame(frame);
 }
 
-if (webglOk()) start(); else { $('err').style.display = 'flex'; $('hud').style.display = 'none'; $('jump').style.display = 'none'; }
+if (webglOk()) start(); else { $('err').style.display = 'flex'; $('hud').style.display = 'none'; $('jump').style.display = 'none'; $('dig').style.display = 'none'; $('act').style.display = 'none'; }

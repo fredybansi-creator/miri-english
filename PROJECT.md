@@ -149,3 +149,15 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   later; caught mice come back after 25 s), Fressen at a berry bush, Trinken at water, else Schnüffeln (glowing trail
   to the nearest question mark). Day = 8 minutes with sky / light / fog colours. Saves to localStorage `miri-welt`
   (position, time, needs, mice caught, question mark round + done) every 4 s; the app's own `miri-neu` is not touched.
+- Steps 4/5 (2026-11-13): fishing (🐟 Fischen when a fish is within ~3 m of the shore; the fish waits, ~80 % catch),
+  9 kinds of hidden things (`FIND_KINDS`, picked up by walking into them), the book (📖 button / key B) with every
+  English word found / caught / eaten, tap = sound. Sniff also leads to hidden things and dig mounds.
+- Digging (Freddy's wish, "removes the blocks like in Minecraft"): 🐾 Graben button (hold it) / key F digs away the
+  earth block in front of her: `H` goes down by 1 and that map piece's ground mesh is rebuilt (`reland`); flowers / grass
+  on that block disappear (`DECO`). Not stone, not at the den, not below height 1; below water level the hole fills with
+  water. Dug blocks are saved (`holes`, `earth` counter 🟫, meant for den building in step 7). 14 mounds (`placeDigs`)
+  hide bone / worm / carrot / coin / potato / a treasure on the hill; plain earth sometimes has a worm or bone.
+- Mouse hunt, more realistic (Freddy's wish): mice live at a burrow hole, nibble and dash; they hear her (sneak 1.4 m,
+  walk 4.6 m, run 7 m), freeze, then zig-zag home and hide 5–11 s. Fangen = she stands and listens (ears forward),
+  then a high jump and a nose-first dive; the mouse may hear the jump (less when she sneaked up and is close).
+  A caught mouse is held in her mouth, then eaten (+30 food).
