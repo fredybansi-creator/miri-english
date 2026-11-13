@@ -113,3 +113,13 @@ at the same address once Freddy says ok; until then it lives at `/neu/` and the 
 - 30 min instead of 15 → lessons play ~8 exercises (`shortExercises()` in `js/lesson.js`: no "free", no "build"
   when there is a listening task, one per type, 2 speak), overview pages show 10 words (all 20 still become cards).
   App now says "ca. 20 Minuten".
+
+## Ralucas Welt – the fox game (started 2026-11-13)
+Open-world game where Miri plays Raluca in a block world; it becomes a "Welt" tab of the new app. **Surprise for Miri:
+not linked anywhere in the app until Freddy says ok.** Plan (10 steps, Freddy checks each one):
+https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
+- Hidden test address: `/neu/welt/` (`neu/welt/index.html` + `welt.js`). Uses the app's three.js and the code-built
+  Raluca (`makeFoxActor()` in `neu/fox3d.js`).
+- Step 0 (2026-11-13): speed test. 112×112 blocks from noise, one mesh for the land, one instanced mesh for all tree /
+  rock / flower blocks, thumb stick + look drag + jump, W A S D on a laptop, frames-per-second display, the picture
+  gets less sharp by itself below 40 fps. `window.WELT` is there for tests.
