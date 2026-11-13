@@ -9,6 +9,9 @@
 // Step 8, the family: Finn the fox (east forest) is a friend; with 5 hearts he moves into the den. After a night in
 // the den with him, three cubs (Mia, Leo, Kiki) are born. They call Raluca "Mum", learn English with her, grow with
 // every heart and walk with her after 5 hearts.
+// Lessons come back: the question marks first use the flip cards that are due (same boxes as the Karten tab), and a
+// right answer at the first try moves that card up a box. 🎧 Listening marks: hear a sentence, pick its meaning.
+// 📻 Olli's story of the day (stories.js): listen, then one question; a new one every day.
 // Minimap (top left) says the way to the next question mark in English (north, south-east …); tap it for the big map
 // with English place names. Storm the wolf (north forest) is a friend too; with 5 hearts he walks with Raluca.
 // Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
@@ -31,7 +34,8 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { makeFoxActor, webglOk } from '../fox3d.js';
 import { makeDogActor } from './hund.js';
-import { play } from '../audio.js';
+import { play, playAll, stopAll, audioKey } from '../audio.js';
+import storyData from './stories.js';
 import { MODELS } from './models.js';
 import friendData from './friends.js';
 import { startRecording, canRecord } from '../rec.js';
@@ -55,8 +59,25 @@ function levelPool() {
   const done = getState().done || {}, L = TOPICS.flatMap((t) => t.lessons);
   let n = L.findIndex((l) => !done[l.id]); if (n < 0) n = L.length - 1;
   const use = L.slice(0, Math.max(3, n + 1));
-  return { builds: use.flatMap((l) => l.build || []), says: use.flatMap((l) => l.say || []) };
+  return { builds: use.flatMap((l) => l.build || []), says: use.flatMap((l) => l.say || []), all: use.flatMap((l) => [...(l.repeat || []), ...(l.build || [])]) };
 }
+// the flip cards of the finished lessons that are due today (like dueCards() in the app)
+const BOX_DAYS = [1, 2, 4, 8, 16];
+function dueCards() {
+  const st = getState(), c = st.cards || {}, now = today();
+  return TOPICS.flatMap((t) => t.lessons).filter((l) => (st.done || {})[l.id]).flatMap((l) => [...(l.repeat || []), ...(l.build || [])])
+    .filter((x) => { const k = c[audioKey(x.en)]; return !k || k.due <= now; });
+}
+function cardRight(it) {   // right at the first try in the game = "Gewusst" for that card
+  const id = audioKey(it.en), st = getState();
+  if (!TOPICS.some((t) => t.lessons.some((l) => (st.done || {})[l.id] && [...(l.repeat || []), ...(l.build || [])].some((x) => x.en === it.en)))) return;
+  const old = (st.cards || {})[id]; if (old && old.due > today()) return;
+  const box = Math.min(BOX_DAYS.length, ((old && old.box) || 0) + 1), d = new Date(); d.setDate(d.getDate() + BOX_DAYS[box - 1]);
+  update((s) => { s.cards = s.cards || {}; s.cards[id] = { box, due: today(d) }; });
+}
+const shuffleArr = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const STORIES = storyData.stories;
+let LISTEN_POOL = [];
 const REPEATS = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.repeat || []));
 const MARKS = 10;            // question marks in the world
 
@@ -665,15 +686,19 @@ function start() {
       if (marks.some((m) => Math.hypot(m.x - x, m.z - z) < 14)) continue;
       marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: null });
     }
-    const { builds: SENT, says: SAY } = levelPool();
-    const o = rng(900 + round), idx = SENT.map((_, i) => i).sort(() => o() - 0.5);
+    const { builds: SENT0, says: SAY, all: ALL } = levelPool();
+    LISTEN_POOL = ALL;
+    // due flip cards first (the game repeats what she is about to forget), then the rest of her level
+    const due = shuffleArr(dueCards()), SENT = [...due, ...SENT0.filter((x) => !due.some((d) => d.en === x.en))], LIS = [...shuffleArr(due), ...shuffleArr(ALL)];
+    const o = rng(900 + round), idx = due.length ? SENT.map((_, i) => i) : SENT.map((_, i) => i).sort(() => o() - 0.5);
     const o2 = rng(1900 + round), sIdx = SAY.map((_, i) => i).sort(() => o2() - 0.5), rIdx = REPEATS.map((_, i) => i).sort(() => o2() - 0.5);
     // build the sentence and say it in English take turns (no repeat-after-me: Freddy left it out)
     marks.forEach((m, i) => {
-      m.type = ['build', 'say'][i % 2];
+      m.type = ['build', 'listen', 'say'][i % 3];
+      if (m.type === 'listen' && LIS.length < 3) m.type = 'build';
       if (m.type === 'say' && !SAY.length) m.type = 'build';
       if (m.type === 'repeat' && !REPEATS.length) m.type = 'build';
-      m.item = m.type === 'say' ? SAYS[sIdx[i % sIdx.length]] : m.type === 'repeat' ? REPEATS[rIdx[i % rIdx.length]] : SENT[idx[i % idx.length]];
+      m.item = m.type === 'listen' ? LIS[Math.floor(i / 3) % LIS.length] : m.type === 'say' ? SAY[sIdx[i % sIdx.length]] : m.type === 'repeat' ? REPEATS[rIdx[i % rIdx.length]] : SENT[idx[i % idx.length]];
     });
     found = 0; showCount();
   }
@@ -805,6 +830,7 @@ function start() {
   }
   function openExercise(m) {
     if (m.type === 'say' || m.type === 'repeat') { openSpeak(m); return; }
+    if (m.type === 'listen') { openListen(m); return; }
     busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
     const item = m.item, card = $('card');
     const words = item.en.replace(/[.?!]+$/, '').split(/\s+/);
@@ -835,7 +861,7 @@ function start() {
         card.querySelector('.row').innerHTML = '<button class="btn" id="hear">🔊 Anhören</button><button class="btn primary" id="next">Weiter</button>';
         play(item.en);
         $('hear').onclick = () => play(item.en);
-        $('next').onclick = () => { close(); markDone(m); };
+        $('next').onclick = () => { close(); if (!wrong) cardRight(item); markDone(m); };
       } else {
         wrong++; $('answer').className = 'answer wrong';
         $('result').innerHTML = wrong >= 2 ? `<p class="no">Fast! Richtig ist:</p><p class="en">${esc(item.en)}</p>` : '<p class="no">Fast! Versuch es noch mal.</p>';
@@ -1403,7 +1429,7 @@ function start() {
   }
   function openQuests() {
     if (busy || inside) return;
-    seen.quests = 1;
+    seen.quests = 1; storyToday();
     busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
     const { l, q } = questsToday(), card = $('card');
     const says = l.say || [], builds = l.build || [], words = questWords(l);
@@ -1413,6 +1439,7 @@ function start() {
     card.innerHTML = `<p class="small">📜 Aufgaben für heute · aus deiner Lektion</p><p class="de">${esc(l.title)} <span class="small">· ${esc(l.en)}</span></p>
       <div class="decor">${rows.map(([ic, t, i]) => { const ok = q.n[i] >= need[i];
         return `<div class="item ${ok ? 'done' : ''}"><span class="ic">${ic}</span><span class="nm"><b>${t}</b><small>${Math.min(q.n[i], need[i])} von ${need[i]} · 🟫 +3 für jede</small></span>${ok ? '<span>✅</span>' : `<button class="btn primary" data-q="${i}">Los</button>`}</div>`; }).join('')}</div>
+      <div class="item ${story.day === today() && story.done ? 'done' : ''}"><span class="ic">📻</span><span class="nm"><b>Ollis Geschichte des Tages</b><small>${esc(storyToday().title)} · zuhören · 🟫 +5</small></span>${story.done ? '<span>✅</span>' : '<button class="btn primary" data-q="story">Los</button>'}</div>
       <p class="small">${allDone ? 'Alles geschafft! 🎉 Morgen gibt es neue Aufgaben.' : 'Alle drei geschafft = 🪙 +5 Münzen.'}</p>
       <div class="row"><button class="btn primary" id="qClose">Weiter spielen</button></div>`;
     $('sheet').classList.add('open');
@@ -1424,6 +1451,7 @@ function start() {
     card.onclick = (ev) => {
       if (ev.target.id === 'qClose') { $('sheet').classList.remove('open'); card.onclick = null; busy = false; return; }
       const b = ev.target.closest('[data-q]'); if (!b) return;
+      if (b.dataset.q === 'story') { card.onclick = null; busy = false; openStory(); return; }
       const i = Number(b.dataset.q); card.onclick = null; busy = false;
       if (i === 0) openExercise({ type: 'build', item: builds[q.n[0] % builds.length], onDone: () => step(0) });
       else if (i === 1) openSpeak({ type: 'say', item: says[q.n[1] % says.length], onDone: () => step(1) });
@@ -1441,6 +1469,83 @@ function start() {
     spellInto($('spell'), w, () => { play(s.en); onRight(); });
   }
   $('questBtn').addEventListener('click', openQuests);
+  // ---------------- 🎧 listening at the question marks: hear an English sentence, pick what it means (no reading first)
+  function openListen(m) {
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const it = m.item, card = $('card');
+    const others = shuffleArr(LISTEN_POOL.filter((x) => x.de !== it.de)).slice(0, 2).map((x) => x.de);
+    const opts = shuffleArr([it.de, ...others]);
+    let tries = 0;
+    card.innerHTML = `<p class="small">🎧 Hör gut zu! Was bedeutet der Satz?</p>
+      <div class="row"><button class="btn primary" id="lPlay">🔊 Nochmal hören</button><button class="btn" id="lSlow">🐢 Langsam</button></div>
+      <div class="decor" id="lOpts">${opts.map((o, i) => `<button class="btn opt" data-i="${i}">${esc(o)}</button>`).join('')}</div>
+      <div id="result"></div><div class="row"><button class="btn" id="later">Später</button></div>`;
+    $('sheet').classList.add('open');
+    play(it.en);
+    const close = () => { $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
+    $('lPlay').onclick = () => play(it.en);
+    $('lSlow').onclick = () => play(it.en, { slow: true });
+    $('later').onclick = close;
+    card.onclick = (ev) => {
+      const b = ev.target.closest('.opt'); if (!b || b.disabled) return;
+      const ok = opts[Number(b.dataset.i)] === it.de;
+      if (ok) {
+        sfx('right'); b.classList.add('right');
+        card.querySelectorAll('.opt').forEach((x) => { x.disabled = true; });
+        $('result').innerHTML = `<p class="ok">${tries ? 'Richtig! 👍' : 'Super, beim ersten Mal! 🎉'} 🟫 +3</p><p class="en say2" data-t="${esc(it.en)}">${esc(it.en)} 🔊</p>`;
+        $('result').onclick = () => play(it.en);
+        card.querySelector('#later').outerHTML = '<button class="btn primary" id="next">Weiter</button>';
+        $('next').onclick = () => { close(); if (!tries) cardRight(it); markDone(m); };
+      } else {
+        tries++; b.disabled = true; b.classList.add('wrong');
+        $('result').innerHTML = '<p class="no">Nicht ganz – hör noch einmal zu.</p>';
+        play(it.en, { slow: true });
+      }
+    };
+  }
+
+  // ---------------- 📻 Olli's story of the day: listen first, then one question
+  let story = { day: '', n: 0, done: false };
+  function storyToday() {
+    if (story.day !== today()) { story = { day: today(), n: story.day ? story.n + 1 : story.n, done: false }; }
+    return STORIES[story.n % STORIES.length];
+  }
+  function openStory() {
+    if (busy) return;
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const st = storyToday(), card = $('card');
+    card.innerHTML = `<div class="talk"><span class="who">🦉</span><div><b>Olli erzählt</b> <span class="small">· Geschichte ${story.n + 1}</span><p class="en">${esc(st.title)}</p><p class="small">${esc(st.de)}</p></div></div>
+      <p class="small">Hör zuerst nur zu – ohne mitzulesen. Danach kommt eine Frage.</p>
+      <div class="row"><button class="btn primary" id="sPlay">▶ Anhören</button><button class="btn" id="sSlow">🐢 Langsam</button></div>
+      <div id="sText" hidden>${st.en.map((l, i) => `<p class="en sline" data-t="${esc(l)}">${esc(l)} <span class="small">🔊</span><br><small>${esc(st.tr[i])}</small></p>`).join('')}</div>
+      <div id="sQ"></div>
+      <div class="row"><button class="btn" id="sShow">📄 Text zeigen</button><button class="btn" id="sClose">Später</button></div>`;
+    $('sheet').classList.add('open');
+    let heard = false, tries = 0;
+    const ask = () => {
+      if ($('sQ').dataset.on) return; $('sQ').dataset.on = 1;
+      $('sQ').innerHTML = `<p class="task">❓ <b class="say2" data-t="${esc(st.q)}">${esc(st.q)} 🔊</b></p><div class="decor">${st.options.map((o, i) => `<button class="btn opt" data-i="${i}">${esc(o)}</button>`).join('')}</div><div id="sRes"></div>`;
+      play(st.q, { role: 'friend' });
+    };
+    const listen = async (slow) => { $('sPlay').disabled = true; await playAll(st.en, { slow, onLine: (i) => card.querySelectorAll('.sline').forEach((p, k) => p.classList.toggle('now', k === i)) }); if ($('sPlay')) { $('sPlay').disabled = false; $('sPlay').textContent = '🔊 Nochmal'; } heard = true; ask(); };
+    $('sPlay').onclick = () => listen(false);
+    $('sSlow').onclick = () => listen(true);
+    $('sShow').onclick = () => { $('sText').hidden = !$('sText').hidden; };
+    $('sClose').onclick = () => { stopAll(); $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
+    card.onclick = (ev) => {
+      const sl = ev.target.closest('[data-t]'); if (sl && !ev.target.closest('.opt')) { play(sl.dataset.t, { role: sl.classList.contains('say2') ? 'friend' : 'main' }); return; }
+      const b = ev.target.closest('.opt'); if (!b || b.disabled) return;
+      if (Number(b.dataset.i) === st.right) {
+        sfx('right'); b.classList.add('right'); card.querySelectorAll('.opt').forEach((x) => { x.disabled = true; });
+        const first = !story.done; story.done = true; if (first) earn(tries ? 3 : 5); save();
+        $('sRes').innerHTML = `<p class="ok">Richtig! 🎉 ${first ? `🟫 +${tries ? 3 : 5}` : ''}</p><p class="small">Morgen erzählt Olli, wie es weitergeht. 🦉</p>`;
+        $('sClose').textContent = 'Weiter spielen';
+        play(st.options[st.right]);
+      } else { tries++; b.disabled = true; b.classList.add('wrong'); $('sRes').innerHTML = '<p class="no">Nicht ganz. Hör dir die Geschichte noch einmal an. 🔊</p>'; }
+    };
+    void heard;
+  }
+
 
   // ---------------- 🦉 guided start: Olli shows one thing at a time (a tip stays until she has done it)
   const seen = { book: 0, quests: 0, shop: 0 };
@@ -1768,7 +1873,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), born, shop: [...owned], quests, tut, tutOff, seen, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), born, story, shop: [...owned], quests, tut, tutOff, seen, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1787,6 +1892,7 @@ function start() {
     born = !!d.born; for (const f of pals) family(f, false);
     for (const id of d.shop || []) if (SHOPLIST.some((it) => it.id === id && it.room)) owned.add(id);
     if (Number.isInteger(d.tut)) tut = d.tut; tutOff = !!d.tutOff; if (d.seen && typeof d.seen === 'object') Object.assign(seen, d.seen);
+    if (d.story && typeof d.story === 'object' && Number.isInteger(d.story.n)) story = { day: String(d.story.day || ''), n: d.story.n, done: !!d.story.done };
     if (d.quests && d.quests.day === today() && Array.isArray(d.quests.n)) quests = d.quests;
     showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
@@ -1802,6 +1908,7 @@ function start() {
     yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face));
   }
   load();
+  setTimeout(() => { storyToday(); if (!story.done && !busy) toast('📻 Olli hat eine neue Geschichte für dich! Tippe auf 📜'); }, 6000);
   setInterval(save, 4000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   window.addEventListener('pagehide', save);
@@ -1809,7 +1916,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, family, isBorn: () => born, doSleep: () => goSleep(), tutIndex: () => tut, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, openStory, openListen, family, isBorn: () => born, doSleep: () => goSleep(), tutIndex: () => tut, openShop, openQuests, pip: () => pip, owned, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;

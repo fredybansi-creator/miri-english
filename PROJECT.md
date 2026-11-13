@@ -200,3 +200,8 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   he moves to the den (`family()` in welt.js). The next sleep in the den nest → 3 cubs Mia/Leo/Kiki are born (`born`
   in the save). Cubs are friends too (`cub: true`): family English, food to bring; they grow with every heart and
   follow her after 5 (`a.fo` offsets). New lines use the phone voice until tools/make_audio.py is run.
+- Fun + English (2026-11-13, Freddy gave free choice): question marks rotate build / 🎧 listen / say. They use the
+  due flip cards first (`dueCards()` = same boxes as the Karten tab); right at the first try = "Gewusst" for that card
+  (`cardRight`). Listening: hear the sentence, pick the German meaning of 3. 📻 Olli's story of the day
+  (`neu/welt/stories.js`, 14 short stories in order, one per day, in the 📜 sheet): listen first, then a question,
+  🟫 +5. make_audio.py collects the stories.
