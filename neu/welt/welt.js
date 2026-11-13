@@ -1,4 +1,7 @@
 // Ralucas Welt – step 2, the world: meadow with the den, forest, hill, river and pond; animals walk around.
+// Hunting: sneak up on a mouse (stick only a little / Shift), then "Fangen" = pounce.
+// Step 3: hunger, thirst, energy; eat berries, drink, sleep in the den, sniff the way; day and night; saving.
+// The camera turns behind her by itself while she walks.
 // Question marks stand in the world; when she walks into one, an English exercise opens (build the sentence).
 // Phone: thumb stick (left half of the screen), drag elsewhere to look around, button to jump.
 // Laptop: W A S D or arrow keys, space to jump, drag with the mouse to look around.
@@ -70,6 +73,8 @@ for (let z = 0; z < SIZE; z++) for (let x = 0; x < SIZE; x++) {
   H[z * SIZE + x] = Math.max(0, Math.min(19, Math.round(n)));
 }
 const STONE = 11;   // from this height up the ground is stone
+const BUSHES = [];
+const LEAF = new Int8Array(SIZE * SIZE);   // where tree crowns are: the height of the crown's bottom (0 = none), so the camera does not go into them  // [x, z] of every berry bush (Raluca eats there)
 
 // ------------------------------------------------------------------ small pixel texture for block detail
 function pixelTexture() {
@@ -157,9 +162,12 @@ function plant() {
     if (wet) { if (k < 0.3) place(lists, 'reeds', cx, y, cz, turn); else if (k < 0.34) place(lists, 'rock', cx, y, cz, turn, 0.7); continue; }
     if (!meadow && k < (forest ? 0.05 : 0.005) && free(x, z, 2) && Math.abs(at(x + 1, z) - h) < 2 && Math.abs(at(x, z + 1) - h) < 2) {
       const kind = h >= 8 || z < mid - 38 ? 'pine' : nearWater(x, z, 7) || r() < 0.18 ? 'birch' : r() < 0.2 ? 'pine' : 'oak';
-      place(lists, kind, cx, y, cz, turn, 0.9 + r() * 0.35); solid[z * SIZE + x] = 1; continue;
+      const sc = 0.9 + r() * 0.35, rad = kind === 'birch' ? 1 : 2, low = Math.round(y + (kind === 'pine' ? 1.2 : 2.4) * sc);
+      place(lists, kind, cx, y, cz, turn, sc); solid[z * SIZE + x] = 1;
+      for (let a = -rad; a <= rad; a++) for (let b = -rad; b <= rad; b++) { const i = (z + b) * SIZE + x + a; if (!LEAF[i] || LEAF[i] > low) LEAF[i] = low; }
+      continue;
     }
-    if (k > 0.1 && k < 0.112 && !meadow) { place(lists, 'bush', cx, y, cz, turn, 0.9 + r() * 0.4); solid[z * SIZE + x] = 1; }
+    if (k > 0.1 && k < 0.112 && !meadow) { place(lists, 'bush', cx, y, cz, turn, 0.9 + r() * 0.4); solid[z * SIZE + x] = 1; BUSHES.push([cx, cz]); }
     else if (k > 0.2 && k < 0.206) { place(lists, 'rock', cx, y, cz, turn, 0.8 + r() * 0.8); solid[z * SIZE + x] = 1; }
     else if (k > 0.3 && k < (forest ? 0.306 : 0.3015) && free(x, z, 1)) { place(lists, 'log', cx, y, cz, turn); solid[z * SIZE + x] = 1; }
     else if (k > 0.4 && k < (forest ? 0.412 : 0.401)) place(lists, 'mushroom', cx, y, cz, turn, 0.45 + r() * 0.4);
@@ -195,13 +203,14 @@ function makeAnimals(scene, mat) {
 }
 function moveAnimals(list, dt, P, time) {
   for (const a of list) {
+    if (a.gone > 0) { a.gone -= dt; a.g.visible = false; if (a.gone <= 0) { a.x = a.hx + (Math.random() * 2 - 1) * a.roam; a.z = a.hz + (Math.random() * 2 - 1) * a.roam; if (!walkable(a.x, a.z, at(Math.floor(a.x), Math.floor(a.z)))) { a.x = a.hx; a.z = a.hz; } a.tx = a.x; a.tz = a.z; } continue; }
     const dx = a.x - P.x, dz = a.z - P.z, far = Math.hypot(dx, dz);
     a.g.visible = far < SEE; if (!a.g.visible) continue;
     a.t += dt;
     let moving = false, speed = a.speed;
     if (a.sit) { let diff = Math.atan2(-dz, dx) - a.face; diff = Math.atan2(Math.sin(diff), Math.cos(diff)); if (far < 12) a.face += diff * Math.min(1, dt * 3); }
     else {
-      if (a.shy && far < a.shy) { a.tx = a.x + (dx / (far || 1)) * 6; a.tz = a.z + (dz / (far || 1)) * 6; a.wait = 0; speed = a.speed * 2.2; }
+      if (a.shy && far < a.shy * (P.sneak ? 0.4 : 1)) { a.tx = a.x + (dx / (far || 1)) * 6; a.tz = a.z + (dz / (far || 1)) * 6; a.wait = 0; speed = a.speed * 2.2; }
       const tx = a.tx - a.x, tz = a.tz - a.z, td = Math.hypot(tx, tz);
       if (a.wait > 0) a.wait -= dt;
       else if (td < 0.25) { a.wait = 0.6 + Math.random() * 3.5; a.tx = a.hx + (Math.random() * 2 - 1) * a.roam; a.tz = a.hz + (Math.random() * 2 - 1) * a.roam; }
@@ -236,7 +245,7 @@ function start() {
   scene.background = new THREE.Color(SKY);
   scene.fog = new THREE.Fog(SKY, 36, SEE);
   const camera = new THREE.PerspectiveCamera(52, 1, 0.2, 70);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x9ab07f, 1.7));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x9ab07f, 1.7); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff2d8, 1.9); sun.position.set(-3, 6, 4); scene.add(sun);
 
   const tex = pixelTexture();
@@ -272,13 +281,13 @@ function start() {
   const keys = new Set();
   const input = { x: 0, y: 0, jump: false };
   const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · Maus ziehen: umsehen';
+  $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · E: Aktion · Maus: umsehen';
   if (!touch) $('jump').style.display = 'none';
   setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); } });
+  window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); } if (e.code === 'KeyE' && !e.repeat) doAction(); });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
-  let yaw = -1.25, pitch = 0.42, stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
+  let yaw = -1.25, lookedAt = 0, pitch = 0.42, stickId = null, lookId = null, sx = 0, sy = 0, lx = 0, ly = 0;
   const stick = $('stick'), knob = $('knob');
   stage.addEventListener('pointerdown', (e) => {
     if (e.pointerType !== 'mouse' && e.clientX < window.innerWidth * 0.5 && stickId === null) {
@@ -294,7 +303,7 @@ function start() {
       knob.style.transform = `translate(${dx}px,${dy}px)`;
       input.x = dx / max; input.y = -dy / max;
     } else if (e.pointerId === lookId) {
-      yaw -= (e.clientX - lx) * 0.006; pitch = Math.max(0.12, Math.min(1.1, pitch + (e.clientY - ly) * 0.004));
+      yaw -= (e.clientX - lx) * 0.006; lookedAt = performance.now(); pitch = Math.max(0.12, Math.min(1.1, pitch + (e.clientY - ly) * 0.004));
       lx = e.clientX; ly = e.clientY;
     }
   });
@@ -304,6 +313,7 @@ function start() {
   };
   stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
   $('jump').addEventListener('pointerdown', (e) => { input.jump = true; e.preventDefault(); });
+  $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); doAction(); });
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 
   // ---------------- Raluca's state
@@ -322,7 +332,8 @@ function start() {
   function step(dt) {
     time += dt;
     let mx = input.x, my = input.y;
-    if (busy) { mx = my = 0; input.jump = false; keys.clear(); }
+    if (busy || act) { mx = my = 0; input.jump = false; }
+    if (busy) keys.clear();
     if (cheer > 0 && !busy) { cheer -= dt; if (!P.air) input.jump = true; }
     if (!busy && cheer <= 0) checkMarks();
     drawMarks();
@@ -331,9 +342,12 @@ function start() {
     if (keys.has('KeyW') || keys.has('ArrowUp')) my += 1;
     if (keys.has('KeyS') || keys.has('ArrowDown')) my -= 1;
     const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
-    const power = Math.min(1, len);
+    let power = Math.min(1, len);
+    if (keys.has('ShiftLeft') || keys.has('ShiftRight')) power = Math.min(power, 0.4);
+    P.sneak = power > 0.05 && power < 0.55;
     const inWater = P.y < WATER + 0.5 && !P.air;
-    const target = power * (inWater ? 2.6 : 5.6);
+    const weak = needs.food < 15 || needs.water < 15 || needs.energy < 15;
+    const target = power * (inWater ? 2.6 : 5.6) * (weak ? 0.6 : 1);
     P.speed += (target - P.speed) * Math.min(1, dt * 9);
     if (power > 0.05) {
       // "up" on the stick = away from the camera
@@ -345,10 +359,21 @@ function start() {
       const pad = 0.3;
       if (!blocked(P.x + vx + Math.sign(vx) * pad, P.z, P.y)) P.x += vx;
       if (!blocked(P.x, P.z + vz + Math.sign(vz) * pad, P.y)) P.z += vz;
+      // the camera slowly turns to stay behind her (not while walking towards the camera, not right after looking around)
+      if (my > -0.35 && performance.now() - lookedAt > 1500 && !busy) {
+        let d = Math.atan2(Math.cos(P.face), -Math.sin(P.face)) - yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+        yaw += d * Math.min(1, dt * 1.7 * power);
+      }
     }
+    lifeStep(dt, P.speed);
     const g = groundAt(P.x, P.z);
     if (input.jump && !P.air) { P.vy = 7.4; P.air = true; }
     input.jump = false;
+    if (act && act.kind === 'pounce' && P.air) {   // the pounce carries her forward
+      const vx = act.vx * dt, vz = act.vz * dt;
+      if (!blocked(P.x + vx + Math.sign(vx) * 0.3, P.z, P.y + 1)) P.x += vx;
+      if (!blocked(P.x, P.z + vz + Math.sign(vz) * 0.3, P.y + 1)) P.z += vz;
+    }
     if (P.air) {
       P.vy -= 21 * dt; P.y += P.vy * dt;
       if (P.y <= g && P.vy <= 0) { P.y = g; P.air = false; P.vy = 0; }
@@ -368,9 +393,13 @@ function start() {
     p.headTurn = k < 0.1 ? Math.sin(time * 0.5) * 0.25 : 0;
     p.headNod = -k * 0.08;
     p.earL = Math.max(0, Math.sin(time * 0.7) - 0.97) * 4;
+    if (P.sneak && !P.air && !act) { p.bodyY = -0.08; p.headNod += 0.12; p.earL -= 0.15; p.earR -= 0.15; p.tailUp -= 0.15; }
+    if (weak && !P.air) { p.earL += 0.4; p.earR += 0.4; p.tailUp -= 0.2; p.headNod += 0.1; }
+    if (act) actPose(p);
     if (P.air) { const t = Math.max(-1, Math.min(1, P.vy / 7.4)); p.fl = p.fr = -0.7 * (0.4 + Math.abs(t)); p.bl = p.br = 0.8 * (0.4 + Math.abs(t)); p.pitch = t * 0.22; p.tailUp = 0.35; }
     blink -= dt; if (blink < 0) { blinkT = 0; blink = 2.5 + Math.random() * 3; }
     if (blinkT >= 0) { blinkT += dt; p.blink = Math.sin(Math.min(1, blinkT / 0.16) * Math.PI); if (blinkT > 0.16) blinkT = -1; }
+    if (act && act.kind === 'sleep') p.blink = 1;
     actor.pose(p);
     const bob = P.air ? 0 : Math.abs(Math.sin(P.phase)) * 0.05 * k;
     const sink = inWater ? -0.22 : 0;
@@ -383,7 +412,13 @@ function start() {
     const dist = 6.2;
     cam.set(P.x + Math.sin(yaw) * Math.cos(pitch) * dist, P.y + 1 + Math.sin(pitch) * dist, P.z + Math.cos(yaw) * Math.cos(pitch) * dist);
     cam.y = Math.max(cam.y, groundAt(cam.x, cam.z) + 0.8);
-    camera.position.lerp(cam, Math.min(1, dt * 8));
+    // a tree crown between her and the camera: come closer
+    let near = false;
+    for (let k = 0.25; k <= 1.001; k += 0.08) {
+      const x = P.x + (cam.x - P.x) * k, z = P.z + (cam.z - P.z) * k, y = P.y + 1 + (cam.y - P.y - 1) * k, L = LEAF[Math.floor(z) * SIZE + Math.floor(x)];
+      if (L && y > L - 0.4) { const kk = Math.max(0.22, k - 0.1); cam.set(P.x + (cam.x - P.x) * kk, P.y + 1 + (cam.y - P.y - 1) * kk, P.z + (cam.z - P.z) * kk); near = true; break; }
+    }
+    camera.position.lerp(cam, Math.min(1, dt * (near ? 14 : 8)));
     look.set(P.x, P.y + 0.9, P.z); camera.lookAt(look);
   }
 
@@ -395,7 +430,7 @@ function start() {
   markMesh.frustumCulled = false; scene.add(markMesh);
   const ringMesh = new THREE.InstancedMesh(new THREE.RingGeometry(0.75, 0.95, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.8, depthWrite: false }), MARKS);
   ringMesh.frustumCulled = false; scene.add(ringMesh);
-  let marks = [], round = 0, found = 0, order = [];
+  let marks = [], round = 0, found = 0;
   function placeMarks() {
     const r = rng(77 + round * 13); marks = [];
     for (let tries = 0; tries < 4000 && marks.length < MARKS; tries++) {
@@ -403,9 +438,10 @@ function start() {
       if (h <= WATER || h >= STONE + 4 || solid[z * SIZE + x] || d < 8 || d > mid - 14) continue;
       if (marks.length < 3 && d > 22) continue;                                   // the first three are close to the start
       if (marks.some((m) => Math.hypot(m.x - x, m.z - z) < 14)) continue;
-      if (order.length === 0) order = SENTENCES.map((_, i) => i).sort(() => r() - 0.5);
-      marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: SENTENCES[order.pop()] });
+      marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: null });
     }
+    const o = rng(900 + round), idx = SENTENCES.map((_, i) => i).sort(() => o() - 0.5);
+    marks.forEach((m, i) => { m.item = SENTENCES[idx[i % idx.length]]; });
     found = 0; showCount();
   }
   const showCount = () => { $('count').textContent = `${found} / ${marks.length}`; };
@@ -480,7 +516,7 @@ function start() {
         card.querySelector('.row').innerHTML = '<button class="btn" id="hear">🔊 Anhören</button><button class="btn primary" id="next">Weiter</button>';
         play(item.en);
         $('hear').onclick = () => play(item.en);
-        $('next').onclick = () => { m.done = true; found++; showCount(); cheer = 1.2; close(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); }, 1500); } };
+        $('next').onclick = () => { m.done = true; found++; showCount(); cheer = 1.2; close(); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } };
       } else {
         wrong++; $('answer').className = 'answer wrong';
         $('result').innerHTML = wrong >= 2 ? `<p class="no">Fast! Richtig ist:</p><p class="en">${esc(item.en)}</p>` : '<p class="no">Fast! Versuch es noch mal.</p>';
@@ -492,15 +528,184 @@ function start() {
   function toast(text) { $('hintText').textContent = text; $('hint').style.opacity = 1; setTimeout(() => { $('hint').style.opacity = 0; }, 4000); }
   placeMarks();
 
+  // ---------------- fox life: hunger, thirst, energy · eat, drink, sleep, sniff · day and night · saving
+  const needs = { food: 100, water: 100, energy: 100 };
+  const DAY = 480;                 // one day = 8 minutes
+  let tday = 0.3;                  // 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
+  let act = null;                  // { kind, t, d } while she eats, drinks, sleeps or sniffs
+  const warned = {};
+  const WARN = { food: 'Raluca hat Hunger. Friss Beeren an einem Busch!', water: 'Raluca hat Durst. Trink am Wasser!', energy: 'Raluca ist müde. Schlaf in deinem Bau!' };
+  const nearBush = () => BUSHES.some(([x, z]) => Math.hypot(x - P.x, z - P.z) < 1.9);
+  const nearWater = () => { if (P.y < WATER + 0.5) return true; for (let a = 0; a < 8; a++) { const t = (a / 8) * Math.PI * 2; if (at(Math.floor(P.x + Math.cos(t) * 1.3), Math.floor(P.z + Math.sin(t) * 1.3)) <= WATER) return true; } return false; };
+  const nearDen = () => Math.hypot(DEN[0] + 0.5 - P.x, DEN[1] + 0.5 - P.z) < 3.4;
+  const mouseNear = () => { let best = null, bd = 4.5; for (const a of animals) if (a.kind === 'mouse' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
+  let caught = 0;
+  function whatCanIDo() {
+    if (nearDen()) return ['sleep', '😴 Schlafen'];
+    if (mouseNear()) return ['pounce', '🐾 Fangen'];
+    if (nearBush()) return ['eat', '🫐 Fressen'];
+    if (nearWater()) return ['drink', '💧 Trinken'];
+    return ['sniff', '👃 Schnüffeln'];
+  }
+  function doAction() {
+    if (act || busy || P.air) return;
+    const [kind] = whatCanIDo();
+    if (kind === 'sleep') { goSleep(); return; }
+    if (kind === 'sniff') sniff();
+    if (kind === 'pounce') {   // jump at the mouse: a little short or long, so a good spot (close, sneaked up) matters
+      const m = mouseNear(), dx = m.x - P.x, dz = m.z - P.z, d = Math.hypot(dx, dz);
+      P.face = Math.atan2(dz, -dx); P.vy = 6.2; P.air = true;
+      const reach = Math.min(d, 3.6) / 0.6;   // the jump lasts about 0.6 s
+      act = { kind, t: 0, d: 2, target: m, vx: (dx / d) * reach, vz: (dz / d) * reach };
+      return;
+    }
+    act = { kind, t: 0, d: kind === 'eat' ? 1.8 : kind === 'drink' ? 2.2 : 1.6 };
+    if (kind === 'drink') { // turn to the water
+      for (let a = 0; a < 16; a++) { const t = (a / 16) * Math.PI * 2; if (at(Math.floor(P.x + Math.cos(t) * 1.3), Math.floor(P.z + Math.sin(t) * 1.3)) <= WATER) { act.face = Math.atan2(Math.sin(t), -Math.cos(t)); break; } }
+    }
+  }
+  function actPose(p) {
+    const t = act.t;
+    if (act.kind === 'eat' || act.kind === 'drink') {
+      const down = Math.min(1, t / 0.3, (act.d - t) / 0.3);
+      p.pitch = -0.12 * down; p.headNod = 0.85 * down + Math.sin(t * (act.kind === 'eat' ? 16 : 10)) * 0.07 * down;
+      p.fl = p.fr = -0.15 * down; p.tail = Math.sin(t * 7) * 0.5; p.tailUp = 0.25;
+    } else if (act.kind === 'sniff') {
+      const down = Math.min(1, t / 0.25, (act.d - t) / 0.25);
+      p.headNod = 0.5 * down + Math.sin(t * 28) * 0.05 * down; p.headTurn = Math.sin(t * 4) * 0.35 * down; p.earL = p.earR = -0.2 * down; p.tailUp = 0.3;
+    } else if (act.kind === 'pounce') {
+      // the jump pose comes from the air pose below
+    } else if (act.kind === 'sleep') {
+      Object.assign(p, { bodyY: -0.34, fl: -1.45, fr: -1.45, bl: 1.45, br: 1.45, flS: 0.9, frS: 0.9, blS: 0.7, brS: 0.7, headNod: 0.25, earL: 0.4, earR: 0.4, tail: 0, tailUp: -0.3 });
+    }
+  }
+  function lifeStep(dt, speed) {
+    tday = (tday + dt / DAY) % 1;
+    const run = 1 + Math.min(1, speed / 5.6) * 0.6;
+    needs.food = Math.max(0, needs.food - (dt * 100 / 420) * run);
+    needs.water = Math.max(0, needs.water - (dt * 100 / 300) * run);
+    needs.energy = Math.max(0, needs.energy - (dt * 100 / 600) * run);
+    if (act) {
+      act.t += dt;
+      if (act.face != null) { let d = act.face - P.face; d = Math.atan2(Math.sin(d), Math.cos(d)); P.face += d * Math.min(1, dt * 8); }
+      if (act.kind === 'pounce' && act.t > 0.2 && !P.air) {
+        const m = act.target, d = Math.hypot(m.x - P.x, m.z - P.z);
+        if (d < 1.3 && !(m.gone > 0)) { m.gone = 25; caught++; needs.food = Math.min(100, needs.food + 30); cheer = 0.8; toast(caught === 1 ? 'Gefangen! 🐭  a mouse – Raluca is a good hunter!' : 'Gefangen! 🐭  a mouse'); }
+        else toast(d < 3 ? 'Knapp daneben! Schleich dich näher an.' : 'Die Maus ist weg! Langsam anschleichen hilft.');
+        act = null; save(); return;
+      }
+      if (act.t >= act.d && act.kind !== 'sleep') {
+        if (act.kind === 'eat') { needs.food = Math.min(100, needs.food + 40); toast('Mmm, Beeren! 🫐  berries'); }
+        if (act.kind === 'drink') { needs.water = 100; toast('Ahh, frisches Wasser! 💧  water'); }
+        act = null; save();
+      }
+    }
+    for (const k of ['food', 'water', 'energy']) {
+      if (needs[k] < 25 && !warned[k]) { warned[k] = true; toast(WARN[k]); }
+      if (needs[k] > 40) warned[k] = false;
+    }
+  }
+  function goSleep() {
+    act = { kind: 'sleep', t: 0, d: 99 };
+    // walk into the door: stand in front of the den, looking at it
+    P.x = DEN[0] - 1.6; P.z = DEN[1] + 0.5; P.y = groundAt(P.x, P.z); P.face = Math.PI;
+    $('fade').style.opacity = 1;
+    const night = tday > 0.7 || tday < 0.22;
+    setTimeout(() => {
+      if (night) tday = 0.27; else tday = (tday + 0.08) % 1;
+      needs.energy = 100; warned.energy = false;
+      $('fade').style.opacity = 0;
+      setTimeout(() => { act = null; toast(night ? 'Guten Morgen! ☀️  Good morning, Raluca!' : 'Ein kleines Nickerchen. 😴  a nap'); save(); }, 900);
+    }, 1800);
+  }
+
+  // sniff: a trail of glowing dots shows the way to the nearest question mark
+  const TRAIL = 16;
+  const trailMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.14, 0.14, 0.14), new THREE.MeshBasicMaterial({ color: 0xfff09a }), TRAIL);
+  trailMesh.frustumCulled = false; trailMesh.visible = false; scene.add(trailMesh);
+  let trail = null;
+  function sniff() {
+    const n = nearest();
+    if (!n) { toast('Hier riecht nichts Neues.'); return; }
+    const pts = [], len = Math.min(n.d, 14), dx = (n.m.x - P.x) / n.d, dz = (n.m.z - P.z) / n.d;
+    for (let i = 0; i < TRAIL; i++) { const k = 1 + (i / (TRAIL - 1)) * (len - 1), x = P.x + dx * k, z = P.z + dz * k; pts.push([x, z, groundAt(x, z)]); }
+    trail = { t: 0, pts, side: [-dz, dx] };
+    if (n.d > 14) toast(`Die Spur führt weiter … noch ${Math.round(n.d)} m`);
+  }
+  const tm = new THREE.Matrix4(), tq = new THREE.Quaternion(), tp = new THREE.Vector3(), ts = new THREE.Vector3();
+  function drawTrail(dt) {
+    if (!trail) { trailMesh.visible = false; return; }
+    trail.t += dt; trailMesh.visible = true;
+    const fade = Math.min(1, trail.t / 0.3, (5 - trail.t) / 0.8);
+    trail.pts.forEach(([x, z, y], i) => {
+      const w = Math.sin(i * 0.9 + trail.t * 3) * 0.35, pulse = 0.6 + 0.4 * Math.sin(trail.t * 7 - i * 0.7);
+      const shown = trail.t * 9 > i ? 1 : 0;
+      tp.set(x + trail.side[0] * w, y + 0.35 + Math.sin(trail.t * 4 + i) * 0.08, z + trail.side[1] * w); ts.setScalar(Math.max(0, fade * pulse * shown));
+      tm.compose(tp, tq, ts); trailMesh.setMatrixAt(i, tm);
+    });
+    trailMesh.instanceMatrix.needsUpdate = true;
+    if (trail.t > 5) trail = null;
+  }
+
+  // day and night: sky, fog and light follow the time of day
+  const C_DAY = new THREE.Color(0xbfe3f6), C_DUSK = new THREE.Color(0xf4b183), C_NIGHT = new THREE.Color(0x1c2a4a), skyC = new THREE.Color(), tmpC = new THREE.Color();
+  const SUN_DAY = new THREE.Color(0xfff2d8), SUN_DUSK = new THREE.Color(0xffb070), SUN_NIGHT = new THREE.Color(0x8ea8ff);
+  function sky() {
+    const e = Math.sin((tday - 0.25) * Math.PI * 2);             // −1 midnight … 1 noon
+    const day = THREE.MathUtils.smoothstep(e, -0.25, 0.3), dusk = Math.max(0, 1 - Math.abs(e) / 0.28) * 0.85;
+    skyC.copy(C_NIGHT).lerp(C_DAY, day).lerp(C_DUSK, dusk * (0.4 + 0.6 * day));
+    scene.background.copy(skyC); scene.fog.color.copy(skyC);
+    hemi.intensity = 0.55 + 1.15 * day; hemi.color.copy(tmpC.set(0xffffff).lerp(SUN_NIGHT, 1 - day));
+    sun.intensity = 0.25 + 1.65 * day; sun.color.copy(tmpC.copy(SUN_NIGHT).lerp(SUN_DAY, day).lerp(SUN_DUSK, dusk));
+    const a = (tday - 0.25) * Math.PI * 2; sun.position.set(-Math.cos(a) * 4, Math.max(1.5, Math.sin(a) * 7), 3);
+    return e;
+  }
+
+  // the panel at the top left
+  function showNeeds(e) {
+    const bar = (id, v) => { const b = $(id); b.style.width = v + '%'; b.style.background = v < 25 ? '#e0603a' : v < 50 ? '#e8b23a' : '#5bb04a'; };
+    bar('bFood', needs.food); bar('bWater', needs.water); bar('bEnergy', needs.energy);
+    $('clock').textContent = e > 0.05 ? '☀️' : e > -0.2 ? '🌅' : '🌙';
+    const [, label] = whatCanIDo(); if ($('act').textContent !== label) $('act').textContent = label;
+  }
+
+  // saving: everything that matters, in this browser (not in Miri's app data)
+  const KEY = 'miri-welt';
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+    } catch { /* private mode: no saving */ }
+  }
+  function load() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { d = null; }
+    if (!d || d.v !== 1) return;
+    if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
+    if (Number.isFinite(d.tday)) tday = d.tday;
+    if (Number.isFinite(d.caught)) caught = d.caught;
+    for (const k of ['food', 'water', 'energy']) if (Number.isFinite(d[k])) needs[k] = Math.max(30, d[k]);   // after a break she is never starving
+    if (d.round > 0) { round = d.round; placeMarks(); }
+    for (const i of d.done || []) if (marks[i] && !marks[i].done) { marks[i].done = true; found++; }
+    showCount();
+    yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face));
+  }
+  load();
+  setInterval(save, 4000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+  window.addEventListener('pagehide', save);
+
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS } };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     step(dt);
     moveAnimals(animals, dt, P, time);
+    drawTrail(dt);
+    const e = sky();
+    if ((frames & 7) === 0) showNeeds(e);
     for (const pc of pieces) pc.g.visible = Math.hypot(pc.x - camera.position.x, pc.z - camera.position.z) < SEE + CHUNK * 0.72;
     renderer.render(scene, camera);
     frames++;

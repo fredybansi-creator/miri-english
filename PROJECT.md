@@ -142,3 +142,10 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   `makeFoxActor()`, so the game code did not change; it turns the bones itself and does not use the clips yet.
   If the file does not load, the fox appears. `/neu/welt/?raluca=fuchs` shows the old fox. Only the game uses the dog:
   the start page of the app still shows the code-built fox (tricks, clothes). Her eyes do not blink yet.
+- Step 3 (2026-11-13): fox life. Camera turns behind Raluca while she walks (not right after a manual look, not
+  when walking towards the camera) and comes closer when a tree crown (`LEAF`) is in the way. Needs: food / water /
+  energy bars (cozy: below 15 she is only slower). One action button (key E) changes with the place: Schlafen at the
+  den (night → morning), Fangen near a mouse (pounce; sneaking = stick pushed only a little or Shift, mice notice her
+  later; caught mice come back after 25 s), Fressen at a berry bush, Trinken at water, else Schnüffeln (glowing trail
+  to the nearest question mark). Day = 8 minutes with sky / light / fog colours. Saves to localStorage `miri-welt`
+  (position, time, needs, mice caught, question mark round + done) every 4 s; the app's own `miri-neu` is not touched.
