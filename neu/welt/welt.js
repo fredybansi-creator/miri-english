@@ -2,6 +2,8 @@
 // Digging (🐾 Graben, hold it / key F): she digs away the earth block in front of her, like in a block game –
 // holes, tunnels through hills, ponds when she digs below the water. Mounds of earth hide a bone, coin, carrot,
 // worm, potato or – on the hill – a treasure.
+// Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
+// at the den the 🏠 menu builds things (leaf bed, lamp, fence …) from earth and found things (English names, sound).
 // Step 6: animal friends (Olli the owl at the den, Rosie the rabbit, Hugo the hedgehog, Luna the owl on the hill)
 // talk easy English (friends.js); Miri answers by voice (server checks it) or typing, or brings them things → hearts.
 // Mice: they nibble and dash about; if they hear her they freeze, then zig-zag to their hole. Fox hunting like a real
@@ -32,7 +34,11 @@ import cafe from '../content/cafe.js';
 import shopping from '../content/shopping.js';
 
 // the "build the sentence" exercises of all lessons: { en, de, extra? }
-const SENTENCES = [travel, friends, doctor, holiday, cafe, shopping].flatMap((t) => t.lessons.flatMap((l) => l.build || []));
+const TOPICS = [travel, friends, doctor, holiday, cafe, shopping];
+const SENTENCES = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.build || []));
+// more exercises at the question marks: say it in English (someone talks to her); repeat-after-me is kept but not used
+const SAYS = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.say || []));
+const REPEATS = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.repeat || []));
 const MARKS = 10;            // question marks in the world
 
 const SIZE = 192;            // blocks per side
@@ -135,11 +141,11 @@ function buildLand(mat, x0, z0) {
 
 // ------------------------------------------------------------------ trees, bushes, rocks … : the models of models.js,
 // all boxes of one map piece in ONE instanced mesh
-const BOX = new THREE.BoxGeometry(1, 1, 1);
+const BOX = new THREE.BoxGeometry(1, 1, 1), UPV = new THREE.Vector3(0, 1, 0);
 function boxMesh(boxes, mat) {
   const mesh = new THREE.InstancedMesh(BOX, mat, boxes.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), c = new THREE.Color();
-  boxes.forEach((b, i) => { p.set(b[0], b[1], b[2]); s.set(b[3], b[4], b[5]); m.compose(p, q, s); mesh.setMatrixAt(i, m); mesh.setColorAt(i, c.setHex(b[6])); });
+  boxes.forEach((b, i) => { p.set(b[0], b[1], b[2]); s.set(b[3], b[4], b[5]); q.setFromAxisAngle(UPV, b[7] || 0); m.compose(p, q, s); mesh.setMatrixAt(i, m); mesh.setColorAt(i, c.setHex(b[6])); });
   mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   mesh.computeBoundingSphere();   // so pieces behind the camera are not drawn
   return mesh;
@@ -207,6 +213,38 @@ const FIND_KINDS = {
   snail: { en: 'snail', de: 'Schnecke', icon: '🐌', boxes: [[0, 0.03, 0, 0.32, 0.05, 0.08, 0xd9c79a], [-0.17, 0.08, 0, 0.06, 0.08, 0.05, 0xd9c79a], [0.04, 0.13, 0, 0.18, 0.18, 0.1, 0xa86a35], [0.04, 0.13, 0, 0.1, 0.1, 0.11, 0xd6a35f], [0.04, 0.13, 0, 0.04, 0.04, 0.12, 0x7a4a22]] },
   leaf: { en: 'leaf', de: 'Blatt', icon: '🍂', boxes: [[0, 0.02, 0, 0.3, 0.02, 0.18, 0xe58a2c], [0, 0.03, 0, 0.32, 0.015, 0.03, 0xb85d1a], [0.17, 0.02, 0, 0.08, 0.02, 0.03, 0x8a5a2a]] },
 };
+// things for the den (step 7): boxes [x, y, z, sx, sy, sz, colour] around the den's middle; `glow` boxes shine at night
+function fencePosts() {
+  const b = [];
+  for (let k = 0; k < 28; k++) {
+    const t = (k / 28) * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(t - Math.PI), Math.cos(t - Math.PI))) < 0.5) continue;   // a gap at the door
+    const x = Math.cos(t) * 4.6, z = Math.sin(t) * 4.6;
+    b.push([x, 0.35, z, 0.14, 0.7, 0.14, 0x8a5a2e]);
+    const t2 = ((k + 1) / 28) * Math.PI * 2;
+    if (Math.abs(Math.atan2(Math.sin(t2 - Math.PI), Math.cos(t2 - Math.PI))) >= 0.5) { const x2 = Math.cos(t2) * 4.6, z2 = Math.sin(t2) * 4.6, l = Math.hypot(x2 - x, z2 - z);
+      for (const y of [0.28, 0.55]) b.push([(x + x2) / 2, y, (z + z2) / 2, l, 0.07, 0.07, 0xa8743e, Math.atan2(-(z2 - z), x2 - x)]); }
+  }
+  return b;
+}
+const DECOR = [
+  { id: 'bed', en: 'leaf bed', de: 'Blätterbett', icon: '🍂', cost: { earth: 3, leaf: 2 }, at: [-2.9, 2.5],
+    boxes: [[0, 0.06, 0, 1.2, 0.12, 0.85, 0x7a5533], [0, 0.15, 0, 1.05, 0.07, 0.7, 0xe58a2c], [0.25, 0.2, 0.12, 0.35, 0.04, 0.28, 0xd8473a], [-0.28, 0.2, -0.1, 0.4, 0.04, 0.22, 0xf0b13a], [0.05, 0.21, -0.2, 0.3, 0.04, 0.2, 0xb85d1a]] },
+  { id: 'lamp', en: 'mushroom lamp', de: 'Pilzlampe', icon: '🍄', cost: { earth: 2, crystal: 1 }, at: [-3.1, -2.5],
+    boxes: [[0, 0.3, 0, 0.18, 0.6, 0.18, 0xf3ead8], [0, 0.66, 0, 0.7, 0.16, 0.7, 0xd8322c], [0, 0.78, 0, 0.45, 0.1, 0.45, 0xd8322c], [0.2, 0.75, 0.2, 0.1, 0.05, 0.1, 0xffffff], [-0.22, 0.72, -0.05, 0.1, 0.05, 0.1, 0xffffff]],
+    glow: [[0, 0.52, 0, 0.32, 0.12, 0.32, 0xfff1a0]] },
+  { id: 'garden', en: 'flower garden', de: 'Blumengarten', icon: '🌷', cost: { earth: 4 }, at: [0.3, 3.2],
+    boxes: [[0, 0.08, 0, 2.2, 0.16, 0.9, 0x6e4a2b], ...[[-0.8, 0xff7f9e], [-0.4, 0xffd84a], [0, 0xb48cff], [0.4, 0xffffff], [0.8, 0xff9a3c]].flatMap(([x, c], i) => [[x, 0.32, (i % 2 ? 0.15 : -0.15), 0.06, 0.32, 0.06, 0x3f8f3a], [x, 0.5, (i % 2 ? 0.15 : -0.15), 0.2, 0.12, 0.2, c]])] },
+  { id: 'path', en: 'shell path', de: 'Muschelweg', icon: '🐚', cost: { earth: 5, shell: 2 }, at: [-3.4, 0],
+    boxes: [0, 1, 2, 3].flatMap((k) => [[-k * 0.75, 0.03, (k % 2 ? 0.1 : -0.1), 0.6, 0.06, 0.6, 0xe9dcc8], [-k * 0.75 + 0.1, 0.07, 0.15, 0.14, 0.04, 0.1, 0xf3b9a8]]) },
+  { id: 'chime', en: 'feather chime', de: 'Federspiel', icon: '🪶', cost: { earth: 1, feather: 2 }, at: [-2.3, 1.4],
+    boxes: [[0, 0.7, 0, 0.08, 1.4, 0.08, 0x8a5a2e], [-0.25, 1.38, 0, 0.6, 0.06, 0.06, 0x8a5a2e], [-0.45, 1.15, 0, 0.02, 0.4, 0.02, 0xf3efe6], [-0.45, 0.88, 0, 0.06, 0.24, 0.1, 0xd8473a], [-0.25, 1.15, 0, 0.02, 0.4, 0.02, 0xf3efe6], [-0.25, 0.9, 0, 0.06, 0.22, 0.1, 0xf3efe6]] },
+  { id: 'basket', en: 'apple basket', de: 'Apfelkorb', icon: '🍎', cost: { earth: 2, apple: 2 }, at: [1.6, -3],
+    boxes: [[0, 0.17, 0, 0.6, 0.34, 0.45, 0xb98a4e], [0, 0.3, 0, 0.62, 0.05, 0.47, 0x8a6236], [-0.12, 0.38, 0, 0.18, 0.18, 0.18, 0xd8322c], [0.13, 0.38, 0.06, 0.18, 0.18, 0.18, 0xc22a25], [0.02, 0.46, -0.08, 0.17, 0.17, 0.17, 0xd8322c]] },
+  { id: 'chest', en: 'treasure chest', de: 'Schatztruhe', icon: '💰', cost: { earth: 3, treasure: 1 }, at: [2.9, 0.4],
+    boxes: [[0, 0.22, 0, 0.8, 0.44, 0.55, 0x7a4d2a], [0, 0.5, 0, 0.82, 0.14, 0.57, 0x8f5d33], [0, 0.3, 0, 0.84, 0.06, 0.59, 0xe5b93a], [-0.42, 0.35, 0, 0.04, 0.14, 0.12, 0xe5b93a]],
+    glow: [[0.05, 0.6, 0, 0.5, 0.05, 0.3, 0xffe27a]] },
+  { id: 'fence', en: 'fence', de: 'Zaun', icon: '🪵', cost: { earth: 8, pinecone: 1 }, at: [0, 0], boxes: fencePosts() },
+];
 // things Raluca can dig up at a mound of earth
 const DIG_KINDS = {
   bone: { en: 'bone', de: 'Knochen', icon: '🦴' }, coin: { en: 'coin', de: 'Münze', icon: '🪙' },
@@ -403,12 +441,14 @@ function start() {
   const keys = new Set();
   const input = { x: 0, y: 0, jump: false };
   const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · E: Aktion · F: graben · Maus: umsehen';
+  $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · E: Aktion · F: graben · G: bauen · Maus: umsehen';
   if (!touch) $('jump').style.display = 'none';
   setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
   window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); }
     if (e.code === 'KeyE' && !e.repeat) doAction();
     if (e.code === 'KeyF' && !e.repeat) startDig();
+    if (e.code === 'KeyG' && !e.repeat) startBuild();
+    if (e.code === 'KeyH' && !e.repeat) { if (busy && $('closeHome')) $('closeHome').click(); else if (Math.hypot(DEN[0] + 0.5 - P.x, DEN[1] + 0.5 - P.z) < 6) openHome(); }
     if (e.code === 'KeyB' && !e.repeat) { if (busy && $('closeBook')) $('closeBook').click(); else openBook(); } });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
@@ -575,7 +615,14 @@ function start() {
       marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: null });
     }
     const o = rng(900 + round), idx = SENTENCES.map((_, i) => i).sort(() => o() - 0.5);
-    marks.forEach((m, i) => { m.item = SENTENCES[idx[i % idx.length]]; });
+    const o2 = rng(1900 + round), sIdx = SAYS.map((_, i) => i).sort(() => o2() - 0.5), rIdx = REPEATS.map((_, i) => i).sort(() => o2() - 0.5);
+    // build the sentence and say it in English take turns (no repeat-after-me: Freddy left it out)
+    marks.forEach((m, i) => {
+      m.type = ['build', 'say'][i % 2];
+      if (m.type === 'say' && !SAYS.length) m.type = 'build';
+      if (m.type === 'repeat' && !REPEATS.length) m.type = 'build';
+      m.item = m.type === 'say' ? SAYS[sIdx[i % sIdx.length]] : m.type === 'repeat' ? REPEATS[rIdx[i % rIdx.length]] : SENTENCES[idx[i % idx.length]];
+    });
     found = 0; showCount();
   }
   const showCount = () => { $('count').textContent = `${found} / ${marks.length}`; };
@@ -620,7 +667,91 @@ function start() {
   let busy = false, cheer = 0;
   const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const same = (a, b) => { const n = (t) => t.toLowerCase().replace(/[.?!,]/g, '').replace(/\s+/g, ' ').trim(); return n(a) === n(b); };
+  function markDone(m) { m.done = true; found++; showCount(); cheer = 1.2; earn(3); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } }
+  /** answer by voice (checked on the server) or by typing; onResult(level, said, corrected, praise) */
+  function micInto(box, { check, hint, answers, onResult }) {
+    box.innerHTML = `<p class="small" id="mStatus"></p><div class="row">${canRecord() ? '<button class="btn primary" id="mMic">🎤 Sprechen</button>' : ''}<button class="btn" id="mType">⌨️ Tippen</button></div>
+      <form class="typed" id="mTyped" hidden><input id="mIn" autocomplete="off" autocapitalize="sentences" placeholder="Auf Englisch schreiben …"><button class="btn primary">OK</button></form>`;
+    let rec = null;
+    const status = (t) => { $('mStatus').textContent = t; };
+    if ($('mMic')) $('mMic').onclick = async () => {
+      const mic = $('mMic');
+      if (rec) {
+        const r0 = rec; rec = null; mic.disabled = true; mic.textContent = '⏳ Moment …'; status('Ich höre mir das an …');
+        const r = await r0.stop(); if (!$('mMic')) return; mic.disabled = false; mic.textContent = '🎤 Sprechen';
+        if (r.error === 'cancelled') return;
+        if (r.error) { status(r.error); return; }
+        status('');
+        if (r.check) onResult(r.check.level, r.text, r.check.corrected, r.check.praise); else onResult(typedLevel(r.text, answers), r.text, '', '');
+        return;
+      }
+      mic.disabled = true; mic.textContent = '⏳ Mikro startet …';
+      try { rec = await startRecording((sec) => status(`Jetzt sprechen! ${sec} s`), () => mic.click(), check, hint); }
+      catch (e) { status(e.message); mic.disabled = false; mic.textContent = '🎤 Sprechen'; return; }
+      mic.disabled = false; mic.textContent = '■ Fertig'; status('Jetzt sprechen! Dann auf „Fertig“ tippen.');
+    };
+    $('mType').onclick = () => { $('mTyped').hidden = !$('mTyped').hidden; if (!$('mTyped').hidden) $('mIn').focus(); };
+    $('mTyped').onsubmit = (ev) => { ev.preventDefault(); const t = $('mIn').value.trim(); if (t) onResult(typedLevel(t, answers), t, '', ''); };
+    return { cancel() { if (rec) { rec.cancel(); rec = null; } } };
+  }
+  // say it in English / repeat after me (at a question mark)
+  function openSpeak(m) {
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const it = m.item, card = $('card'), say = m.type === 'say';
+    const answers = say ? it.answers : [it.en];
+    card.innerHTML = say
+      ? `<p class="small">Jemand spricht mit dir. Antworte auf Englisch.</p><p class="en say">🗣️ ${esc(it.they)} <span class="spk">🔊</span></p><p class="task">Sag auf Englisch: <b>${esc(it.de)}</b></p><div id="mBox"></div><div id="result"></div>`
+      : `<p class="small">Hör zu und sprich nach.</p><p class="en say" style="font-size:20px">${esc(it.en)} <span class="spk">🔊</span></p><p class="small">${esc(it.de)}</p><div class="row"><button class="btn" id="slow">🐢 Langsam</button></div><div id="mBox"></div><div id="result"></div>`;
+    card.innerHTML += '<div class="row"><button class="btn" id="later">Später</button></div>';
+    $('sheet').classList.add('open');
+    const line = say ? it.they : it.en;
+    play(line, { role: say ? 'friend' : 'main' });
+    card.onclick = (ev) => { if (ev.target.closest('.say')) play(line, { role: say ? 'friend' : 'main' }); const s2 = ev.target.closest('.say2'); if (s2) play(s2.dataset.t); };
+    if ($('slow')) $('slow').onclick = () => play(it.en, { slow: true });
+    let mic = null;
+    const close = () => { if (mic) mic.cancel(); $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
+    $('later').onclick = close;
+    mic = micInto($('mBox'), {
+      check: { they: say ? it.they : 'Repeat after me: ' + it.en, de: it.de, answers }, hint: say ? `She answers: "${it.they}"` : `She repeats: "${it.en}"`, answers,
+      onResult(level, said, corrected, praise) {
+        const ok = level === 'great' || level === 'good', best = corrected || answers[0];
+        if (ok) {
+          $('mBox').innerHTML = '';
+          $('result').innerHTML = `<p class="ok">${level === 'great' ? 'Super! 🎉' : 'Gut gemacht! 👍'} 🟫 +3</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}<p class="en say2" data-t="${esc(best)}">${esc(best)} 🔊</p>`;
+          card.querySelector('#later').outerHTML = '<button class="btn primary" id="next">Weiter</button>';
+          $('next').onclick = () => { close(); markDone(m); };
+          play(best);
+        } else {
+          $('result').innerHTML = `<p class="no">Noch nicht ganz – versuch es noch einmal.</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}${praise ? `<p class="small">${esc(praise)}</p>` : ''}<p class="small">Zum Beispiel:</p><p class="en say2" data-t="${esc(best)}">${esc(best)} 🔊</p>`;
+        }
+      },
+    });
+  }
+  // spelling: put the letters of an English word in the right order (to build things, and in the word practice)
+  function spellInto(box, wordEn, onRight) {
+    const target = wordEn.toLowerCase();
+    const letters = [...target].map((c, id) => ({ c, id })).filter((t) => t.c !== ' ');
+    let pool = [...letters].sort(() => Math.random() - 0.5), chosen = [], wrong = 0;
+    if (pool.map((t) => t.c).join('') === letters.map((t) => t.c).join('') && pool.length > 1) pool.reverse();
+    const shown = () => { let k = 0; return [...target].map((c) => (c === ' ' ? '<span class="gap"></span>' : chosen[k] ? `<button class="tile ltr" data-id="${chosen[k++].id}">${chosen[k - 1].c}</button>` : (k++, '<span class="slot"></span>'))).join(''); };
+    const draw = () => {
+      box.innerHTML = `<div class="answer spell" id="sAns">${shown()}</div><div class="tiles">${pool.map((t) => `<button class="tile ltr ${chosen.includes(t) ? 'used' : ''}" data-id="${t.id}" ${chosen.includes(t) ? 'disabled' : ''}>${t.c}</button>`).join('')}</div><div id="sRes"></div>`;
+    };
+    box.onclick = (ev) => {
+      const b = ev.target.closest('.tile'); if (!b) return;
+      const t = letters.find((x) => x.id === Number(b.dataset.id));
+      if (b.parentElement.id === 'sAns') chosen = chosen.filter((x) => x !== t); else if (!chosen.includes(t)) chosen.push(t);
+      draw();
+      if (chosen.length === letters.length) {
+        const got = chosen.map((x) => x.c).join(''), want = letters.map((x) => x.c).join('');
+        if (got === want) { $('sAns').className = 'answer spell right'; box.onclick = null; play(wordEn); setTimeout(onRight, 700); }
+        else { wrong++; $('sAns').className = 'answer spell wrong'; $('sRes').innerHTML = wrong >= 2 ? `<p class="no">Richtig ist: <b>${esc(wordEn)}</b></p>` : '<p class="no">Fast! Nochmal.</p>'; setTimeout(() => { chosen = []; draw(); if (wrong >= 2) $('sRes').innerHTML = `<p class="small">Richtig ist: <b>${esc(wordEn)}</b></p>`; }, 900); }
+      }
+    };
+    draw();
+  }
   function openExercise(m) {
+    if (m.type === 'say' || m.type === 'repeat') { openSpeak(m); return; }
     busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
     const item = m.item, card = $('card');
     const words = item.en.replace(/[.?!]+$/, '').split(/\s+/);
@@ -646,11 +777,11 @@ function start() {
     $('check').onclick = () => {
       if (same(chosen.map((t) => t.w).join(' '), item.en)) {
         locked = true; $('answer').className = 'answer right';
-        $('result').innerHTML = `<p class="ok">Richtig! 🎉</p><p class="en">${esc(item.en)}</p>`;
+        $('result').innerHTML = `<p class="ok">Richtig! 🎉 🟫 +3</p><p class="en">${esc(item.en)}</p>`;
         card.querySelector('.row').innerHTML = '<button class="btn" id="hear">🔊 Anhören</button><button class="btn primary" id="next">Weiter</button>';
         play(item.en);
         $('hear').onclick = () => play(item.en);
-        $('next').onclick = () => { m.done = true; found++; showCount(); cheer = 1.2; close(); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } };
+        $('next').onclick = () => { close(); markDone(m); };
       } else {
         wrong++; $('answer').className = 'answer wrong';
         $('result').innerHTML = wrong >= 2 ? `<p class="no">Fast! Richtig ist:</p><p class="en">${esc(item.en)}</p>` : '<p class="no">Fast! Versuch es noch mal.</p>';
@@ -716,6 +847,9 @@ function start() {
     } else if (act.kind === 'sniff') {
       const down = Math.min(1, t / 0.25, (act.d - t) / 0.25);
       p.headNod = 0.5 * down + Math.sin(t * 28) * 0.05 * down; p.headTurn = Math.sin(t * 4) * 0.35 * down; p.earL = p.earR = -0.2 * down; p.tailUp = 0.3;
+    } else if (act.kind === 'build') {   // she pushes the block into place with her nose and paws
+      const k2 = Math.sin(Math.min(1, t / act.d) * Math.PI);
+      p.headNod = 0.4 * k2; p.fl = -0.6 * k2; p.pitch = -0.08 * k2; p.tailUp = 0.3;
     } else if (act.kind === 'dig') {
       // nose down, front paws scrape fast, tail up
       const down = Math.min(1, act.t / 0.25), w = Math.sin(act.t * 26);
@@ -779,6 +913,7 @@ function start() {
         needs.food = Math.min(100, needs.food + 30); act = null; cheer = 0.6; save(); return;
       }
       if (act.kind === 'miss' && act.t >= act.d) { act = null; return; }
+      if (act.kind === 'build' && act.t >= act.d) { const a0 = act; act = null; buildDone(a0); return; }
       if (act.kind === 'dig') {
         if (act.t > 0.15 && Math.random() < dt * 30) dirt(act.x + 0.5, H[act.z * SIZE + act.x] + 0.1, act.z + 0.5);
         if (act.t >= act.d) { const a0 = act; act = null; digDone(a0); return; }
@@ -810,7 +945,7 @@ function start() {
       if (night) tday = 0.27; else tday = (tday + 0.08) % 1;
       needs.energy = 100; warned.energy = false;
       $('fade').style.opacity = 0;
-      setTimeout(() => { act = null; toast(night ? 'Guten Morgen! ☀️  Good morning, Raluca!' : 'Ein kleines Nickerchen. 😴  a nap'); save(); }, 900);
+      setTimeout(() => { act = null; toast((night ? 'Guten Morgen! ☀️  Good morning, Raluca!' : 'Ein kleines Nickerchen. 😴  a nap') + (built.has('bed') ? ' 🍂 Im Blätterbett schläft sie super.' : '')); save(); }, 900);
     }, 1800);
   }
 
@@ -865,10 +1000,28 @@ function start() {
         return n ? `<button class="entry" data-k="${k}"><span class="ic">${w.icon}</span><b>${w.en}</b><small>${w.de}</small><i>× ${n}</i></button>`
           : '<div class="entry unknown"><span class="ic">?</span><b>???</b><small>noch nicht gefunden</small></div>'; }).join('')}</div>
       <p class="small">Tippe auf ein Wort, um es zu hören.</p>
-      <div class="row"><button class="btn primary" id="closeBook">Weiter spielen</button></div>`;
+      <div class="row">${known ? '<button class="btn" id="practice">🃏 Wörter üben (🟫 +1)</button>' : ''}<button class="btn primary" id="closeBook">Weiter spielen</button></div>`;
     $('sheet').classList.add('open');
     $('card').onclick = (ev) => { const b = ev.target.closest('.entry[data-k]'); if (b) play(word(b.dataset.k).en); };
     $('closeBook').onclick = () => { $('sheet').classList.remove('open'); $('card').onclick = null; busy = false; };
+    if ($('practice')) $('practice').onclick = (e2) => { e2.stopPropagation(); practice(all.filter((k) => bookCount[k]), 0, 0); };
+  }
+  // word practice: the German word and the picture → spell the English word; 5 words, each right one = 1 earth
+  function practice(keysKnown, n, right) {
+    const card = $('card');
+    if (n >= 5) {
+      card.onclick = null;
+      card.innerHTML = `<p class="ok">Fertig! ${right} von 5 richtig. 🟫 +${right}</p><div class="row"><button class="btn primary" id="closeBook">Weiter spielen</button></div>`;
+      $('closeBook').onclick = () => { $('sheet').classList.remove('open'); busy = false; save(); };
+      return;
+    }
+    const k = keysKnown[Math.floor(Math.random() * keysKnown.length)], w = word(k);
+    card.innerHTML = `<p class="small">Wort ${n + 1} von 5 · Wie heißt das auf Englisch?</p><p class="de" style="font-size:24px">${w.icon} ${esc(w.de)}</p>
+      <div id="spell"></div><div class="row"><button class="btn" id="hint">🔊 Tipp: anhören</button><button class="btn" id="skip">Weiter</button></div>`;
+    let heard = false;
+    $('hint').onclick = () => { heard = true; play(w.en); };
+    $('skip').onclick = () => practice(keysKnown, n + 1, right);
+    spellInto($('spell'), w.en, () => { const ok = !heard; if (ok) earn(1); practice(keysKnown, n + 1, right + (ok ? 1 : 0)); });
   }
   $('bookBtn').addEventListener('click', openBook);
 
@@ -1058,7 +1211,82 @@ function start() {
     if (H[Math.floor(P.z) * SIZE + Math.floor(P.x)] < P.y - 0.6) { P.air = true; P.vy = 0; }   // the block under her: she drops in
     showEarth(); save();
   }
-  const showEarth = () => { $('earth').textContent = `🟫 ${earth}`; $('earth').style.display = earth ? 'block' : 'none'; };
+  function earn(n) { earth += n; showEarth(); }
+  const showEarth = () => { $('earth').textContent = `🟫 ${earth}`; $('earth').style.display = earth ? 'block' : 'none'; $('build').style.display = earth ? 'block' : 'none'; };
+  // building: one earth block onto the block in front of her (a wall, steps up a hill, a bridge over water)
+  let buildHold = false;
+  function startBuild() {
+    if (act || busy || P.air) return;
+    if (earth <= 0) { if (performance.now() - digTold > 2500) { toast('Keine Erde mehr. Grab zuerst! 🐾'); digTold = performance.now(); } return; }
+    const fx = -Math.cos(P.face), fz = Math.sin(P.face), px = Math.floor(P.x), pz = Math.floor(P.z);
+    let x = px, z = pz; for (const k of [0.75, 1.1, 1.5]) { x = Math.floor(P.x + fx * k); z = Math.floor(P.z + fz * k); if (x !== px || z !== pz) break; }
+    const i = z * SIZE + x, h = H[i];
+    let no = null;
+    if (x < 3 || z < 3 || x > SIZE - 4 || z > SIZE - 4) no = 'Hier geht es nicht.';
+    else if (Math.abs(x - DEN[0]) <= 2 && Math.abs(z - DEN[1]) <= 2) no = 'Nicht auf den Bau! 🏠';
+    else if (solid[i]) no = 'Da steht etwas im Weg.';
+    else if (h >= Math.floor(P.y) + 2 || h >= 18) no = 'Zu hoch – stell dich höher hin.';
+    if (no) { if (performance.now() - digTold > 2500) { toast(no); digTold = performance.now(); } return; }
+    act = { kind: 'build', t: 0, d: 0.45, x, z };
+  }
+  function buildDone(a0) {
+    const { x, z } = a0, h = H[z * SIZE + x];
+    setHeight(x, z, Math.max(h, WATER - 1) + 1); reland([[x, z]]);
+    earth--; for (let k = 0; k < 3; k++) dirt(x + 0.5, h + 0.6, z + 0.5);
+    showEarth(); save();
+  }
+  $('build').addEventListener('pointerdown', (e) => { e.preventDefault(); buildHold = true; startBuild(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('build').addEventListener(ev, () => { buildHold = false; });
+
+  // ---------------- the den: build nice things from earth and found things
+  const spent = {}, built = new Set(), decorMeshes = {};
+  const glowMat = new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff });
+  const DC = [DEN[0] + 0.5, DEN[1] + 0.5];
+  function showDecor(d) {
+    if (decorMeshes[d.id]) return;
+    const g = new THREE.Group(); g.add(boxMesh(d.boxes, boxMat)); if (d.glow) g.add(boxMesh(d.glow, glowMat));
+    const x = DC[0] + d.at[0], z = DC[1] + d.at[1];
+    g.position.set(x, d.id === 'fence' ? 0 : at(Math.floor(x), Math.floor(z)), z); if (d.id === 'fence') g.position.y = at(DEN[0], DEN[1]);
+    scene.add(g); decorMeshes[d.id] = g;
+    if (d.id !== 'fence' && d.id !== 'path') solid[Math.floor(z) * SIZE + Math.floor(x)] = 1;   // she walks around it
+  }
+  const have = (k) => (k === 'earth' ? earth : (bookCount[k] || 0) - (spent[k] || 0));
+  const costText = (c) => Object.entries(c).map(([k, n]) => `${k === 'earth' ? '🟫' : word(k).icon} ${have(k) >= n ? '' : '<span class="no">'}${Math.max(0, have(k))}/${n}${have(k) >= n ? '' : '</span>'}`).join(' · ');
+  function openHome() {
+    if (busy) return;
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const card = $('card');
+    const draw = () => {
+      card.innerHTML = `<p class="small">Ralucas Bau · 🟫 ${earth} Erde · ${built.size} von ${DECOR.length} gebaut</p>
+        <div class="decor">${DECOR.map((d) => { const ok = Object.entries(d.cost).every(([k, n]) => have(k) >= n);
+          return `<div class="item ${built.has(d.id) ? 'done' : ''}"><span class="ic">${d.icon}</span><span class="nm"><b data-say="${d.en}">${d.en} 🔊</b><small>${d.de}</small><small>${built.has(d.id) ? '✓ gebaut' : costText(d.cost)}</small></span>
+          ${built.has(d.id) ? '' : `<button class="btn ${ok ? 'primary' : ''}" data-id="${d.id}" ${ok ? '' : 'disabled'}>Bauen</button>`}</div>`; }).join('')}</div>
+        <p class="small">Erde 🟫 bekommst du beim Graben, die anderen Dinge findest du in der Welt.</p>
+        <div class="row"><button class="btn primary" id="closeHome">Fertig</button></div>`;
+    };
+    draw();
+    $('sheet').classList.add('open');
+    card.onclick = (ev) => {
+      const sayIt = ev.target.closest('[data-say]'); if (sayIt) { play(sayIt.dataset.say); return; }
+      const b = ev.target.closest('.item button[data-id]');
+      if (b) {
+        const d = DECOR.find((x) => x.id === b.dataset.id);
+        if (!d || built.has(d.id) || !Object.entries(d.cost).every(([k, n]) => have(k) >= n)) return;
+        // first spell its English name, then it is built
+        card.innerHTML = `<p class="small">Bevor Raluca baut: Schreib das Wort auf Englisch!</p><p class="de">${d.icon} ${esc(d.de)}</p>
+          <div class="row"><button class="btn" id="hearW">🔊 Anhören</button></div><div id="spell"></div><div class="row"><button class="btn" id="backHome">Zurück</button></div>`;
+        $('hearW').onclick = (e2) => { e2.stopPropagation(); play(d.en); };
+        $('backHome').onclick = (e2) => { e2.stopPropagation(); draw(); };
+        spellInto($('spell'), d.en, () => {
+          for (const [k, n] of Object.entries(d.cost)) { if (k === 'earth') earth -= n; else spent[k] = (spent[k] || 0) + n; }
+          built.add(d.id); showDecor(d); showEarth(); cheer = 1; save(); draw(); toast(`Gebaut: ${d.icon} ${d.en}!`);
+        });
+        return;
+      }
+      if (ev.target.id === 'closeHome') { $('sheet').classList.remove('open'); card.onclick = null; busy = false; }
+    };
+  }
+  $('homeBtn').addEventListener('click', openHome);
   $('dig').addEventListener('pointerdown', (e) => { e.preventDefault(); digHold = true; startDig(); });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('dig').addEventListener(ev, () => { digHold = false; });
   function digUp(g) {
@@ -1123,7 +1351,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1132,10 +1360,12 @@ function start() {
     if (!d || d.v !== 1) return;
     if (Array.isArray(d.holes)) {
       const cells = [];
-      for (const [i, h] of d.holes) if (Number.isInteger(i) && i >= 0 && i < H.length && Number.isInteger(h) && h >= 1 && h <= H[i]) { setHeight(i % SIZE, Math.floor(i / SIZE), h); cells.push([i % SIZE, Math.floor(i / SIZE)]); }
+      for (const [i, h] of d.holes) if (Number.isInteger(i) && i >= 0 && i < H.length && Number.isInteger(h) && h >= 1 && h <= 19) { setHeight(i % SIZE, Math.floor(i / SIZE), h); cells.push([i % SIZE, Math.floor(i / SIZE)]); }
       if (cells.length) reland(cells);
     }
     if (Number.isFinite(d.earth)) earth = d.earth;
+    if (d.spent && typeof d.spent === 'object') for (const [k, n] of Object.entries(d.spent)) if (word(k) && Number.isFinite(n)) spent[k] = n;
+    for (const id of d.built || []) { const dd = DECOR.find((x) => x.id === id); if (dd) { built.add(id); showDecor(dd); } }
     if (d.pals) for (const f of pals) { const v = d.pals[f.id]; if (Array.isArray(v) && Number.isInteger(v[0])) { f.step = Math.max(0, Math.min(f.steps.length, v[0])); f.acc = !!v[1]; f.has = !!v[2]; } }
     showEarth();
     if (Number.isFinite(d.x) && Number.isFinite(d.z) && !blocked(d.x, d.z, groundAt(d.x, d.z))) { P.x = d.x; P.z = d.z; P.y = groundAt(P.x, P.z); P.face = d.face || 0; }
@@ -1158,7 +1388,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, pals, openTalk, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1169,6 +1399,8 @@ function start() {
     drawLabels();
     drawDirt(dt);
     if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();
+    if ((buildHold || keys.has('KeyG')) && !act && !busy) startBuild();
+    $('homeBtn').style.display = !busy && Math.hypot(DC[0] - P.x, DC[1] - P.z) < 6 ? 'block' : 'none';
     const e = sky();
     if ((frames & 7) === 0) showNeeds(e);
     for (const pc of pieces) pc.g.visible = Math.hypot(pc.x - camera.position.x, pc.z - camera.position.z) < SEE + CHUNK * 0.72;
@@ -1188,4 +1420,4 @@ function start() {
   requestAnimationFrame(frame);
 }
 
-if (webglOk()) start(); else { $('err').style.display = 'flex'; $('hud').style.display = 'none'; $('jump').style.display = 'none'; $('dig').style.display = 'none'; $('act').style.display = 'none'; }
+if (webglOk()) start(); else { $('err').style.display = 'flex'; $('hud').style.display = 'none'; $('jump').style.display = 'none'; $('dig').style.display = 'none'; $('act').style.display = 'none'; $('build').style.display = 'none'; }

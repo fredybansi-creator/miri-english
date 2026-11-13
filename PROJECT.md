@@ -167,3 +167,12 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   fish, carrot, berries, worm, apple, crystal, treasure; digging finds the wanted worm/carrot more often). Each step =
   one heart; name signs over their heads; friends + hearts at the top of the book; saved as `pals`. Their lines have no
   Kokoro files yet (phone voice) – `tools/make_audio.py` now also collects friends.js, so Freddy's next run adds them.
+- Step 7 (2026-11-13): 🧱 Bauen (hold / key G, shown once she has earth) puts an earth block on the block in front of
+  her (walls, steps, bridges; max 2 above her). 🏠 button near the den (key H) opens the den menu: 8 things (`DECOR`:
+  leaf bed, mushroom lamp (glows), flower garden, shell path, feather chime, apple basket, treasure chest, fence) cost
+  earth 🟫 + found things (`spent` is subtracted from the book counts); before building, Miri spells the English word
+  with letter tiles. Saved as `built`, `spent`.
+- More English (Freddy: "the game is meant to teach English"): question marks alternate "build the sentence" and
+  "say it in English" (lessons' `say` items, voice check or typing); NO repeat-after-me (Freddy left it out).
+  Every exercise at a mark gives 🟫 +3. Book → 🃏 Wörter üben: 5 found words, German → spell the English word, +1 🟫 each
+  (not when she listened to the hint first).
