@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Ralucas Welt – Modelle</title>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #eef4ec; color: #2c3328; }
+  h1 { font-size: 20px; margin: 14px 16px 4px; } p.sub { margin: 0 16px 10px; font-size: 13px; color: #6a7564; }
+  #c { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 0 12px 30px; max-width: 1100px; margin: 0 auto; }
+  .cell { background: linear-gradient(#cfe9f7, #eef8fc); border-radius: 16px; overflow: hidden; }
+  .view { aspect-ratio: 1; }
+  .name { background: #fff; padding: 7px 10px; font-size: 15px; font-weight: 600; } .name span { display: block; font-weight: 400; font-size: 12px; color: #6a7564; }
+</style>
+</head>
+<body>
+<h1>Ralucas Welt – Modelle</h1>
+<p class="sub">Schritt 1: Bäume, Steine, Fuchsbau und die ersten Tiere. Alle drehen sich langsam.</p>
+<div id="grid"></div>
+<canvas id="c"></canvas>
+<script type="module">
+import * as THREE from '../vendor/three.module.min.js';
+import { MODELS } from './models.js';
+import { makeFoxActor } from '../fox3d.js';
+
+const grid = document.getElementById('grid');
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setScissorTest(true);
+
+// the same pixel texture as the world
+const tc = document.createElement('canvas'); tc.width = tc.height = 16; const g = tc.getContext('2d');
+let s = 7; const rnd = () => { s = (s * 16807) % 2147483647; return (s & 0xffff) / 0x10000; };
+for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const v = 205 + Math.floor(rnd() * 50); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, y, 1, 1); }
+const tex = new THREE.CanvasTexture(tc); tex.magFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace;
+const mat = new THREE.MeshLambertMaterial({ map: tex });
+const box = new THREE.BoxGeometry(1, 1, 1);
+
+function build(boxes) {
+  const mesh = new THREE.InstancedMesh(box, mat, boxes.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), c = new THREE.Color();
+  boxes.forEach((b, i) => { p.set(b[0], b[1], b[2]); sc.set(b[3], b[4], b[5]); m.compose(p, q, sc); mesh.setMatrixAt(i, m); mesh.setColorAt(i, c.setHex(b[6])); });
+  return mesh;
+}
+const views = [];
+function addCell(en, de, object, withFox) {
+  const cell = document.createElement('div'); cell.className = 'cell';
+  cell.innerHTML = `<div class="view"></div><div class="name">${en}<span>${de}</span></div>`;
+  grid.append(cell);
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x9ab07f, 1.7));
+  const sun = new THREE.DirectionalLight(0xfff2d8, 1.9); sun.position.set(-3, 6, 4); scene.add(sun);
+  const turn = new THREE.Group(); turn.add(object); scene.add(turn);
+  const bb = new THREE.Box3().setFromObject(object);
+  const size = bb.getSize(new THREE.Vector3()), mid = bb.getCenter(new THREE.Vector3());
+  const r = Math.max(size.x, size.y, size.z) * 0.5 + 0.15;
+  const ground = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.05, r * 1.05, 0.08, 6), new THREE.MeshLambertMaterial({ color: 0x6fbf55, map: tex }));
+  ground.position.y = -0.04; turn.add(ground);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 200);
+  const d = r / Math.tan((15 * Math.PI) / 180) * 1.25;
+  cam.position.set(-d * 0.75, mid.y + d * 0.42, d * 0.62); cam.lookAt(0, mid.y, 0);
+  views.push({ el: cell.querySelector('.view'), scene, cam, turn });
+}
+for (const m of Object.values(MODELS)) addCell(m.en, m.de, build(m.boxes));
+// size check: Raluca next to the animals
+{
+  const group = new THREE.Group();
+  const fox = makeFoxActor(); fox.pose(fox.rest()); fox.root.scale.setScalar(0.9); fox.root.position.set(0.1, 0, 0); group.add(fox.root);
+  const place = (name, x, z) => { const o = build(MODELS[name].boxes); o.position.set(x, 0, z); group.add(o); };
+  place('rabbit', -1.1, 0.9); place('mouse', -1.0, -0.6); place('hedgehog', 0.6, 1.1); place('owl', 0.9, -1.0);
+  addCell('Raluca and friends', 'Größenvergleich', group);
+}
+function frame(t) {
+  const w = window.innerWidth, h = window.innerHeight;
+  if (renderer.domElement.width !== Math.floor(w * renderer.getPixelRatio())) renderer.setSize(w, h, false);
+  renderer.setScissor(0, 0, w, h); renderer.clear();
+  for (const v of views) {
+    const r = v.el.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > h) continue;
+    v.turn.rotation.y = t / 2600;
+    renderer.setViewport(r.left, h - r.bottom, r.width, r.height); renderer.setScissor(r.left, h - r.bottom, r.width, r.height);
+    renderer.render(v.scene, v.cam);
+  }
+  requestAnimationFrame(frame);
+}
+window.SHEET = { freeze: (a) => { for (const v of views) v.turn.rotation.y = a; } };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

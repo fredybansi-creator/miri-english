@@ -127,3 +127,6 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   opens a "build the sentence" card with the `build` items of all lessons (audio via `neu/audio.js`, whose BASE now
   comes from `import.meta.url`). Arrow + metres at the top right point to the nearest one. Progress is not saved yet and
   gives no coins yet. Speaking exercises at question marks are still to do.
+- Step 1 (2026-11-13): models in `neu/welt/models.js` – each model is a list of coloured boxes (oak, pine, birch, berry
+  bush, rock, log, mushroom, flowers, reeds, den, mouse, rabbit, owl, hedgehog, fish), built in code, not in Blender,
+  so the world stays one instanced mesh. Picture sheet: `neu/welt/modelle.html`. Not yet placed in the world (step 2).
