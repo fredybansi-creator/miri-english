@@ -141,6 +141,12 @@ def collect():
                 main.add(a)
         for c in f.get("chat", []):
             main.add(c["en"])
+    # the fox game: Olli's story of the day (neu/welt/stories.js)
+    sto = load_module(ROOT / "neu" / "welt" / "stories.js")
+    for st in sto["stories"]:
+        main.update(st["en"])
+        main.add(st["q"])
+        main.update(st["options"])
     clean = lambda xs: sorted({normalize(x) for x in xs if x and normalize(x)})
     return {"main": clean(main), "friend": clean(friend)}
 
