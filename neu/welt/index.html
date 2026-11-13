@@ -22,15 +22,36 @@
   #jump { position: fixed; right: calc(22px + env(safe-area-inset-right)); bottom: calc(34px + env(safe-area-inset-bottom)); width: 78px; height: 78px;
     border-radius: 50%; border: 2px solid rgba(255,255,255,.8); background: rgba(244,138,55,.9); color: #fff; font: inherit; font-weight: 600; font-size: 14px;
     touch-action: none; }
+  #goal { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); background: rgba(255,255,255,.85);
+    border-radius: 12px; padding: 7px 11px; font-size: 13px; line-height: 1.35; pointer-events: none; display: flex; align-items: center; gap: 8px; }
+  #goal b { font-size: 15px; } #goal .q { color: #e0a400; font-weight: 800; font-size: 18px; }
+  #arrow { display: inline-block; font-size: 18px; line-height: 1; color: #b8521a; }
+  #sheet { position: fixed; inset: 0; display: none; align-items: flex-end; justify-content: center; background: rgba(20,30,20,.25); }
+  #sheet.open { display: flex; }
+  #card { width: 100%; max-width: 480px; box-sizing: border-box; background: #fff; border-radius: 22px 22px 0 0;
+    padding: 16px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -6px 24px rgba(0,0,0,.18); }
+  #card p { margin: 0 0 8px; } #card .small { font-size: 13px; color: #6a7564; } #card .de { font-size: 19px; font-weight: 600; }
+  #card .en { font-size: 17px; font-weight: 600; } #card .ok { color: #2e8b3d; font-weight: 700; } #card .no { color: #b8521a; font-weight: 700; }
+  .answer { min-height: 52px; border: 2px dashed #c9d6c3; border-radius: 14px; padding: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+  .answer.right { border: 2px solid #2e8b3d; background: #eaf7ea; } .answer.wrong { border: 2px solid #d9622b; background: #fdeee6; }
+  .answer .ph { font-size: 13px; color: #8a9484; padding: 0 6px; }
+  .tiles { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 44px; }
+  .tile { font: inherit; font-size: 17px; padding: 9px 13px; border-radius: 12px; border: 1px solid #c9d6c3; background: #f6faf4; color: #2c3328; }
+  .tile.used { opacity: .25; }
+  .row { display: flex; gap: 8px; margin-top: 6px; }
+  .btn { flex: 1; font: inherit; font-size: 16px; font-weight: 600; padding: 13px; border-radius: 14px; border: 1px solid #c9d6c3; background: #fff; color: #2c3328; }
+  .btn.primary { background: #b8521a; border-color: #b8521a; color: #fff; } .btn:disabled { opacity: .45; }
   #err { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 17px; }
 </style>
 </head>
 <body>
 <div id="stage"></div>
 <div id="hud"><b id="fps">–</b> Bilder pro Sekunde<br><span id="note">wird gemessen …</span></div>
+<div id="goal"><span class="q">?</span><b id="count">0 / 0</b><span id="arrow">↑</span><span id="dist"></span></div>
 <div id="hint"><span id="hintText"></span></div>
 <div id="stick"><div id="knob"></div></div>
 <button id="jump">Springen</button>
+<div id="sheet"><div id="card"></div></div>
 <div id="err">Dieses Gerät kann kein 3D (WebGL).</div>
 <script type="module" src="./welt.js"></script>
 </body>

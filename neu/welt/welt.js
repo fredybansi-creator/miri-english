@@ -1,4 +1,5 @@
 // Ralucas Welt – step 0, the speed test: Raluca walks over a small block world.
+// Question marks stand in the world; when she walks into one, an English exercise opens (build the sentence).
 // Phone: thumb stick (left half of the screen), drag elsewhere to look around, button to jump.
 // Laptop: W A S D or arrow keys, space to jump, drag with the mouse to look around.
 // Everything is drawn in very few draw calls (one mesh for the ground, one for all tree/rock/flower blocks),
@@ -6,6 +7,17 @@
 
 import * as THREE from '../vendor/three.module.min.js';
 import { makeFoxActor, webglOk } from '../fox3d.js';
+import { play } from '../audio.js';
+import travel from '../content/travel.js';
+import friends from '../content/friends.js';
+import doctor from '../content/doctor.js';
+import holiday from '../content/holiday.js';
+import cafe from '../content/cafe.js';
+import shopping from '../content/shopping.js';
+
+// the "build the sentence" exercises of all lessons: { en, de, extra? }
+const SENTENCES = [travel, friends, doctor, holiday, cafe, shopping].flatMap((t) => t.lessons.flatMap((l) => l.build || []));
+const MARKS = 10;            // question marks in the world
 
 const SIZE = 112;            // blocks per side
 const WATER = 2;             // blocks at or below this height are under water
@@ -218,6 +230,10 @@ function start() {
   function step(dt) {
     time += dt;
     let mx = input.x, my = input.y;
+    if (busy) { mx = my = 0; input.jump = false; keys.clear(); }
+    if (cheer > 0 && !busy) { cheer -= dt; if (!P.air) input.jump = true; }
+    if (!busy && cheer <= 0) checkMarks();
+    drawMarks();
     if (keys.has('KeyA') || keys.has('ArrowLeft')) mx -= 1;
     if (keys.has('KeyD') || keys.has('ArrowRight')) mx += 1;
     if (keys.has('KeyW') || keys.has('ArrowUp')) my += 1;
@@ -279,10 +295,115 @@ function start() {
     look.set(P.x, P.y + 0.9, P.z); camera.lookAt(look);
   }
 
+  // ---------------- question marks: walk to one → an English exercise
+  // All marks are ONE instanced mesh (a "?" made of small cubes), so they cost one draw call.
+  const QM = ['.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'];
+  const cells = []; QM.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === '#') cells.push([(c - 2) * 0.2, (6 - r) * 0.2]); }));
+  const markMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: 0xffc928 }), MARKS * cells.length);
+  markMesh.frustumCulled = false; scene.add(markMesh);
+  const ringMesh = new THREE.InstancedMesh(new THREE.RingGeometry(0.75, 0.95, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.8, depthWrite: false }), MARKS);
+  ringMesh.frustumCulled = false; scene.add(ringMesh);
+  let marks = [], round = 0, found = 0, order = [];
+  function placeMarks() {
+    const r = rng(77 + round * 13); marks = [];
+    for (let tries = 0; tries < 4000 && marks.length < MARKS; tries++) {
+      const x = 6 + Math.floor(r() * (SIZE - 12)), z = 6 + Math.floor(r() * (SIZE - 12)), h = at(x, z), d = Math.hypot(x - mid, z - mid);
+      if (h <= WATER || h >= 9 || solid[z * SIZE + x] || d < 7 || d > mid - 12) continue;
+      if (marks.length < 3 && d > 16) continue;                                   // the first three are close to the start
+      if (marks.some((m) => Math.hypot(m.x - x, m.z - z) < 9)) continue;
+      if (order.length === 0) order = SENTENCES.map((_, i) => i).sort(() => r() - 0.5);
+      marks.push({ x: x + 0.5, z: z + 0.5, y: h, done: false, away: true, item: SENTENCES[order.pop()] });
+    }
+    found = 0; showCount();
+  }
+  const showCount = () => { $('count').textContent = `${found} / ${marks.length}`; };
+  const mm = new THREE.Matrix4(), mq = new THREE.Quaternion(), mp = new THREE.Vector3(), ms = new THREE.Vector3(), mo = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  function drawMarks() {
+    marks.forEach((m, i) => {
+      const spin = time * 1.6 + i, bob = Math.sin(time * 2 + i) * 0.12, show = m.done ? 0 : 1;
+      mq.setFromAxisAngle(UP, spin); ms.setScalar(show);
+      cells.forEach(([cx, cy], k) => {
+        mo.set(cx, cy, 0).applyQuaternion(mq); mp.set(m.x + mo.x, m.y + 1.5 + bob + mo.y, m.z + mo.z);
+        mm.compose(mp, mq, ms); markMesh.setMatrixAt(i * cells.length + k, mm);
+      });
+      mq.identity(); ms.setScalar(show * (1 + Math.sin(time * 3 + i) * 0.08)); mp.set(m.x, m.y + 0.04, m.z);
+      mm.compose(mp, mq, ms); ringMesh.setMatrixAt(i, mm);
+    });
+    markMesh.instanceMatrix.needsUpdate = true; ringMesh.instanceMatrix.needsUpdate = true;
+  }
+  // arrow at the top: where the nearest open question mark is (as seen from the camera)
+  function nearest() {
+    let best = null, bd = 1e9;
+    for (const m of marks) { if (m.done) continue; const d = Math.hypot(m.x - P.x, m.z - P.z); if (d < bd) { bd = d; best = m; } }
+    return best && { m: best, d: bd };
+  }
+  function checkMarks() {
+    const n = nearest();
+    if (!n) { $('arrow').style.visibility = 'hidden'; $('dist').textContent = ''; return; }
+    const dx = n.m.x - P.x, dz = n.m.z - P.z;
+    // screen angle: "up" on the screen is away from the camera
+    const fwd = -Math.sin(yaw) * dx - Math.cos(yaw) * dz, right = Math.cos(yaw) * dx - Math.sin(yaw) * dz;
+    $('arrow').style.visibility = 'visible';
+    $('arrow').style.transform = `rotate(${Math.atan2(right, fwd)}rad)`;
+    $('dist').textContent = `${Math.round(n.d)} m`;
+    for (const m of marks) {
+      if (m.done) continue;
+      const d = Math.hypot(m.x - P.x, m.z - P.z);
+      if (d > 2.6) m.away = true;                                 // after "Später" she must walk away first
+      else if (d < 1.3 && m.away && !P.air) { m.away = false; openExercise(m); }
+    }
+  }
+
+  // ---------------- the exercise card (build the sentence, like in the lessons)
+  let busy = false, cheer = 0;
+  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const same = (a, b) => { const n = (t) => t.toLowerCase().replace(/[.?!,]/g, '').replace(/\s+/g, ' ').trim(); return n(a) === n(b); };
+  function openExercise(m) {
+    busy = true; keys.clear(); input.x = input.y = 0; stickId = null; stick.style.display = 'none';
+    const item = m.item, card = $('card');
+    const words = item.en.replace(/[.?!]+$/, '').split(/\s+/);
+    const pool = [...words, ...(item.extra || [])].map((w, id) => ({ w, id })).sort(() => Math.random() - 0.5);
+    let chosen = [], locked = false, wrong = 0;
+    card.innerHTML = `<p class="small">Bau den Satz auf Englisch.</p><p class="de">${esc(item.de)}</p>
+      <div class="answer" id="answer"></div><div class="tiles" id="pool"></div><div id="result"></div>
+      <div class="row"><button class="btn" id="later">Später</button><button class="btn primary" id="check" disabled>Prüfen</button></div>`;
+    $('sheet').classList.add('open');
+    const draw = () => {
+      $('answer').innerHTML = chosen.map((t) => `<button class="tile" data-id="${t.id}">${esc(t.w)}</button>`).join('') || '<span class="ph">Tippe die Wörter in der richtigen Reihenfolge an.</span>';
+      $('pool').innerHTML = pool.map((t) => `<button class="tile ${chosen.includes(t) ? 'used' : ''}" data-id="${t.id}" ${chosen.includes(t) ? 'disabled' : ''}>${esc(t.w)}</button>`).join('');
+      if ($('check')) $('check').disabled = !chosen.length;
+    };
+    card.onclick = (ev) => {
+      const b = ev.target.closest('.tile'); if (!b || locked) return;
+      const t = pool.find((x) => x.id === Number(b.dataset.id));
+      if (b.parentElement.id === 'pool') chosen.push(t); else chosen = chosen.filter((x) => x !== t);
+      $('answer').className = 'answer'; $('result').innerHTML = ''; draw();
+    };
+    const close = () => { $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
+    $('later').onclick = close;
+    $('check').onclick = () => {
+      if (same(chosen.map((t) => t.w).join(' '), item.en)) {
+        locked = true; $('answer').className = 'answer right';
+        $('result').innerHTML = `<p class="ok">Richtig! 🎉</p><p class="en">${esc(item.en)}</p>`;
+        card.querySelector('.row').innerHTML = '<button class="btn" id="hear">🔊 Anhören</button><button class="btn primary" id="next">Weiter</button>';
+        play(item.en);
+        $('hear').onclick = () => play(item.en);
+        $('next').onclick = () => { m.done = true; found++; showCount(); cheer = 1.2; close(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); }, 1500); } };
+      } else {
+        wrong++; $('answer').className = 'answer wrong';
+        $('result').innerHTML = wrong >= 2 ? `<p class="no">Fast! Richtig ist:</p><p class="en">${esc(item.en)}</p>` : '<p class="no">Fast! Versuch es noch mal.</p>';
+        chosen = []; setTimeout(() => { if (!locked) { $('answer').className = 'answer'; draw(); } }, 700);
+      }
+    };
+    draw();
+  }
+  function toast(text) { $('hintText').textContent = text; $('hint').style.opacity = 1; setTimeout(() => { $('hint').style.opacity = 0; }, 4000); }
+  placeMarks();
+
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { P, stats, input, setYaw: (v) => { yaw = v; } };
+  window.WELT = { P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;

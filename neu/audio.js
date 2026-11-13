@@ -2,7 +2,7 @@
 // own voice if a sentence has no file. One shared <audio> element, so iPhone Safari allows playback
 // after the first tap.
 
-const BASE = '../audio/';
+const BASE = new URL('../audio/', import.meta.url).href; // works from any page (neu/ and neu/welt/)
 let manifest = null;
 const ready = fetch(BASE + 'manifest.json', { cache: 'no-cache' })
   .then((r) => (r.ok ? r.json() : null))
