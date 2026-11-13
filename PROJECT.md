@@ -130,3 +130,8 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
 - Step 1 (2026-11-13): models in `neu/welt/models.js` – each model is a list of coloured boxes (oak, pine, birch, berry
   bush, rock, log, mushroom, flowers, reeds, den, mouse, rabbit, owl, hedgehog, fish), built in code, not in Blender,
   so the world stays one instanced mesh. Picture sheet: `neu/welt/modelle.html`. Not yet placed in the world (step 2).
+- Step 2 (2026-11-13): the world. 192×192 blocks in pieces of 16×16 (ground mesh + one instanced mesh of model boxes
+  per piece; pieces farther than the fog are switched off, three.js culls the rest). Regions in `welt.js`: meadow with
+  the den in the middle, forest by noise, hill (north-west), 4 ponds (`PONDS`), 3 rivers (`RIVERS`). Animals
+  (`makeAnimals` / `moveAnimals`): rabbits and mice run away from Raluca, hedgehogs, two owls, fish in every pond and
+  river that jump now and then. About 180–240k triangles and ~100 draw calls in view (half of them are Raluca).

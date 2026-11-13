@@ -15,15 +15,28 @@ function maker(u) {
 function rnd(seed) { let s = seed; return () => { s = (s * 16807) % 2147483647; return (s & 0xffff) / 0x10000; }; }
 const shade = (c, k) => { const r = Math.min(255, ((c >> 16) & 255) * k), g = Math.min(255, ((c >> 8) & 255) * k), b = Math.min(255, (c & 255) * k); return (r << 16) | (g << 8) | b; };
 
-/** a crown of leaf blocks: layers = [[radius, y], ...] in half blocks */
+/** a crown of leaf blocks: layers = [[radius, y], ...] in half blocks. Blocks that nobody can see (inside) are left out. */
 function crown(M, layers, colours, seed, cut = 0.55) {
   const r = rnd(seed);
-  for (const [rad, y] of layers) for (let a = -rad; a <= rad; a++) for (let b = -rad; b <= rad; b++) {
-    const edge = Math.abs(a) === rad && Math.abs(b) === rad;
-    if (edge && (rad > 1 || r() < cut)) continue;
-    if (Math.abs(a) === rad && Math.abs(b) === rad - 1 && r() < 0.25) continue;
-    M.add(a - 0.5, a + 0.5, y, y + 1, b - 0.5, b + 0.5, shade(colours[Math.floor(r() * colours.length)], 0.94 + r() * 0.12));
-  }
+  const sets = layers.map(([rad]) => {
+    const set = new Set();
+    for (let a = -rad; a <= rad; a++) for (let b = -rad; b <= rad; b++) {
+      const edge = Math.abs(a) === rad && Math.abs(b) === rad;
+      if (edge && (rad > 1 || r() < cut)) continue;
+      if (Math.abs(a) === rad && Math.abs(b) === rad - 1 && r() < 0.25) continue;
+      set.add(a + ',' + b);
+    }
+    return set;
+  });
+  layers.forEach(([rad, y], i) => {
+    for (const key of sets[i]) {
+      const [a, b] = key.split(',').map(Number);
+      const has = (set, da, db) => set && set.has((a + da) + ',' + (b + db));
+      const hidden = has(sets[i - 1], 0, 0) && has(sets[i + 1], 0, 0) && has(sets[i], 1, 0) && has(sets[i], -1, 0) && has(sets[i], 0, 1) && has(sets[i], 0, -1);
+      const shadeK = 0.94 + r() * 0.12, col = colours[Math.floor(r() * colours.length)];
+      if (!hidden) M.add(a - 0.5, a + 0.5, y, y + 1, b - 0.5, b + 0.5, shade(col, shadeK));
+    }
+  });
 }
 
 function oak() {
