@@ -42,6 +42,9 @@ export default {
           keywords: [['card']],
         },
       ],
+      tip: {"de": "„Where can I find …?“ = Wo finde ich …? Antwort: „It's in aisle three.“ (aisle spricht man „ail“).", "en": "Where can I find the milk?"},
+      write: {"de": "Schreib, was du diese Woche einkaufen musst.", "useWords": ["I need to buy", "some", "and"], "sample": "I need to buy some milk, eggs, bread and a lot of fruit."},
+      talk: {"they": "Where do you usually do your shopping?", "de": "Erzähl, wo und wann du einkaufst.", "useWords": ["I usually go to", "on Saturdays", "near my flat"], "sample": "I usually go to a supermarket near my flat on Saturdays."},
       story: {
         title: 'Der Wocheneinkauf',
         de: 'Tom kauft für die Woche ein. Hör gut zu.',
@@ -98,6 +101,9 @@ export default {
           keywords: [['too small'], ['large']],
         },
       ],
+      tip: {"de": "„Can I try it on?“ = Kann ich es anprobieren? „It fits.“ = Es passt (Größe). „It suits you.“ = Es steht dir.", "en": "It suits you!"},
+      write: {"de": "Schreib, was du gern anziehst.", "useWords": ["I like wearing", "comfortable", "my favourite"], "sample": "I like wearing jeans and comfortable shoes. My favourite colour is blue."},
+      talk: {"they": "Do you like shopping for clothes?", "de": "Erzähl, ob du gern Kleidung kaufst – im Geschäft oder online.", "useWords": ["I prefer", "online", "in shops", "because"], "sample": "Not really. I prefer to buy clothes online, because it's faster."},
       story: {
         title: 'Ein Kleid für die Hochzeit',
         de: 'Lisa sucht ein Kleid. Hör gut zu.',
@@ -154,11 +160,14 @@ export default {
           keywords: [['no'], ['all', 'everything']],
         },
       ],
+      tip: {"de": "Mengen: „a kilo of“, „half a kilo of“, „a box of“, „a bunch of flowers“. „How much …?“ für Preise und Mengen.", "en": "Half a kilo of tomatoes, please."},
+      write: {"de": "Schreib, was du auf einem Markt kaufen würdest.", "useWords": ["a kilo of", "some", "fresh"], "sample": "I would buy a kilo of tomatoes, some fresh bread and a bunch of flowers."},
+      talk: {"they": "Do you like markets?", "de": "Erzähl, ob du gern auf den Markt gehst und was du dort kaufst.", "useWords": ["I love", "fresh", "every Saturday"], "sample": "Yes, I love them. I buy fresh fruit there every Saturday."},
       story: {
         title: 'Samstag auf dem Markt',
         de: 'Maria geht auf den Markt. Hör gut zu.',
         lines: [
-          'Every Saturday, Maria goes to the farmers market.',
+          "Every Saturday, Maria goes to the farmers' market.",
           'She likes it more than the supermarket.',
           'The fruit and vegetables come from farms near the town.',
           'Today she buys potatoes, carrots and a big cabbage.',
@@ -193,7 +202,7 @@ export default {
       say: [
         {
           they: 'Hello. How can I help you?',
-          de: 'Hallo. Ich möchte diesen Toaster zurückgeben. Er funktioniert nicht.',
+          de: 'Ich möchte diesen Toaster zurückgeben. Er funktioniert nicht.',
           answers: ["Hello. I'd like to return this toaster. It doesn't work.", 'Hello. I would like to return this toaster. It does not work.', "Hi. I want to return this toaster. It doesn't work."],
           keywords: [['return', 'bring back'], ['toaster'], ["doesn't work", 'does not work', 'is broken', "isn't working"]],
         },
@@ -210,6 +219,9 @@ export default {
           keywords: [['money back']],
         },
       ],
+      tip: {"de": "„I'd like to return this.“ = Ich möchte das zurückgeben. „exchange“ = umtauschen. Nicht „recipe“ für Kassenbon – das ist „receipt“!", "en": "Here is the receipt."},
+      write: {"de": "Schreib einer Firma eine kurze Nachricht: Etwas, das du gekauft hast, funktioniert nicht.", "useWords": ["I bought", "last week", "It doesn't work", "Can I"], "sample": "I bought a toaster last week, but it doesn't work. Can I get my money back?"},
+      talk: {"they": "Did you ever have to return something?", "de": "Erzähl, ob du schon einmal etwas zurückgeben musstest.", "useWords": ["Once I bought", "it was broken", "they gave me"], "sample": "Yes, once I bought shoes, but they were too small. They gave me a new pair."},
       story: {
         title: 'Die kaputten Kopfhörer',
         de: 'Ben bringt etwas zurück. Hör gut zu.',
@@ -266,6 +278,9 @@ export default {
           keywords: [['wrap']],
         },
       ],
+      tip: {"de": "„for“ bei Geschenken: a present for my friend. Und „It's for her birthday.“ – „her“ für eine Frau, „his“ für einen Mann.", "en": "It's for her birthday."},
+      write: {"de": "Schreib, was du einer guten Freundin zum Geburtstag schenken würdest und warum.", "useWords": ["I would buy", "because she loves"], "sample": "I would buy her a cookbook, because she loves cooking."},
+      talk: {"they": "What was the best present you ever got?", "de": "Erzähl vom schönsten Geschenk, das du bekommen hast.", "useWords": ["The best present was", "from", "because"], "sample": "The best present was a trip to Paris from my sister."},
       story: {
         title: 'Ein Geschenk für Oma',
         de: 'Jonas sucht ein Geschenk. Hör gut zu.',

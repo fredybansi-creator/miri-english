@@ -42,9 +42,12 @@ export default {
           keywords: [['work'], ['office'], ['and you', 'what about you', 'how about you']],
         },
       ],
+      tip: {"de": "„What do you do?“ heißt: Was machst du beruflich? Antwort: „I work in …“ oder „I'm a nurse / a teacher“ – mit „a“!", "en": "I'm a teacher."},
+      write: {"de": "Stell dich in 2 Sätzen vor: Name, woher du kommst, was du machst.", "useWords": ["My name is", "I'm from", "I work"], "sample": "My name is Miri. I'm from Germany and I work in an office."},
+      talk: {"they": "So, tell me a little about yourself!", "de": "Erzähl kurz etwas über dich: Wohnort, Arbeit, was du gern machst.", "useWords": ["I live in", "I work", "I like"], "sample": "I live near Munich. I work in an office, and I like walking."},
       story: {
         title: 'Eine neue Freundin',
-        de: 'Miri ist auf einer Party. Hör gut zu.',
+        de: 'Lisa ist auf einer Party. Hör gut zu.',
         lines: [
           'Lisa is at a party at her friend Sarah\'s house.',
           'She does not know many people there.',
@@ -98,6 +101,9 @@ export default {
           keywords: [['three', '3'], ['see you']],
         },
       ],
+      tip: {"de": "Vorschläge machen: „Let's …“ (Lass uns …) oder „How about …?“ (Wie wäre es mit …?). Nach „How about“ kommt die -ing-Form: How about going to the cinema?", "en": "How about going to the cinema?"},
+      write: {"de": "Schreib einer Freundin eine Nachricht: Lade sie für Samstag ins Café ein.", "useWords": ["Are you free", "Let's", "at"], "sample": "Hi! Are you free on Saturday? Let's meet for a coffee at three."},
+      talk: {"they": "What do you like to do with your friends?", "de": "Erzähl, was du mit Freunden gern unternimmst.", "useWords": ["We often", "go for a walk", "have dinner"], "sample": "We often go for a walk or have dinner together."},
       story: {
         title: 'Kino am Freitag',
         de: 'Ben und Jana wollen sich treffen. Hör gut zu.',
@@ -154,6 +160,9 @@ export default {
           keywords: [['sunday'], ['stayed'], ['home']],
         },
       ],
+      tip: {"de": "Vergangenheit: Viele Verben bekommen -ed (visited, stayed). Wichtige Ausnahmen: go → went, have → had, see → saw, eat → ate.", "en": "We went for a long walk."},
+      write: {"de": "Schreib, was du letztes Wochenende gemacht hast.", "useWords": ["On Saturday", "I went", "I visited", "it was"], "sample": "On Saturday I visited my sister. On Sunday I stayed at home. It was nice."},
+      talk: {"they": "How was your weekend? What did you do?", "de": "Erzähl von deinem letzten Wochenende.", "useWords": ["It was", "I went", "I stayed"], "sample": "It was good, thanks. I went to the market and cooked with friends."},
       story: {
         title: 'Ein nasses Wochenende',
         de: 'Mark erzählt von seinem Wochenende. Hör gut zu.',
@@ -193,7 +202,7 @@ export default {
       say: [
         {
           they: 'Hi! Come in, come in!',
-          de: 'Hallo! Danke für die Einladung. Die sind für dich.',
+          de: 'Danke für die Einladung. Die sind für dich.',
           answers: ['Hi! Thank you for inviting me. These are for you.', 'Hello! Thanks for inviting me. These are for you.', 'Hi! Thanks for having me. These are for you.'],
           keywords: [['thank you', 'thanks'], ['for you']],
         },
@@ -210,6 +219,9 @@ export default {
           keywords: [['yes'], ['looks'], ['delicious', 'good', 'tasty', 'great', 'lovely', 'yummy']],
         },
       ],
+      tip: {"de": "Etwas anbieten: „Would you like …?“ = Möchtest du …? Antwort: „Yes, please.“ oder „No, thank you.“ – nicht nur „Yes.“", "en": "Would you like something to drink?"},
+      write: {"de": "Schreib eine kurze Danke-Nachricht nach einem Abend bei Freunden.", "useWords": ["Thank you for", "lovely", "delicious"], "sample": "Thank you for a lovely evening! The food was delicious."},
+      talk: {"they": "What do you usually bring when you visit friends?", "de": "Erzähl, was du mitbringst, wenn du Freunde besuchst.", "useWords": ["I usually bring", "flowers", "a bottle of wine"], "sample": "I usually bring flowers or some chocolate."},
       story: {
         title: 'Abendessen bei Emma',
         de: 'Tom besucht seine Freundin Emma. Hör gut zu.',
@@ -266,6 +278,9 @@ export default {
           keywords: [["don't worry", 'do not worry'], ['lovely', 'beautiful', 'great', 'fine', 'wonderful', 'perfect', 'good']],
         },
       ],
+      tip: {"de": "Auf Neuigkeiten reagieren: gut → „That's great!“, schlecht → „I'm sorry to hear that.“ Ganz kurz ist völlig normal.", "en": "I'm sorry to hear that."},
+      write: {"de": "Eine Freundin schreibt dir: „I passed my driving test!“ Antworte ihr.", "useWords": ["Congratulations", "I'm so happy for you", "Let's"], "sample": "Congratulations! I'm so happy for you. Let's celebrate this weekend!"},
+      talk: {"they": "How are you today, really?", "de": "Erzähl ehrlich, wie es dir heute geht und warum.", "useWords": ["I'm a bit tired", "I'm happy because", "work was"], "sample": "I'm a bit tired. Work was busy, but I'm fine."},
       story: {
         title: 'Gute Nachrichten',
         de: 'Zwei Freundinnen treffen sich im Café. Hör gut zu.',

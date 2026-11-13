@@ -2,13 +2,9 @@
 // Start page with Raluca → today's lesson (about 10 minutes) → done for today.
 // Exercise types: Nachsprechen (repeat), Satz bauen (build), Sag es auf Englisch (say), Hörgeschichte (story).
 
-import travel from './content/travel.js';
-import friends from './content/friends.js';
-import doctor from './content/doctor.js';
-import holiday from './content/holiday.js';
-import cafe from './content/cafe.js';
-import shopping from './content/shopping.js';
+import { TOPICS } from './content/index.js';
 import { mountFox } from './fox.js';
+import { cardItems } from './cards.js';
 import { play, playAll, stopAll, audioKey } from './audio.js';
 import { startRecording, canRecord } from './rec.js';
 import { getState, update, today, streak, backup, restore, log, readLog } from './store.js';
@@ -18,7 +14,6 @@ import { checkAnswer, markAnswer, tokens, sameSentence } from '../js/check.js';
 import { aiFeedback, looksGerman } from '../js/ai.js';
 
 // Topics in the order Miri does them; each lesson knows its topic.
-const TOPICS = [travel, friends, doctor, holiday, cafe, shopping];
 const LESSONS = TOPICS.flatMap((t) => t.lessons.map((l) => Object.assign(l, { topic: t })));
 const app = document.getElementById('app');
 
@@ -45,15 +40,19 @@ function doneToday() { return getState().days.includes(today()); }
 
 function stepsFor(lesson) {
   const s = [];
-  lesson.repeat.forEach((_, i) => s.push({ type: 'repeat', i }));
+  if (lesson.tip) s.push({ type: 'tip' });
+  // 3 sentences to repeat (the 4th still becomes a flip card), so the lesson stays about 10 minutes
+  lesson.repeat.slice(0, 3).forEach((_, i) => s.push({ type: 'repeat', i }));
   lesson.build.forEach((_, i) => s.push({ type: 'build', i }));
   lesson.say.forEach((_, i) => s.push({ type: 'say', i }));
+  if (lesson.write) s.push({ type: 'write' });
+  if (lesson.talk) s.push({ type: 'talk' });
   s.push({ type: 'story' });
   lesson.story.questions.forEach((_, i) => s.push({ type: 'question', i }));
   return s;
 }
 
-const TYPE_LABEL = { repeat: 'Nachsprechen', build: 'Satz bauen', say: 'Sag es auf Englisch', story: 'Hörgeschichte', question: 'Hörgeschichte' };
+const TYPE_LABEL = { repeat: 'Nachsprechen', build: 'Satz bauen', say: 'Sag es auf Englisch', write: 'Schreiben', talk: 'Frei sprechen', tip: 'Tipp', story: 'Hörgeschichte', question: 'Hörgeschichte' };
 
 // ================================================================ tabs (like the old app)
 // Heute = today's lesson with Raluca · Lektionen = all topics · Karten = flip cards
@@ -225,7 +224,8 @@ function lessonsTab() {
   tabScreen('lessons', `
     <header class="top"><h1>Lektionen</h1>${hud()}</header>
     <p class="muted small">Jeden Tag eine Lektion, der Reihe nach. Fertige Lektionen kannst du immer wiederholen.</p>
-    ${TOPICS.map((t) => `
+    ${TOPICS.map((t, k) => `
+    ${t.level === 2 && (TOPICS[k - 1] || {}).level !== 2 ? '<h2 class="level">Stufe 2 – etwas schwerer</h2><p class="muted small">Längere Antworten und neue Grammatik. Jede Lektion hat einen kurzen Tipp.</p>' : ''}
     <section class="topic">
       <h3>${esc(t.title)} <span class="muted">${t.lessons.filter((l) => st.done[l.id]).length} von ${t.lessons.length}</span></h3>
       <ol class="lessons">
@@ -251,7 +251,7 @@ const CARDS_PER_ROUND = 12;
 function allCards() {
   const st = getState();
   return LESSONS.filter((l) => st.done[l.id]).flatMap((l) =>
-    [...l.repeat, ...l.build].map((x) => ({ id: audioKey(x.en), en: x.en, de: x.de, lesson: l })));
+    cardItems(l).map((x) => ({ id: audioKey(x.en), en: x.en, de: x.de, lesson: l })));
 }
 function dueCards() {
   const c = getState().cards, now = today();
@@ -636,9 +636,16 @@ function startExtra() {
   const st = getState();
   const done = LESSONS.filter((l) => st.done[l.id]);
   if (!done.length) return home();
-  const lesson = done[Math.floor(Math.random() * done.length)];
-  const pool = stepsFor(lesson).filter((x) => ['repeat', 'build', 'say'].includes(x.type));
-  const step = pool[Math.floor(Math.random() * pool.length)];
+  // First the exercises she got wrong (most of the time), else a random one from a finished lesson.
+  const wrong = done.flatMap((l) => (st.done[l.id].wrong || []).map((x) => ({ l, x })));
+  let lesson, step;
+  if (wrong.length && Math.random() < 0.7) {
+    ({ l: lesson, x: step } = wrong[Math.floor(Math.random() * wrong.length)]);
+  } else {
+    lesson = done[Math.floor(Math.random() * done.length)];
+    const pool = stepsFor(lesson).filter((x) => ['repeat', 'build', 'say'].includes(x.type));
+    step = pool[Math.floor(Math.random() * pool.length)];
+  }
   update((s) => { s.run = { lessonId: lesson.id, extra: true, steps: [step], step: 0, results: [], startedAt: Date.now() }; });
   log(`Extra-Übung: ${lesson.id} ${step.type} ${step.i}`);
   resume();
@@ -666,12 +673,17 @@ function resume() {
     if (ok !== undefined) feed(1); // every exercise fills Raluca's bowl a little
     resume();
   };
-  ({ repeat: exRepeat, build: exBuild, say: exSay, story: exStory, question: exQuestion })[step.type](lesson, step, frame, next);
+  ({ tip: exTip, repeat: exRepeat, build: exBuild, say: exSay, write: exWrite, talk: exTalk, story: exStory, question: exQuestion })[step.type](lesson, step, frame, next);
   $('#quit').addEventListener('click', () => home());
 }
 
 function finishExtra() {
-  update((s) => { s.run = null; });
+  update((s) => {
+    const r = s.run, d = r && s.done[r.lessonId], st = r && r.steps && r.steps[0];
+    // right this time: it no longer counts as a mistake
+    if (d && d.wrong && st && r.results[0] === true) d.wrong = d.wrong.filter((x) => !(x.type === st.type && x.i === st.i));
+    s.run = null;
+  });
   const learned = addExtra();
   const nt = nextTrick();
   backup();
@@ -702,7 +714,9 @@ function finishLesson(lesson) {
   const good = results.filter(Boolean).length;
   const minutes = Math.max(1, Math.round((Date.now() - (run.startedAt || Date.now())) / 60000));
   update((s) => {
-    s.done[lesson.id] = { date: today(), good, total: results.length };
+    // exercises she got wrong come back as extra exercises later (startExtra)
+    const wrong = stepsFor(lesson).filter((x, k) => run.results[k] === false && ['repeat', 'build', 'say'].includes(x.type));
+    s.done[lesson.id] = { date: today(), good, total: results.length, wrong };
     if (!s.days.includes(today())) s.days.push(today());
     s.run = null;
   });
@@ -809,6 +823,20 @@ function praise(level) {
   if (level === 'great') { play(RALUCA.great); return ['great', ['Super! 🎉', 'Sehr gut! 🎉', 'Perfekt! 🎉'][Math.floor(Math.random() * 3)]]; }
   if (level === 'good') return ['good', 'Gut gemacht! 👍'];
   return ['try', 'Noch nicht ganz.'];
+}
+
+// ---------------------------------------------------------------- 0. Tipp (a short German grammar tip with one example)
+function exTip(lesson, step, frame, next) {
+  const tip = lesson.tip;
+  frame(`
+    <p class="hint">💡 Tipp für heute</p>
+    <p>${esc(tip.de)}</p>
+    <p class="en big">${esc(tip.en)}</p>
+    ${listenButtons(tip.en)}
+  `, `<button class="btn primary" id="next">Verstanden – los geht's</button>`);
+  wirePlayButtons();
+  setTimeout(() => play(tip.en), 400);
+  $('#next').addEventListener('click', () => next(undefined));
 }
 
 // ---------------------------------------------------------------- 1. Nachsprechen
@@ -968,6 +996,90 @@ function exSay(lesson, step, frame, next) {
     });
     $('#actions').appendChild(skip);
   };
+  ask();
+}
+
+// ---------------------------------------------------------------- 3b. Schreiben / Frei sprechen
+// Open tasks about her own life: there is no single right answer. The feedback function (mode "free")
+// says what was good, fixes up to 2 mistakes and shows her answer a little better.
+async function freeFeedback(task, said) {
+  $('#actions').innerHTML = '<p class="status">Raluca liest deine Antwort …</p>';
+  const fb = await Promise.race([
+    aiFeedback({ they: task.they || '', hint: task.de, useWords: task.useWords || [] }, said, { mode: 'free', timeout: 12000 })
+      .catch((e) => { log('KI-Feedback (frei) ging nicht: ' + (e.code || e.message)); return null; }),
+    new Promise((r) => setTimeout(() => r(null), 13000)),
+  ]);
+  // without the AI: an honest, simple answer – long enough counts as done
+  const words = said.split(/\s+/).filter(Boolean).length;
+  const level = fb ? fb.level : words >= 6 ? 'good' : 'try';
+  const [cls, msg] = praise(level);
+  let body = `<p class="verdict">${msg}</p><p class="said">Du hast ${task.they ? 'gesagt' : 'geschrieben'}: „${esc(said)}“</p>`;
+  if (fb) {
+    if (fb.praise) body += `<p>${esc(fb.praise)}</p>`;
+    if (fb.fixes.length) body += `<ul class="fixes">${fb.fixes.map((f) => `<li><s>${esc(f.wrong)}</s> → <b>${esc(f.better)}</b>${f.why ? `<br><span class="small muted">${esc(f.why)}</span>` : ''}</li>`).join('')}</ul>`;
+    else if (fb.tip) body += `<p class="small">${esc(fb.tip)}</p>`;
+    const better = fb.levelUp || fb.corrected;
+    if (better) body += `<p class="small muted">Noch etwas schöner:</p><p class="en">${esc(better)}</p>${listenButtons(better)}`;
+  } else {
+    body += `<p class="small muted">Die KI ist gerade überlastet. So könnte man es sagen:</p><p class="en">${esc(task.sample)}</p>${listenButtons(task.sample)}`;
+    if (level === 'try') body += '<p class="small">Versuch es mit einem ganzen Satz oder zwei.</p>';
+  }
+  return { level, html: `<div class="feedback ${cls}">${body}</div>` };
+}
+
+function exWrite(lesson, step, frame, next) {
+  const task = lesson.write;
+  frame(`
+    <p class="hint">Schreib auf Englisch (1–2 Sätze):</p>
+    <p class="de big">${esc(task.de)}</p>
+    ${task.useWords && task.useWords.length ? `<p class="small muted">Diese Wörter helfen: <b>${task.useWords.map(esc).join(' · ')}</b></p>` : ''}
+    <textarea class="write" id="writeIn" rows="4" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Auf Englisch schreiben …"></textarea>
+    <div id="result"></div>
+  `, `<button class="btn primary" id="check" disabled>Prüfen</button>
+      <button class="btn link" id="showSample">Ich weiß nicht, was ich schreiben soll – zeig ein Beispiel</button>`);
+  const inp = $('#writeIn');
+  inp.addEventListener('input', () => { $('#check').disabled = !inp.value.trim(); });
+  $('#showSample').addEventListener('click', (ev) => {
+    $('#result').innerHTML = `<div class="feedback good"><p class="small muted">Zum Beispiel:</p><p class="en">${esc(task.sample)}</p>${listenButtons(task.sample)}<p class="small">Jetzt schreib es mit deinen eigenen Worten.</p></div>`;
+    wirePlayButtons($('#result'));
+    ev.target.remove();
+  });
+  $('#check').addEventListener('click', async () => {
+    const said = inp.value.trim();
+    if (!said) return;
+    inp.disabled = true;
+    const { level, html } = await freeFeedback(task, said);
+    if (!$('#writeIn')) return; // she left the screen
+    $('#result').innerHTML = html;
+    wirePlayButtons($('#result'));
+    resultActions(`${level === 'try' ? '<button class="btn" id="again">Nochmal</button>' : ''}<button class="btn primary" id="next">Weiter</button>`);
+    const again = $('#again');
+    if (again) again.addEventListener('click', () => exWrite(lesson, step, frame, next));
+    $('#next').addEventListener('click', () => next(level !== 'try'));
+  });
+}
+
+function exTalk(lesson, step, frame, next) {
+  const task = lesson.talk;
+  frame(`
+    <div class="they"><span class="who">🧑</span><div><p class="en">${esc(task.they)}</p>${listenButtons(task.they, 'friend')}</div></div>
+    <p class="hint">Antworte frei, über dich selbst (1–3 Sätze):</p>
+    <p class="de">${esc(task.de)}</p>
+    ${task.useWords && task.useWords.length ? `<p class="small muted">Diese Wörter helfen: <b>${task.useWords.map(esc).join(' · ')}</b></p>` : ''}
+    <div id="result"></div>
+  `);
+  wirePlayButtons();
+  setTimeout(() => play(task.they, { role: 'friend' }), 250);
+  const ask = () => micControls(async (said) => {
+    const { level, html } = await freeFeedback(task, said);
+    if (!$('#result')) return;
+    $('#result').innerHTML = html;
+    wirePlayButtons($('#result'));
+    resultActions(`${level === 'try' ? '<button class="btn" id="again">Nochmal</button>' : ''}<button class="btn primary" id="next">Weiter</button>`);
+    const again = $('#again');
+    if (again) again.addEventListener('click', () => { $('#result').innerHTML = ''; ask(); });
+    $('#next').addEventListener('click', () => next(level !== 'try'));
+  });
   ask();
 }
 
