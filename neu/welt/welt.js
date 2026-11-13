@@ -2,6 +2,8 @@
 // Digging (🐾 Graben, hold it / key F): she digs away the earth block in front of her, like in a block game –
 // holes, tunnels through hills, ponds when she digs below the water. Mounds of earth hide a bone, coin, carrot,
 // worm, potato or – on the hill – a treasure.
+// The den is big now (1.6×) and she can go in (🚪 Reingehen): a room with a nest (sleep there), lantern, food store,
+// a shelf with the things she found, all with English name signs (tap = sound). Walk out through the door.
 // Minimap (top left) says the way to the next question mark in English (north, south-east …); tap it for the big map
 // with English place names. Storm the wolf (north forest) is a friend too; with 5 hearts he walks with Raluca.
 // Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
@@ -169,9 +171,9 @@ function plant() {
   const r = rng(2026);
   const free = (x, z, n) => { for (let a = -n; a <= n; a++) for (let b = -n; b <= n; b++) if (solid[(z + b) * SIZE + x + a]) return false; return true; };
   // the den: on the meadow, the door looks to the start
-  place(lists, 'den', DEN[0] + 0.5, at(DEN[0], DEN[1]), DEN[1] + 0.5);
-  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) solid[(DEN[1] + b) * SIZE + DEN[0] + a] = 1;
-  place(lists, 'flowers', DEN[0] - 1.6, at(DEN[0] - 2, DEN[1] + 2), DEN[1] + 2.4); place(lists, 'mushroom', DEN[0] - 1.5, at(DEN[0] - 2, DEN[1] - 2), DEN[1] - 1.8);
+  place(lists, 'den', DEN[0] + 0.5, at(DEN[0], DEN[1]), DEN[1] + 0.5, 0, 1.6);   // a big den: she can go inside
+  for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) solid[(DEN[1] + b) * SIZE + DEN[0] + a] = 1;
+  place(lists, 'flowers', DEN[0] - 3.4, at(DEN[0] - 4, DEN[1] + 3), DEN[1] + 3.6); place(lists, 'mushroom', DEN[0] - 3.3, at(DEN[0] - 4, DEN[1] - 3), DEN[1] - 2.8);
   for (let z = 4; z < SIZE - 4; z++) for (let x = 4; x < SIZE - 4; x++) {
     const h = at(x, z), d = Math.hypot(x - mid, z - mid), k = r(), turn = Math.floor(r() * 4);
     if (h <= WATER) continue;
@@ -220,10 +222,10 @@ function fencePosts() {
   const b = [];
   for (let k = 0; k < 28; k++) {
     const t = (k / 28) * Math.PI * 2; if (Math.abs(Math.atan2(Math.sin(t - Math.PI), Math.cos(t - Math.PI))) < 0.5) continue;   // a gap at the door
-    const x = Math.cos(t) * 4.6, z = Math.sin(t) * 4.6;
+    const x = Math.cos(t) * 6.6, z = Math.sin(t) * 6.6;
     b.push([x, 0.35, z, 0.14, 0.7, 0.14, 0x8a5a2e]);
     const t2 = ((k + 1) / 28) * Math.PI * 2;
-    if (Math.abs(Math.atan2(Math.sin(t2 - Math.PI), Math.cos(t2 - Math.PI))) >= 0.5) { const x2 = Math.cos(t2) * 4.6, z2 = Math.sin(t2) * 4.6, l = Math.hypot(x2 - x, z2 - z);
+    if (Math.abs(Math.atan2(Math.sin(t2 - Math.PI), Math.cos(t2 - Math.PI))) >= 0.5) { const x2 = Math.cos(t2) * 6.6, z2 = Math.sin(t2) * 6.6, l = Math.hypot(x2 - x, z2 - z);
       for (const y of [0.28, 0.55]) b.push([(x + x2) / 2, y, (z + z2) / 2, l, 0.07, 0.07, 0xa8743e, Math.atan2(-(z2 - z), x2 - x)]); }
   }
   return b;
@@ -260,7 +262,7 @@ function placeDigs() {
     const x = 8 + Math.floor(r() * (SIZE - 16)), z = 8 + Math.floor(r() * (SIZE - 16)), h = at(x, z), d = Math.hypot(x - mid, z - mid);
     if (h <= WATER + 1 || h >= STONE || solid[z * SIZE + x] || d < (list.length < 2 ? 5 : 9) || d > (list.length < 2 ? 14 : mid - 12)) continue;
     if (list.some((g) => Math.hypot(g.x - x, g.z - z) < 11)) continue;
-    if (Math.abs(x - DEN[0]) <= 3 && Math.abs(z - DEN[1]) <= 3) continue;
+    if (Math.abs(x - DEN[0]) <= 4 && Math.abs(z - DEN[1]) <= 4) continue;
     // the treasure lies far away, on the hill
     const kind = DIG_ORDER[list.length];
     if (kind === 'treasure' && Math.hypot(x - HILL[0], z - HILL[1]) > 20) continue;
@@ -319,7 +321,7 @@ function makeAnimals(scene, mat) {
   for (const a of list) if (a.kind === 'mouse') { const h = boxMesh(HOLE, mat); h.position.set(a.hx, at(Math.floor(a.hx), Math.floor(a.hz)), a.hz); scene.add(h); a.hole = h; }
   for (let i = 0; i < 3; i++) add('hedgehog', mid + (r() * 2 - 1) * 40, mid + (r() * 2 - 1) * 40, 12, { speed: 0.6, roam: 6 });
   add('wolf', mid + 12, mid - 38, 6, { speed: 1.3, roam: 5 });
-  add('owl', DEN[0] - 1, DEN[1] + 5, 3, { speed: 0, sit: true });
+  add('owl', DEN[0] - 1, DEN[1] + 6, 2, { speed: 0, sit: true });
   add('owl', HILL[0] + 22, HILL[1] + 22, 8, { speed: 0, sit: true });
   // fish in every pond and along the rivers
   const deep = (x, z) => at(x, z) <= 1;
@@ -361,6 +363,7 @@ function moveAnimals(list, dt, P, time) {
     a.g.visible = far < SEE; if (!a.g.visible) continue;
     a.t += dt;
     let moving = false, speed = a.speed;
+    if (a.follow && P.x < 0) { a.g.visible = false; continue; }   // she is in the den
     if (a.follow) {   // Storm walks with her: a little behind and to the side
       const bx = P.x + Math.cos(P.face) * 1.9 + Math.sin(P.face) * 0.9, bz = P.z - Math.sin(P.face) * 1.9 + Math.cos(P.face) * 0.9;
       const tx = bx - a.x, tz = bz - a.z, td = Math.hypot(tx, tz);
@@ -500,8 +503,12 @@ function start() {
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 
   // ---------------- Raluca's state
-  const groundAt = (x, z) => Math.max(at(Math.floor(x), Math.floor(z)), WATER + 0.35); // she wades / swims in water
+  // the room inside the den is built far outside the map; `inside` switches walking and the camera to it
+  const ROOM = [-60.5, 96.5], RY = 4, RW = 4.5, RD = 4.1;
+  let inside = false;
+  const groundAt = (x, z) => (inside ? RY : Math.max(at(Math.floor(x), Math.floor(z)), WATER + 0.35)); // she wades / swims in water
   const blocked = (x, z, fromY) => {
+    if (inside) return Math.abs(x - ROOM[0]) > RW || Math.abs(z - ROOM[1]) > RD;
     const xi = Math.floor(x), zi = Math.floor(z);
     if (xi < 1 || zi < 1 || xi >= SIZE - 1 || zi >= SIZE - 1) return true;
     if (solid[zi * SIZE + xi]) return true;
@@ -601,13 +608,16 @@ function start() {
     const sh = 1 / (1 + Math.max(0, P.y - g) * 0.5); shadow.scale.setScalar(sh);
 
     // ---- camera: behind and above, never under the ground
-    const dist = 6.2;
+    const dist = inside ? 3.6 : 6.2;
     cam.set(P.x + Math.sin(yaw) * Math.cos(pitch) * dist, P.y + 1 + Math.sin(pitch) * dist, P.z + Math.cos(yaw) * Math.cos(pitch) * dist);
     cam.y = Math.max(cam.y, groundAt(cam.x, cam.z) + 0.8);
+    if (inside) {   // stay in the room
+      cam.x = Math.max(ROOM[0] - RW - 0.3, Math.min(ROOM[0] + RW + 0.3, cam.x)); cam.z = Math.max(ROOM[1] - RD - 0.3, Math.min(ROOM[1] + RD + 0.3, cam.z)); cam.y = Math.min(RY + 3, cam.y);
+    }
     // a tree crown between her and the camera: come closer
     let near = false;
     for (let k = 0.25; k <= 1.001; k += 0.08) {
-      const x = P.x + (cam.x - P.x) * k, z = P.z + (cam.z - P.z) * k, y = P.y + 1 + (cam.y - P.y - 1) * k, L = LEAF[Math.floor(z) * SIZE + Math.floor(x)];
+      const x = P.x + (cam.x - P.x) * k, z = P.z + (cam.z - P.z) * k, y = P.y + 1 + (cam.y - P.y - 1) * k, L = inside ? 0 : LEAF[Math.floor(z) * SIZE + Math.floor(x)];
       if (L && y > L - 0.4) { const kk = Math.max(0.22, k - 0.1); cam.set(P.x + (cam.x - P.x) * kk, P.y + 1 + (cam.y - P.y - 1) * kk, P.z + (cam.z - P.z) * kk); near = true; break; }
     }
     camera.position.lerp(cam, Math.min(1, dt * (near ? 14 : 8)));
@@ -820,13 +830,14 @@ function start() {
   const WARN = { food: 'Raluca hat Hunger. Friss Beeren an einem Busch!', water: 'Raluca hat Durst. Trink am Wasser!', energy: 'Raluca ist müde. Schlaf in deinem Bau!' };
   const nearBush = () => BUSHES.some(([x, z]) => Math.hypot(x - P.x, z - P.z) < 1.9);
   const nearWater = () => { if (P.y < WATER + 0.5) return true; for (let a = 0; a < 8; a++) { const t = (a / 8) * Math.PI * 2; if (at(Math.floor(P.x + Math.cos(t) * 1.3), Math.floor(P.z + Math.sin(t) * 1.3)) <= WATER) return true; } return false; };
-  const nearDen = () => Math.hypot(DEN[0] + 0.5 - P.x, DEN[1] + 0.5 - P.z) < 3.4;
+  const nearDen = () => !inside && Math.hypot(DEN[0] - 2.1 - P.x, DEN[1] + 0.5 - P.z) < 2.6;   // at the door
   const fishNear = () => { let best = null, bd = 3.2; for (const a of animals) if (a.kind === 'fish' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   const mouseNear = () => { let best = null, bd = 4.5; for (const a of animals) if (a.kind === 'mouse' && !(a.gone > 0)) { const d = Math.hypot(a.x - P.x, a.z - P.z); if (d < bd) { bd = d; best = a; } } return best; };
   let caught = 0;
   const palNear = () => { let best = null, bd = 2.7; for (const f of pals) { const d = Math.hypot(f.a.x - P.x, f.a.z - P.z); if (d < bd) { bd = d; best = f; } } return best; };
   function whatCanIDo() {
-    if (nearDen()) return ['sleep', '😴 Schlafen'];
+    if (inside) return Math.hypot(P.x - NEST[0], P.z - NEST[1]) < 1.8 ? ['sleep', '😴 Schlafen'] : ['out', '🚪 Rausgehen'];
+    if (nearDen()) return ['in', '🚪 Reingehen'];
     const pal = palNear(); if (pal) return ['talk', `💬 ${pal.name}`];
     if (mouseNear()) return ['pounce', '🐾 Fangen'];
     if (fishNear() && nearWater()) return ['fish', '🐟 Fischen'];
@@ -838,6 +849,8 @@ function start() {
     if (act || busy || P.air) return;
     const [kind] = whatCanIDo();
     if (kind === 'sleep') { goSleep(); return; }
+    if (kind === 'in') { goInside(true); return; }
+    if (kind === 'out') { goInside(false); return; }
     if (kind === 'talk') { openTalk(palNear()); return; }
     if (kind === 'sniff') sniff();
     if (kind === 'dig') { startDig(); return; }
@@ -955,8 +968,8 @@ function start() {
   }
   function goSleep() {
     act = { kind: 'sleep', t: 0, d: 99 };
-    // walk into the door: stand in front of the den, looking at it
-    P.x = DEN[0] - 1.6; P.z = DEN[1] + 0.5; P.y = groundAt(P.x, P.z); P.face = Math.PI;
+    // lie down in the nest
+    P.x = NEST[0] - 0.2; P.z = NEST[1]; P.y = groundAt(P.x, P.z); P.face = Math.PI / 2;
     $('fade').style.opacity = 1;
     const night = tday > 0.7 || tday < 0.22;
     setTimeout(() => {
@@ -1143,6 +1156,77 @@ function start() {
     });
   }
 
+  // ---------------- inside the den
+  const NEST = [ROOM[0] + 2.8, ROOM[1] - 2.2];
+  const dirtC = 0x7a5533, darkC = 0x5c3f24, wood = 0x9a6b3d, straw = 0xcdb58a;
+  const roomBoxes = [
+    [0, -0.1, 0, 11, 0.2, 10, dirtC], [0, 0.01, 0, 3.4, 0.04, 2.6, 0xb8521a], [0, 0.02, 0, 2.8, 0.04, 2, 0xe0a24a],               // floor, rug
+    [5.25, 1.7, 0, 0.5, 3.4, 10, darkC], [0, 1.7, 4.75, 11, 3.4, 0.5, darkC], [0, 1.7, -4.75, 11, 3.4, 0.5, darkC],                  // walls
+    [-5.25, 1.7, -2.95, 0.5, 3.4, 4.1, darkC], [-5.25, 1.7, 2.95, 0.5, 3.4, 4.1, darkC], [-5.25, 2.9, 0, 0.5, 1.2, 1.8, darkC],     // door wall
+    [-5.0, 1.15, -1, 0.2, 2.3, 0.2, wood], [-5.0, 1.15, 1, 0.2, 2.3, 0.2, wood], [-5.0, 2.3, 0, 0.2, 0.2, 2.2, wood],               // door frame
+    [0, 3.5, 0, 11, 0.2, 10, 0x4a3220],                                                                                                // ceiling
+    ...[[-2, 1.5], [1, -2.5], [3, 2], [-3.5, -1.5], [0.5, 3.2]].map(([x, z]) => [x, 3.1, z, 0.12, 0.7, 0.12, 0x6e4a2b]),            // roots
+    // the nest
+    ...Array.from({ length: 10 }, (_, k) => { const t = (k / 10) * Math.PI * 2; return [2.8 + Math.cos(t) * 0.85, 0.15, -2.2 + Math.sin(t) * 0.75, 0.45, 0.3, 0.45, k % 2 ? straw : 0xb89a6a]; }),
+    [2.8, 0.06, -2.2, 1.3, 0.12, 1.1, 0xe58a2c], [2.6, 0.13, -2.1, 0.5, 0.04, 0.4, 0xd8473a],
+    // food store: a box with berries, a bone and apples
+    [3.6, 0.3, 2.9, 1.3, 0.6, 1, wood], [3.6, 0.62, 2.9, 1.2, 0.06, 0.9, 0x6e4a2b], [3.3, 0.72, 2.7, 0.2, 0.2, 0.2, 0x7b3fa0], [3.5, 0.72, 3.1, 0.2, 0.2, 0.2, 0x5a2d82],
+    [3.9, 0.74, 2.8, 0.25, 0.25, 0.25, 0xd8322c], [3.8, 0.7, 3.15, 0.5, 0.1, 0.12, 0xf3ead8],
+    // shelf on the back wall (the things she found stand on it)
+    [-1, 1.2, 4.35, 4.2, 0.1, 0.5, wood], [-1, 2.1, 4.35, 4.2, 0.1, 0.5, wood], [-3.05, 1.6, 4.35, 0.1, 1.4, 0.5, wood], [1.05, 1.6, 4.35, 0.1, 1.4, 0.5, wood],
+    // lantern on the side wall
+    [4.85, 2.2, 0.8, 0.2, 0.1, 0.2, 0x3a3a3a], [4.6, 1.95, 0.8, 0.35, 0.05, 0.35, 0x3a3a3a],
+  ];
+  const roomGlow = [[4.6, 1.75, 0.8, 0.3, 0.35, 0.3, 0xffd45a], [-5.6, 1.15, 0, 0.1, 2.3, 1.8, 0xfff2c8]];   // lantern light, daylight in the door
+  const room = new THREE.Group(); room.add(boxMesh(roomBoxes, boxMat)); room.add(boxMesh(roomGlow, glowMat2()));
+  room.position.set(ROOM[0], RY, ROOM[1]); room.visible = false; scene.add(room);
+  function glowMat2() { return new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff }); }
+  const lamp = new THREE.PointLight(0xffc56a, 0, 14, 1.2); lamp.position.set(ROOM[0] + 3.8, RY + 2.2, ROOM[1] + 0.6); scene.add(lamp);
+  let shelf = null;
+  function fillShelf() {   // up to 10 things she found, on the shelf
+    if (shelf) { room.remove(shelf); shelf.geometry.dispose(); }
+    const boxes = []; let k = 0;
+    for (const kind of Object.keys(FIND_KINDS)) {
+      if (!bookCount[kind] || k >= 10) continue;
+      const sx = -2.6 + (k % 5) * 0.85, sy = k < 5 ? 1.25 : 2.15;
+      for (const b of FIND_KINDS[kind].boxes) boxes.push([sx + b[0] * 1.6, sy + b[1] * 1.6, 4.3 + b[2] * 1.6, b[3] * 1.6, b[4] * 1.6, b[5] * 1.6, b[6]]);
+      k++;
+    }
+    shelf = boxes.length ? boxMesh(boxes, boxMat) : null; if (shelf) room.add(shelf);
+  }
+  // English name signs in the room (tap = hear the word)
+  const ROOMWORDS = [
+    { en: 'nest', de: 'Nest', x: 2.8, y: 0.9, z: -2.2 }, { en: 'lantern', de: 'Laterne', x: 4.5, y: 2.6, z: 0.8 },
+    { en: 'food store', de: 'Vorratskiste', x: 3.6, y: 1.3, z: 2.9 }, { en: 'shelf', de: 'Regal', x: -1, y: 2.75, z: 4.3 },
+    { en: 'rug', de: 'Teppich', x: 0, y: 0.4, z: 0 }, { en: 'door', de: 'Tür', x: -4.9, y: 2.75, z: 0 }, { en: 'roots', de: 'Wurzeln', x: -2, y: 3.0, z: 1.5 },
+  ];
+  const roomLabels = ROOMWORDS.map((w) => { const d = document.createElement('button'); d.className = 'lab room'; d.innerHTML = `${w.en} <small>${w.de}</small>`; d.onclick = () => play(w.en); $('labels').appendChild(d); return d; });
+  function drawRoomLabels() {
+    ROOMWORDS.forEach((w, i) => {
+      const el = roomLabels[i];
+      if (!inside || busy) { el.style.display = 'none'; return; }
+      lv.set(ROOM[0] + w.x, RY + w.y, ROOM[1] + w.z); const d = lv.distanceTo(camera.position); lv.project(camera);
+      if (d > 7 || lv.z > 1 || Math.abs(lv.x) > 1 || Math.abs(lv.y) > 1) { el.style.display = 'none'; return; }
+      el.style.display = 'block'; el.style.transform = `translate(${((lv.x + 1) / 2) * window.innerWidth}px, ${((1 - lv.y) / 2) * window.innerHeight}px) translate(-50%, -100%)`;
+    });
+  }
+  let moving = false;
+  function goInside(yes) {
+    if (moving) return;
+    moving = true; busy = true; $('fade').style.opacity = 1;
+    setTimeout(() => {
+      inside = yes; room.visible = yes; lamp.intensity = yes ? 6 : 0;
+      if (yes) { fillShelf(); P.x = ROOM[0] - RW + 2; P.z = ROOM[1]; P.face = Math.PI; yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face)); }
+      else { P.x = DEN[0] - 3.2; P.z = DEN[1] + 0.5; P.face = 0; yaw = Math.atan2(Math.cos(P.face), -Math.sin(P.face)); }
+      P.y = groundAt(P.x, P.z); P.vy = 0; P.air = false;
+      camera.position.set(P.x + Math.sin(yaw) * 3, P.y + 2, P.z + Math.cos(yaw) * 3);
+      for (const id of ['miniWrap', 'dig', 'build']) $(id).style.display = yes ? 'none' : ''; $('goal').style.display = yes ? 'none' : '';
+      $('fade').style.opacity = 0; busy = false;
+      setTimeout(() => { moving = false; if (yes) toast('Ralucas Bau 🏠  Raluca\'s home – tippe auf die Schilder!'); }, 500);
+      save();
+    }, 700);
+  }
+
   // ---------------- minimap + big map: English direction words and place names
   const DIRS = [['north', 'Norden'], ['north-east', 'Nordosten'], ['east', 'Osten'], ['south-east', 'Südosten'], ['south', 'Süden'], ['south-west', 'Südwesten'], ['west', 'Westen'], ['north-west', 'Nordwesten']];
   const dirOf = (dx, dz) => DIRS[((Math.round(Math.atan2(dx, -dz) / (Math.PI / 4)) % 8) + 8) % 8];   // north = up on the map (−z)
@@ -1239,7 +1323,7 @@ function start() {
   function whyNot(x, z) {
     const i = z * SIZE + x, h = H[i];
     if (x < 3 || z < 3 || x > SIZE - 4 || z > SIZE - 4) return 'Hier geht es nicht weiter.';
-    if (Math.abs(x - DEN[0]) <= 2 && Math.abs(z - DEN[1]) <= 2) return 'Nicht am eigenen Bau graben! 🏠';
+    if (Math.abs(x - DEN[0]) <= 3 && Math.abs(z - DEN[1]) <= 3) return 'Nicht am eigenen Bau graben! 🏠';
     if (solid[i]) return 'Da steht etwas im Weg.';
     if (h >= STONE) return 'Stein ist zu hart zum Graben. 🪨';
     if (h <= 1) return 'Tiefer geht es nicht.';
@@ -1247,6 +1331,7 @@ function start() {
     return null;
   }
   function startDig() {
+    if (inside) return;
     if (act || busy || P.air) return;
     const [x, z, g] = frontCell(), no = whyNot(x, z);
     if (no) { if (performance.now() - digTold > 2500) { toast(no); digTold = performance.now(); } return; }
@@ -1292,6 +1377,7 @@ function start() {
   // building: one earth block onto the block in front of her (a wall, steps up a hill, a bridge over water)
   let buildHold = false;
   function startBuild() {
+    if (inside) return;
     if (act || busy || P.air) return;
     if (earth <= 0) { if (performance.now() - digTold > 2500) { toast('Keine Erde mehr. Grab zuerst! 🐾'); digTold = performance.now(); } return; }
     const fx = -Math.cos(P.face), fz = Math.sin(P.face), px = Math.floor(P.x), pz = Math.floor(P.z);
@@ -1299,7 +1385,7 @@ function start() {
     const i = z * SIZE + x, h = H[i];
     let no = null;
     if (x < 3 || z < 3 || x > SIZE - 4 || z > SIZE - 4) no = 'Hier geht es nicht.';
-    else if (Math.abs(x - DEN[0]) <= 2 && Math.abs(z - DEN[1]) <= 2) no = 'Nicht auf den Bau! 🏠';
+    else if (Math.abs(x - DEN[0]) <= 3 && Math.abs(z - DEN[1]) <= 3) no = 'Nicht auf den Bau! 🏠';
     else if (solid[i]) no = 'Da steht etwas im Weg.';
     else if (h >= Math.floor(P.y) + 2 || h >= 18) no = 'Zu hoch – stell dich höher hin.';
     if (no) { if (performance.now() - digTold > 2500) { toast(no); digTold = performance.now(); } return; }
@@ -1321,7 +1407,7 @@ function start() {
   function showDecor(d) {
     if (decorMeshes[d.id]) return;
     const g = new THREE.Group(); g.add(boxMesh(d.boxes, boxMat)); if (d.glow) g.add(boxMesh(d.glow, glowMat));
-    const x = DC[0] + d.at[0], z = DC[1] + d.at[1];
+    const x = DC[0] + d.at[0] * 1.45, z = DC[1] + d.at[1] * 1.45;   // the den is bigger: things stand further out
     g.position.set(x, d.id === 'fence' ? 0 : at(Math.floor(x), Math.floor(z)), z); if (d.id === 'fence') g.position.y = at(DEN[0], DEN[1]);
     scene.add(g); decorMeshes[d.id] = g;
     if (d.id !== 'fence' && d.id !== 'path') solid[Math.floor(z) * SIZE + Math.floor(x)] = 1;   // she walks around it
@@ -1427,7 +1513,7 @@ function start() {
   const KEY = 'miri-welt';
   function save() {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: P.x, z: P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
+      localStorage.setItem(KEY, JSON.stringify({ v: 1, x: inside ? DEN[0] - 3.2 : P.x, z: inside ? DEN[1] + 0.5 : P.z, face: P.face, tday, ...needs, caught, book: bookCount, got: finds.map((f, i) => (f.got ? i : -1)).filter((i) => i >= 0), dug: digs.map((g, i) => (g.dug ? i : -1)).filter((i) => i >= 0), holes: [...changed], earth, built: [...built], spent, pals: Object.fromEntries(pals.map((f) => [f.id, [f.step, f.acc ? 1 : 0, f.has ? 1 : 0]])), round, done: marks.map((m, i) => (m.done ? i : -1)).filter((i) => i >= 0), at: Date.now() }));
     } catch { /* private mode: no saving */ }
   }
   function load() {
@@ -1464,7 +1550,7 @@ function start() {
   // ---------------- loop + speed measurement
   let last = performance.now(), frames = 0, since = last, slow = 0;
   const stats = { fps: 0, ratio, calls: 0, tris: 0 };
-  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
+  window.WELT = { actor, P, stats, input, setYaw: (v) => { yaw = v; }, marks: () => marks, groundAt, animals, at, spots: { HILL, POND, DEN, RIVER, PONDS, RIVERS }, needs, life: () => ({ tday, act, trail: !!trail }), setTime: (t) => { tday = t; }, doAction, save, BUSHES, finds, digs, bookCount, openMap, goInside, isInside: () => inside, ROOM, pals, openTalk, startBuild, openHome, built, addEarth: (n) => { earth += n; showEarth(); }, startDig, frontCell, H, earth: () => earth, openBook, caught: () => caught };
   camera.position.set(P.x + 4, P.y + 4, P.z + 4);
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -1473,7 +1559,9 @@ function start() {
     drawTrail(dt);
     drawFinds();
     drawLabels();
-    if ((frames & 3) === 0) drawMini();
+    if ((frames & 3) === 0 && !inside) drawMini();
+    drawRoomLabels();
+    if (inside && !moving && !busy && P.x < ROOM[0] - RW + 0.35 && Math.abs(P.z - ROOM[1]) < 1) goInside(false);   // walked out of the door
     drawDirt(dt);
     if ((digHold || keys.has('KeyF')) && !act && !busy) startDig();
     if ((buildHold || keys.has('KeyG')) && !act && !busy) startBuild();
