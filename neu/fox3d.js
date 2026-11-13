@@ -473,3 +473,28 @@ export function mountFox3d(container, { background = true, shift = [0, 0] } = {}
   }
   return { trick, setMood, dress, hold, tricks: Object.keys(TRICKS), el: renderer.domElement, dispose };
 }
+
+// ------------------------------------------------------------------ Raluca as a figure in another scene (the game world)
+/** makeFoxActor() → { root, rest(), pose(p) }: the same fox, without a scene of its own. She faces −x; put `root` in a
+ *  parent group to move and turn her. pose(p) takes the same numbers as REST (x/y/z/turn are left to the caller). */
+export function makeFoxActor() {
+  const fox = buildFox();
+  return {
+    root: fox.root,
+    rest: () => ({ ...REST }),
+    pose(p) {
+      fox.root.scale.set(1 + p.squash * 0.5, 1 - p.squash, 1 + p.squash * 0.5);
+      fox.hip.position.y = 0.56 + p.bodyY;
+      fox.hip.rotation.z = -p.pitch;
+      fox.neck.rotation.z = p.headNod + p.pitch * 0.85;
+      fox.neck.rotation.x = p.headTilt;
+      fox.head.rotation.y = p.headTurn;
+      for (const [g, a, s] of [[fox.legFL, p.fl, p.flS], [fox.legFR, p.fr, p.frS], [fox.legBL, p.bl, p.blS], [fox.legBR, p.br, p.brS]]) { g.rotation.z = a; g.scale.y = s; }
+      fox.tail.rotation.y = p.tail;
+      fox.tail.rotation.z = p.tailUp;
+      fox.ears[0].rotation.z = p.earL * 0.6; fox.ears[1].rotation.z = p.earR * 0.6;
+      fox.ears[0].rotation.x = 0.32 + p.earL * 0.8; fox.ears[1].rotation.x = -0.32 - p.earR * 0.8;
+      for (const e of fox.eyes) e.scale.y = Math.max(0.08, 1 - p.blink);
+    },
+  };
+}
