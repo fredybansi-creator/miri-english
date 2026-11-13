@@ -468,7 +468,9 @@ function start() {
   $('hintText').textContent = touch ? 'Links: laufen · Wischen: umsehen' : 'W A S D: laufen · Leertaste: springen · E: Aktion · F: graben · G: bauen · Maus: umsehen';
   if (!touch) $('jump').style.display = 'none';
   setTimeout(() => { $('hint').style.opacity = 0; }, 7000);
-  window.addEventListener('keydown', (e) => { keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); }
+  window.addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;   // typing an answer: spaces and letters are text, not game keys
+    keys.add(e.code); if (e.code === 'Space') { input.jump = true; e.preventDefault(); }
     if (e.code === 'KeyE' && !e.repeat) doAction();
     if (e.code === 'KeyF' && !e.repeat) startDig();
     if (e.code === 'KeyG' && !e.repeat) startBuild();

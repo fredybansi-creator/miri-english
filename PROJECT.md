@@ -185,3 +185,9 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   room is built far outside the map (`ROOM` x≈-60, floor y 4, `inside` flag switches walking/camera): nest (sleep
   there), lantern, food store, shelf showing found things, English name signs (tap = sound). Walk out of the door or
   "🚪 Rausgehen". Save stores the spot in front of the door.
+- Step 9 (2026-11-13, Freddy: show it right away): "Welt" tab in the app (`weltTab()` in neu/app.js, links to welt/;
+  "‹ App" in the game goes back to `../#welt`). Pip the rabbit (shopkeeper, stall near the den, act button "🛒 Pip")
+  sells food and den things for the app's lesson coins (`store.js` coins); Miri must ask in English ("Can I have a
+  pillow, please?"). Bought den things stand in the den room (`ROOMSHOP`). 📜 daily quests from today's lesson
+  (lesson done today, else the next one): build 2, answer 2, spell 3 gap words; 🟫 +3 each, all = 🪙 +5. Keys are
+  ignored while typing in an answer box (spaces used to be eaten by the jump key).
