@@ -135,3 +135,10 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   the den in the middle, forest by noise, hill (north-west), 4 ponds (`PONDS`), 3 rivers (`RIVERS`). Animals
   (`makeAnimals` / `moveAnimals`): rabbits and mice run away from Raluca, hedgehogs, two owls, fish in every pond and
   river that jump now and then. About 180–240k triangles and ~100 draw calls in view (half of them are Raluca).
+- Step 3 (2026-11-13): fox life. Camera turns behind Raluca while she walks (not right after a manual look, not
+  when walking towards the camera) and comes closer when a tree crown (`LEAF`) is in the way. Needs: food / water /
+  energy bars (cozy: below 15 she is only slower). One action button (key E) changes with the place: Schlafen at the
+  den (night → morning), Fangen near a mouse (pounce; sneaking = stick pushed only a little or Shift, mice notice her
+  later; caught mice come back after 25 s), Fressen at a berry bush, Trinken at water, else Schnüffeln (glowing trail
+  to the nearest question mark). Day = 8 minutes with sky / light / fog colours. Saves to localStorage `miri-welt`
+  (position, time, needs, mice caught, question mark round + done) every 4 s; the app's own `miri-neu` is not touched.
