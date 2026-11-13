@@ -142,6 +142,19 @@ function rabbit() {
   M.add(8.4, 10, 4, 6.2, -1.1, 1.1, 0xffffff);
   return M.boxes;
 }
+function wolf() {   // a friendly grey wolf, a bit bigger than Raluca; looks to −x
+  const M = maker(0.075), g = 0x8d9298, dark = 0x5f646b, light = 0xd9dcdf, r = rnd(31);
+  M.add(-4, 9, 6, 12, -3, 3, g); M.add(-3, 8, 5.4, 6.2, -2.4, 2.4, light);                       // body, belly
+  M.add(-5.5, -1, 7, 13.5, -3.3, 3.3, shade(g, 1.04)); M.add(-6, -4, 7.5, 12, -3.4, 3.4, light);   // chest with a mane
+  M.add(-10, -4.5, 11, 16, -2.6, 2.6, g); M.add(-13.5, -9.5, 11.2, 13.6, -1.4, 1.4, light);       // head, snout
+  M.add(-14, -13.3, 12.6, 13.6, -0.6, 0.6, 0x1b1b1b);                                             // nose
+  M.both(-10.2, -9.9, 14, 15, 1, 2, 0x1b1410); M.both(-10.25, -10.1, 14.5, 15, 1.1, 1.5, 0xf2d24a); // eyes
+  M.both(-7.5, -5, 16, 19, 1, 2.6, dark); M.both(-7.2, -5.4, 16, 18, 1.3, 2.3, 0xc9b9b0);          // ears
+  for (const [x0, z] of [[-4, 1.2], [6, 1.2]]) { M.both(x0, x0 + 2.2, 0, 6.5, z, z + 1.7, shade(g, 0.95)); M.both(x0, x0 + 2.2, 0, 1, z, z + 1.7, dark); }   // legs
+  M.add(9, 13, 9, 11.5, -1.3, 1.3, g); M.add(13, 16.5, 7.5, 10.5, -1.5, 1.5, shade(g, 0.9)); M.add(16.5, 18, 7, 9, -1.1, 1.1, light);   // tail
+  for (let i = 0; i < 4; i++) M.add(-2 + i * 3, -1 + i * 3, 12, 12.4, -2.6 + r(), 2.6 - r(), dark);   // darker back
+  return M.boxes;
+}
 function owl() {
   const M = maker(0.06), f = 0x8a6642, dark = 0x6b4c30, cream = 0xeadcc0, org = 0xf0a030;
   M.add(-3, 3, 2, 11, -3.5, 3.5, f); M.add(-3.5, -3, 3, 9, -2.6, 2.6, cream);
@@ -191,6 +204,7 @@ export const MODELS = {
   mouse: def('mouse', 'Maus', mouse(), { animal: true }),
   rabbit: def('rabbit', 'Hase', rabbit(), { animal: true }),
   owl: def('owl', 'Eule', owl(), { animal: true }),
+  wolf: def('wolf', 'Wolf', wolf(), { animal: true }),
   hedgehog: def('hedgehog', 'Igel', hedgehog(), { animal: true }),
   fish: def('fish', 'Fisch', fish(), { animal: true }),
 };

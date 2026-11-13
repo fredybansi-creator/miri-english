@@ -34,6 +34,17 @@
   .item .nm small { font-size: 12px; color: #6a7564; } .item .btn { flex: 0 0 auto; padding: 9px 12px; font-size: 14px; } .item.done { background: #eaf7ea; }
   .spell { justify-content: center; } .spell .slot { width: 30px; height: 40px; border-bottom: 3px solid #c9d6c3; margin: 0 2px; } .spell .gap { width: 14px; }
   .tile.ltr { min-width: 38px; padding: 8px 0; text-align: center; font-weight: 700; }
+  #miniWrap { position: fixed; left: calc(10px + env(safe-area-inset-left)); top: calc(102px + env(safe-area-inset-top)); width: 104px; }
+  #mini { width: 104px; height: 104px; border-radius: 16px; border: 3px solid rgba(255,255,255,.9); box-shadow: 0 2px 8px rgba(0,0,0,.2); display: block; background: #76ba5a; }
+  #way { margin-top: 4px; background: rgba(255,255,255,.88); border-radius: 999px; padding: 2px 8px; font-size: 13px; text-align: center; }
+  #way:empty { display: none; }
+  .bigmap { position: relative; width: 100%; max-width: 384px; margin: 6px auto; aspect-ratio: 1; }
+  .bigmap canvas { width: 100%; height: 100%; border-radius: 14px; image-rendering: pixelated; display: block; }
+  .place { position: absolute; transform: translate(-50%, -50%); font: inherit; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; border: 0;
+    background: rgba(255,255,255,.92); color: #2c3328; white-space: nowrap; }
+  .cp { position: absolute; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); font-size: 16px; }
+  .cp.n { top: 4px; left: 50%; transform: translateX(-50%); } .cp.s { bottom: 4px; left: 50%; transform: translateX(-50%); }
+  .cp.e { right: 6px; top: 50%; transform: translateY(-50%); } .cp.w { left: 6px; top: 50%; transform: translateY(-50%); }
   #earth { position: fixed; left: calc(10px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.85);
     border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; display: none; pointer-events: none; }
   #fade { position: fixed; inset: 0; background: #0b1020; opacity: 0; pointer-events: none; transition: opacity .9s; }
@@ -93,6 +104,7 @@
 <body>
 <div id="stage"></div>
 <div id="hud"><div class="needs"><span id="clock">☀️</span><span class="bar">🍖<i><b id="bFood"></b></i></span><span class="bar">💧<i><b id="bWater"></b></i></span><span class="bar">⚡<i><b id="bEnergy"></b></i></span></div><div class="fps"><b id="fps">–</b> Bilder/s · <span id="note">wird gemessen …</span></div></div>
+<div id="miniWrap"><canvas id="mini" width="220" height="220"></canvas><div id="way"></div></div>
 <button id="bookBtn" aria-label="Buch">📖</button>
 <div id="goal"><span class="q">?</span><b id="count">0 / 0</b><span id="arrow">↑</span><span id="dist"></span></div>
 <div id="hint"><span id="hintText"></span></div>

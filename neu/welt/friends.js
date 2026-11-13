@@ -57,6 +57,22 @@ export default {
       chat: [{ en: 'Hello again! I am still slow.', de: 'Hallo nochmal! Ich bin immer noch langsam.' }, { en: 'Do you have a worm for me? Just kidding!', de: 'Hast du einen Wurm für mich? Nur Spaß!' }],
     },
     {
+      id: 'storm', name: 'Storm', kind: 'wolf', icon: '🐺', place: 'north forest',
+      steps: [
+        { say: { en: 'Hello. I am Storm. I am a wolf. Are you afraid of me?', de: 'Hallo. Ich bin Storm. Ich bin ein Wolf. Hast du Angst vor mir?' },
+          task: 'Sag: Nein, ich habe keine Angst.', answers: ["No, I'm not afraid.", 'No, I am not afraid of you.'] },
+        { say: { en: 'Wolves love fish. Can you catch a fish for me?', de: 'Wölfe lieben Fisch. Kannst du einen Fisch für mich fangen?' },
+          want: 'fish', thanks: { en: 'Thank you, little fox. You are a good hunter.', de: 'Danke, kleiner Fuchs. Du bist eine gute Jägerin.' } },
+        { say: { en: "Let's run together! Which way do you want to go: north, south, east or west?", de: 'Lass uns zusammen rennen! In welche Richtung willst du: Norden, Süden, Osten oder Westen?' },
+          task: 'Sag eine Richtung, z. B.: Lass uns nach Norden gehen.', answers: ["Let's go north.", "Let's go to the east.", 'I want to go south.', "Let's run west."] },
+        { say: { en: 'I am looking for an old bone. It is under the ground. Can you dig one up?', de: 'Ich suche einen alten Knochen. Er ist unter der Erde. Kannst du einen ausgraben?' },
+          want: 'bone', thanks: { en: 'A bone! You are the best!', de: 'Ein Knochen! Du bist die Beste!' } },
+        { say: { en: 'Will you be my friend? Then I can walk with you.', de: 'Willst du meine Freundin sein? Dann kann ich mit dir gehen.' },
+          task: 'Sag: Ja, ich will deine Freundin sein.', answers: ['Yes, I will be your friend.', "Yes, let's be friends!", "Yes, I'd like to be your friend."] },
+      ],
+      chat: [{ en: "I'm right behind you, Raluca!", de: 'Ich bin direkt hinter dir, Raluca!' }, { en: "Let's explore the world together.", de: 'Lass uns zusammen die Welt erkunden.' }, { en: 'Do you hear that? I think it is a mouse.', de: 'Hörst du das? Ich glaube, das ist eine Maus.' }],
+    },
+    {
       id: 'luna', name: 'Luna', kind: 'owl', icon: '🦉', place: 'hill',
       steps: [
         { say: { en: 'Who are you? Why are you on my hill?', de: 'Wer bist du? Warum bist du auf meinem Hügel?' },
