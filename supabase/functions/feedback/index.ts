@@ -156,6 +156,41 @@ all lines). Review ONLY her lines, like a friendly coach after the conversation:
 - levelUp: her longest answer retold richer and more natural (keep her facts).
 - tip: one short German tip about her most frequent mistake pattern, or about giving longer answers.`;
 
+// ---- an animal friend in the fox game (Ralucas Welt) answers what Miri really said ----------------
+const FRIEND_REPLY = `Miri, a German woman learning English (about A2), plays a cosy game as Raluca the fox.
+An animal friend asked her something; her task (in German) told her what to answer. You get:
+friend (who is talking), friend_said, task_german, example_answers, key_words (groups: at least one word of each
+group, or a word with the SAME meaning, must be in her answer) and she_said (from speech recognition or typing).
+1) JUDGE her answer:
+- "great": it says what the task asks, natural, at most tiny slips.
+- "good": it says what the task asks, but with grammar mistakes or unnatural wording.
+- "try": the meaning is different from the task, a key word is missing or replaced by a different thing
+  (e.g. "hole" or "ground" instead of "den" and "meadow"), it is only a fragment, or nothing usable was said.
+  Never give "good" just because the sentence looks similar - the MEANING of the task must be there.
+  Ignore punctuation, capital letters and small speech-recognition glitches (a dropped article, a homophone).
+2) WRITE THE FRIEND'S REPLY, spoken by the friend, in character (an owl, rabbit, hedgehog, wolf, fox or a fox cub
+  who calls her "Mum"). React to what she REALLY said, in the friend's own voice, like a real conversation:
+- Very easy English (A1-A2), 1-2 short sentences, max 22 words, no idioms, no emojis, never German.
+- If "great": react warmly and specifically to her words (one small, friendly comment).
+- If "good": react warmly, then say the natural sentence once in your reply, without saying "wrong"
+  (e.g. "Oh, you live in a den on the meadow? How nice!").
+- If "try": stay kind and curious; show you did not quite understand or that her answer is different, and say
+  the right idea in simple words so she can try again (e.g. "A hole in the ground? Hmm, I mean your home. Is it a den?").
+3) hint_de: if "try", one short German tip what is missing or wrong (max 14 words), e.g. "Es fehlen die Wörter
+  für Bau (den) und Wiese (meadow)." Otherwise "".
+4) corrected: her answer minimally corrected to natural English that fits the task (if "try": a good example answer).
+Return JSON only.`;
+const FRIEND_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    level: { type: "STRING", enum: ["great", "good", "try"] },
+    reply: { type: "STRING" },
+    hint_de: { type: "STRING" },
+    corrected: { type: "STRING" },
+  },
+  required: ["level", "reply", "hint_de", "corrected"],
+};
+
 // ---- word lookup --------------------------------------------------------------------------------
 const LOOKUP = `You are a bilingual English–German dictionary for Miri, a German learner of English (about B1+).
 She looks up an English word or phrase she doesn't know. If a context sentence is given, explain the meaning
@@ -304,6 +339,27 @@ Deno.serve(async (req) => {
     try {
       const { model, result } = await askGemini(key, { word, context: clip(body.context, 300) }, LOOKUP, LOOKUP_SCHEMA, 0.2);
       return json({ ok: true, model, ...result }, 200, origin);
+    } catch (e) {
+      return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
+    }
+  }
+
+  // ---- the fox game: a friend judges and answers what she said
+  if (body.mode === "friend_reply") {
+    const said = clip(body.said, 600).trim();
+    if (!said) return json({ error: "empty" }, 400, origin);
+    const input = {
+      friend: clip(body.friend, 80),
+      friend_said: clip(body.they, 300),
+      task_german: clip(body.de, 300),
+      example_answers: (Array.isArray(body.answers) ? body.answers : []).slice(0, 4).map((a) => clip(a, 200)),
+      key_words: (Array.isArray(body.keys) ? body.keys : []).slice(0, 4).map((g) => (Array.isArray(g) ? g : [g]).slice(0, 6).map((w) => clip(w, 30))),
+      she_said: said,
+    };
+    try {
+      const { model, result } = await askGemini(key, input, FRIEND_REPLY, FRIEND_SCHEMA, 0.5);
+      const level = ["great", "good", "try"].includes(result.level) ? result.level : "try";
+      return json({ ok: true, model, level, reply: clip(result.reply, 240), hint: clip(result.hint_de, 160), corrected: clip(result.corrected, 300) }, 200, origin);
     } catch (e) {
       return json({ error: "ai_failed", detail: String((e as Error).message) }, 502, origin);
     }

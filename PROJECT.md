@@ -229,3 +229,10 @@ Full engineer + teacher review: https://claude.ai/artifact/A32G6uXxcBdmdWsRPvQ7V
   GitHub for every pull request (`.github/workflows/check.yml`).
 - Not done on purpose: splitting `neu/welt/welt.js` (another thread was still changing it); `neu/` still imports
   `js/check.js`, `js/ai.js`, `js/config.js` from the old app – keep those files.
+### 2026-11-14: fair answers + friends reply with AI
+- Friend answers are judged by the feedback function, mode `friend_reply` (free Gemini): level + the friend's own
+  reply in easy English (shown in a bubble, spoken) + German hint + corrected sentence.
+- Each friend answer step has `keys` (friends.js): one word of each group must be in her answer, otherwise it is
+  never "right" (tip shows the missing words). The question-mark "say" exercises use the lessons' `keywords` the same way.
+- If the AI is slow (9 s) or down, the game falls back to the word check + key words + a scripted reply.
+- Voice in friend talk now only transcribes (no second check call), so it is still about one AI call per answer.

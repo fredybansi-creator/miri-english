@@ -741,7 +741,12 @@ function start() {
   const same = (a, b) => { const n = (t) => t.toLowerCase().replace(/[.?!,]/g, '').replace(/\s+/g, ' ').trim(); return n(a) === n(b); };
   function markDone(m) { if (m.onDone) { m.onDone(); return; } m.done = true; found++; showCount(); cheer = 1.2; earn(3); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } }
   /** answer by voice (checked on the server) or by typing; onResult(level, said, corrected, praise) */
-  function micInto(box, { check, hint, answers, onResult }) {
+  function micInto(box, { check, hint, answers, keys, onResult: done }) {
+    const onResult = (level, said, corrected, praise) => {   // a missing key word is never "right"
+      const miss = missingKey(said, keys);
+      if (miss && level !== 'try') { level = 'try'; praise = keyTip(miss); corrected = ''; }
+      done(level, said, corrected, praise);
+    };
     box.innerHTML = `<p class="small" id="mStatus"></p><div class="row">${canRecord() ? '<button class="btn primary" id="mMic">🎤 Sprechen</button>' : ''}<button class="btn" id="mType">⌨️ Tippen</button></div>
       <form class="typed" id="mTyped" hidden><input id="mIn" autocomplete="off" autocapitalize="sentences" placeholder="Auf Englisch schreiben …"><button class="btn primary">OK</button></form>`;
     let rec = null;
@@ -784,7 +789,7 @@ function start() {
     const close = () => { if (mic) mic.cancel(); $('sheet').classList.remove('open'); card.onclick = null; busy = false; };
     $('later').onclick = close;
     mic = micInto($('mBox'), {
-      check: { they: say ? it.they : 'Repeat after me: ' + it.en, de: it.de, answers }, hint: say ? `She answers: "${it.they}"` : `She repeats: "${it.en}"`, answers,
+      check: { they: say ? it.they : 'Repeat after me: ' + it.en, de: it.de, answers }, hint: say ? `She answers: "${it.they}"` : `She repeats: "${it.en}"`, answers, keys: say ? it.keywords : null,
       onResult(level, said, corrected, praise) {
         const ok = level === 'great' || level === 'good', best = corrected || answers[0];
         if (ok) {
@@ -1120,6 +1125,29 @@ function start() {
     for (const a of answers) { const w = nWords(a); best = Math.max(best, w.filter((x) => said.has(x)).length / w.length); }
     return best >= 0.85 ? 'great' : best >= 0.55 ? 'good' : 'try';
   }
+  /** the first group of key words that is missing in her answer (null = all there). A word start is enough. */
+  function missingKey(text, keys) {   // → list of the missing groups, or null
+    if (!keys || !keys.length) return null;
+    const words = nWords(String(text).replace(/n't\b/gi, ' not'));
+    const miss = keys.filter((g) => !g.some((k) => words.some((w) => w === k || (k.length >= 4 && w.startsWith(k)))));
+    return miss.length ? miss : null;
+  }
+  const keyTip = (miss) => miss.length > 1
+    ? `Tipp: Benutze die Wörter ${miss.map((g) => `„${g[0]}“`).join(' und ')}.`
+    : `Tipp: Benutze das Wort „${miss[0][0]}“${miss[0].length > 1 ? ` (oder ${miss[0].slice(1, 3).map((x) => `„${x}“`).join(', ')})` : ''}.`;
+  const FRIEND_URL = 'https://aagbnrcsprmhcwllfmcn.supabase.co/functions/v1/feedback';
+  /** the friend (AI, free Gemini) judges her answer and answers what she really said; null if slow or down */
+  async function friendReply(f, st, said) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000);
+    try {
+      const res = await fetch(FRIEND_URL, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctl.signal,
+        body: JSON.stringify({ mode: 'friend_reply', friend: `${f.name} the ${f.cub ? 'fox cub (her child)' : f.kind}`, they: st.say.en, de: st.task, answers: st.answers, keys: st.keys || [], said }),
+      });
+      const d = await res.json();
+      return d && d.ok && d.reply ? d : null;
+    } catch { return null; } finally { clearTimeout(t); }
+  }
   function stillThere(kind) {   // can she still get one of these?
     if (FIND_KINDS[kind]) return finds.some((f) => f.kind === kind && !f.got);
     if (kind === 'treasure') return digs.some((g) => g.kind === kind && !g.dug);
@@ -1157,15 +1185,35 @@ function start() {
         <form class="typed" id="typed" hidden><input id="typedIn" autocomplete="off" autocapitalize="sentences" placeholder="Auf Englisch schreiben …"><button class="btn primary">OK</button></form>
         <div class="row"><button class="btn" id="bye">Später</button></div>`;
       const status = (t) => { $('talkStatus').textContent = t; };
-      const result = (level, said, corrected, praise) => {
+      const same2 = (a, b) => nWords(a).join(' ') === nWords(b).join(' ');
+      const result = (level, said, corrected, reply, hint) => {
         const ok = level === 'great' || level === 'good';
-        $('talkRes').innerHTML = ok
-          ? `<p class="ok">${level === 'great' ? 'Super! 🎉' : 'Gut gemacht! 👍'} +1 ❤️</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}${corrected && corrected !== said ? `<p class="en">${esc(corrected)}</p>` : ''}`
-          : `<p class="no">Noch nicht ganz.</p>${said ? `<p class="small">Du: „${esc(said)}“</p>` : ''}${praise ? `<p class="small">${esc(praise)}</p>` : ''}<p class="small">Zum Beispiel:</p><p class="en say2">${esc(corrected || st.answers[0])} <span class="spk">🔊</span></p>`;
-        if (ok) { card.querySelector('.talkbtns').remove(); $('typed').hidden = true; card.querySelector('#bye').outerHTML = '<button class="btn primary" id="next">Weiter</button>'; $('next').onclick = () => { close(); setTimeout(() => openTalk(f), 300); }; gotHeart(); play(corrected || said || st.answers[0]); }
-        else status('Versuch es noch einmal.');
+        status('');
+        const bubble = reply ? `<div class="talk reply"><span class="who">${f.icon}</span><p class="en say2">${esc(reply)} <span class="spk">🔊</span></p></div>` : '';
+        $('talkRes').innerHTML = (said ? `<p class="small">Du: „${esc(said)}“</p>` : '') + bubble + (ok
+          ? `<p class="ok">${level === 'great' ? 'Super! 🎉' : 'Gut gemacht! 👍'} +1 ❤️</p>${corrected && !same2(corrected, said) ? `<p class="small">Noch schöner:</p><p class="en say2">${esc(corrected)} <span class="spk">🔊</span></p>` : ''}`
+          : `<p class="no">Noch nicht ganz.</p>${hint ? `<p class="small">${esc(hint)}</p>` : ''}<p class="small">Zum Beispiel:</p><p class="en say2">${esc(corrected || st.answers[0])} <span class="spk">🔊</span></p>`);
+        if (reply) play(reply, { role: 'friend' });
+        if (ok) { sfx('right'); card.querySelector('.talkbtns').remove(); $('typed').hidden = true; card.querySelector('#bye').outerHTML = '<button class="btn primary" id="next">Weiter</button>'; $('next').onclick = () => { close(); setTimeout(() => openTalk(f), 300); }; gotHeart(); if (!reply) play(corrected || said || st.answers[0]); }
+        else { status('Versuch es noch einmal. 🙂'); $('typedIn').value = ''; }
       };
-      const check = { they: st.say.en, de: st.task, answers: st.answers };
+      // the friend listens: AI judges + replies; the key words must be there in any case; without AI: word check
+      const judge = async (said) => {
+        if (!said) { status('Ich habe nichts gehört. Versuch es noch einmal.'); return; }
+        const btns = card.querySelectorAll('.talkbtns button, #typed button'); btns.forEach((b) => { b.disabled = true; });
+        status(`💭 ${f.name} hört zu …`);
+        const ai = await friendReply(f, st, said);
+        if (!$('talkRes') || !card.contains($('talkRes'))) return;   // closed meanwhile
+        btns.forEach((b) => { b.disabled = false; });
+        const miss = missingKey(said, st.keys);
+        let level = ai ? ai.level : typedLevel(said, st.answers);
+        if (miss) level = 'try';
+        const ok = level !== 'try';
+        let reply = ai && (ai.level !== 'try') === ok ? ai.reply : '';
+        if (!reply) reply = ok ? (f.cub ? 'Yay! Thank you, Mum!' : ['Great! Thank you, Raluca.', 'Oh, nice! Thank you.', 'Wonderful, Raluca!'][f.step % 3]) : (f.cub ? 'Hmm? I don\'t understand, Mum.' : 'Hmm, I don\'t understand. Can you say it again?');
+        const hint = ok ? '' : (ai && ai.level === 'try' && ai.hint) || (miss ? keyTip(miss) : 'Schau dir das Beispiel an und versuch es noch einmal.');
+        result(level, said, ai && !(miss && ai.level !== 'try') ? ai.corrected : '', reply, hint);
+      };
       const hint = `Raluca the fox answers ${f.name} the ${f.kind}, who asked: "${st.say.en}"`;
       if ($('mic')) $('mic').onclick = async () => {
         const mic = $('mic');
@@ -1174,17 +1222,17 @@ function start() {
           const r = await r0.stop(); mic.disabled = false; mic.textContent = '🎤 Sprechen';
           if (r.error === 'cancelled') return;
           if (r.error) { status(r.error); return; }
-          if (r.check) result(r.check.level, r.text, r.check.corrected, r.check.praise);
-          else result(typedLevel(r.text, st.answers), r.text, '', '');
+          status('');
+          judge((r.text || '').trim());
           return;
         }
         mic.disabled = true; mic.textContent = '⏳ Mikro startet …';
-        try { talkRec = await startRecording((sec) => status(`Jetzt sprechen! ${sec} s`), () => mic.click(), check, hint); }
+        try { talkRec = await startRecording((sec) => status(`Jetzt sprechen! ${sec} s`), () => mic.click(), null, hint); }
         catch (e) { status(e.message); mic.disabled = false; mic.textContent = '🎤 Sprechen'; return; }
         mic.disabled = false; mic.textContent = '■ Fertig'; status('Jetzt sprechen! Dann auf „Fertig“ tippen.');
       };
       $('typeBtn').onclick = () => { $('typed').hidden = !$('typed').hidden; if (!$('typed').hidden) $('typedIn').focus(); };
-      $('typed').onsubmit = (ev) => { ev.preventDefault(); const t = $('typedIn').value.trim(); if (t) result(typedLevel(t, st.answers), t, '', ''); };
+      $('typed').onsubmit = (ev) => { ev.preventDefault(); const t = $('typedIn').value.trim(); if (t) judge(t); };
     }
     $('sheet').classList.add('open');
     card.onclick = (ev) => { if (ev.target.closest('.say')) play(line.en); const s2 = ev.target.closest('.say2'); if (s2) play(s2.textContent.replace('🔊', '').trim()); };
