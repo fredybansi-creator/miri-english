@@ -205,3 +205,11 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   (`cardRight`). Listening: hear the sentence, pick the German meaning of 3. 📻 Olli's story of the day
   (`neu/welt/stories.js`, 14 short stories in order, one per day, in the 📜 sheet): listen first, then a question,
   🟫 +5. make_audio.py collects the stories.
+
+### 2026-11-14: fair answers + friends reply with AI
+- Friend answers are judged by the feedback function, mode `friend_reply` (free Gemini): level + the friend's own
+  reply in easy English (shown in a bubble, spoken) + German hint + corrected sentence.
+- Each friend answer step has `keys` (friends.js): one word of each group must be in her answer, otherwise it is
+  never "right" (tip shows the missing words). The question-mark "say" exercises use the lessons' `keywords` the same way.
+- If the AI is slow (9 s) or down, the game falls back to the word check + key words + a scripted reply.
+- Voice in friend talk now only transcribes (no second check call), so it is still about one AI call per answer.
