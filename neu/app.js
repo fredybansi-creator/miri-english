@@ -68,11 +68,12 @@ const ICON = {
 const TABS = [
   { id: 'today', label: 'Heute', show: () => home() },
   { id: 'lessons', label: 'Lektionen', show: () => lessonsTab() },
-  { id: 'cards', label: 'Karten', show: () => cardsTab() },
   { id: 'raluca', label: 'Raluca', show: () => ralucaTab() },
   { id: 'welt', label: 'Welt', show: () => weltTab() },
   { id: 'progress', label: 'Fortschritt', show: () => progressTab() },
 ];
+// pages without a tab of their own: reached from another tab, which stays marked in the tab bar
+const PAGES = { cards: { show: () => cardsTab(), tab: 'today' } };
 const tabbar = document.getElementById('tabbar');
 
 /** Show a tab page: page content + the tab bar at the bottom. */
@@ -81,13 +82,13 @@ function tabScreen(id, html) {
   document.body.classList.remove('in-session');
   if (location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
   tabbar.innerHTML = `<div class="tabbar-inner">${TABS.map((t) => `
-    <button class="tab" data-tab="${t.id}" ${t.id === id ? 'aria-current="page"' : ''}>
+    <button class="tab" data-tab="${t.id}" ${t.id === (PAGES[id] ? PAGES[id].tab : id) ? 'aria-current="page"' : ''}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[t.id]}</svg>
       <span>${t.label}</span>
     </button>`).join('')}</div>`;
   tabbar.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => TABS.find((t) => t.id === b.dataset.tab).show()));
 }
-function openTab(id) { (TABS.find((t) => t.id === id) || TABS[0]).show(); }
+function openTab(id) { (PAGES[id] || TABS.find((t) => t.id === id) || TABS[0]).show(); }
 
 function hud() {
   const st = getState();
@@ -99,7 +100,7 @@ function hud() {
 function wireGo() { app.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => openTab(b.dataset.go))); }
 
 /** Raluca on a stage with her speech bubble; tap = greet or listen for a trick. */
-function ralucaStage(stageSel = '#stage', three = false) {
+function ralucaStage(stageSel = '#stage', three = false, shift = [-0.09, 0.09]) {
   const st = getState();
   const finishedToday = doneToday();
   const m = mood();
@@ -119,7 +120,7 @@ function ralucaStage(stageSel = '#stage', three = false) {
       if (!document.body.contains(stage) || !mod.webglOk()) return;
       const holder = document.createElement('div');
       holder.className = 'fox3d';
-      const f3 = mod.mountFox3d(holder, { shift: [-0.09, 0.09] }); // a bit left and down: room for the bubble
+      const f3 = mod.mountFox3d(holder, { shift }); // a bit left and down: room for the bubble
       f3.setMood(finishedToday ? 'happy' : m);
       f3.dress(getState().wearing);
       stage.querySelector('svg')?.remove();
@@ -172,14 +173,14 @@ function home() {
         <p class="kicker">Heute · ${esc(next.topic.title)} · Lektion ${n} von ${next.topic.lessons.length}</p>
         <h2>${esc(next.title)}</h2>
         <p class="muted">${esc(next.goal)}</p>
+        <button class="btn primary big" id="go">Los geht's</button>
+        <p class="small muted center">ca. 10 Minuten · +10 Münzen, wenn du fertig bist</p>
         <ul class="parts">
           <li><span>🔁</span>Nachsprechen</li>
           <li><span>🧩</span>Satz bauen</li>
           <li><span>🗣️</span>Sag es auf Englisch</li>
           <li><span>🎧</span>Hörgeschichte</li>
         </ul>
-        <p class="small muted">ca. 10 Minuten · +10 Münzen, wenn du fertig bist</p>
-        <button class="btn primary big" id="go">Los geht's</button>
       </div>`;
   } else {
     card = `
@@ -201,14 +202,14 @@ function home() {
 
   tabScreen('today', `
     <header class="top"><h1>Hallo Miri!</h1>${hud()}</header>
-    <div class="stage" id="stage">${bubbleHtml()}</div>
-    <div class="bowl"><span>🥣 Napf</span><div class="meter"><i style="width:${Math.round(bowlLevel() * 100)}%"></i></div><span class="muted small">${bowlLevel() >= 1 ? 'voll!' : 'füllt sich mit jeder Übung'}</span></div>
+    <div class="stage low" id="stage">${bubbleHtml()}</div>
     ${restoreCard}
     ${card}
-    ${due && !run && !finishedToday ? `<button class="btn" data-go="cards">🃏 ${due} ${due === 1 ? 'Karte' : 'Karten'} zum Wiederholen</button>` : ''}
+    <button class="rowlink" data-go="cards"><span>🃏 Karten</span><span class="muted small">${!allCards().length ? 'kommen nach der ersten Lektion' : due ? `${due} ${due === 1 ? 'Karte ist' : 'Karten sind'} heute dran` : 'alles wiederholt für heute'}</span><b>›</b></button>
+    <div class="bowl"><span>🥣 Napf</span><div class="meter"><i style="width:${Math.round(bowlLevel() * 100)}%"></i></div><span class="muted small">${bowlLevel() >= 1 ? 'voll!' : 'füllt sich mit jeder Übung'}</span></div>
     ${['off', 'homescreen'].includes(reminderState()) ? '<button class="btn link" data-go="progress">🔔 Erinnerung um 19 Uhr einschalten</button>' : ''}
   `);
-  ralucaStage('#stage', true); // the 3D Raluca, like in the Raluca tab
+  ralucaStage('#stage', true, [-0.16, 0.04]); // the 3D Raluca in a low picture, so today's lesson is on the first screen
   wireGo();
   const go = $('#go');
   if (go) go.addEventListener('click', () => (run ? resume() : startLesson(next)));
@@ -223,11 +224,11 @@ function lessonsTab() {
   const next = nextLesson();
   tabScreen('lessons', `
     <header class="top"><h1>Lektionen</h1>${hud()}</header>
-    <p class="muted small">Jeden Tag eine Lektion, der Reihe nach. Fertige Lektionen kannst du immer wiederholen.</p>
+    <p class="muted small">Jeden Tag eine Lektion, der Reihe nach. Tippe auf ein Thema, um seine Lektionen zu sehen.</p>
     ${TOPICS.map((t, k) => `
     ${t.level === 2 && (TOPICS[k - 1] || {}).level !== 2 ? '<h2 class="level">Stufe 2 – etwas schwerer</h2><p class="muted small">Längere Antworten und neue Grammatik. Jede Lektion hat einen kurzen Tipp.</p>' : ''}
-    <section class="topic">
-      <h3>${esc(t.title)} <span class="muted">${t.lessons.filter((l) => st.done[l.id]).length} von ${t.lessons.length}</span></h3>
+    <details class="topic" ${(next ? next.topic === t : k === 0) ? 'open' : ''}>
+      <summary><span class="tt">${esc(t.title)}</span><span class="muted">${t.lessons.every((l) => st.done[l.id]) ? '✓ ' : ''}${t.lessons.filter((l) => st.done[l.id]).length} von ${t.lessons.length}</span></summary>
       <ol class="lessons">
         ${t.lessons.map((l, i) => `
           <li class="${st.done[l.id] ? 'ok' : ''} ${next && next.id === l.id ? 'next' : ''}">
@@ -237,7 +238,7 @@ function lessonsTab() {
               : next && next.id === l.id ? `<button class="btn small primary" data-again="${l.id}">Start</button>` : ''}
           </li>`).join('')}
       </ol>
-    </section>`).join('')}
+    </details>`).join('')}
   `);
   wireGo();
   app.querySelectorAll('[data-again]').forEach((b) => b.addEventListener('click', () => startLesson(lessonById(b.dataset.again))));
@@ -265,6 +266,7 @@ function cardsTab() {
   const known = all.filter((x) => c[x.id] && c[x.id].box >= 3).length;
   tabScreen('cards', `
     <header class="top"><h1>Karten</h1>${hud()}</header>
+    <button class="btn link back" data-go="today">‹ Zurück zu Heute</button>
     <div class="card center">
       ${all.length ? `
         <p class="big-num">${due.length}</p>
@@ -492,7 +494,7 @@ function reminderCard() {
   const body = {
     on: '<p>✅ An. Raluca erinnert dich um 19 Uhr, wenn du an dem Tag noch keine Lektion gemacht hast.</p><div class="row"><button class="btn small" id="remTest">Test-Nachricht senden</button><button class="btn small" id="remOff">Ausschalten</button></div>',
     off: '<p class="muted">Raluca erinnert dich um 19 Uhr, wenn du an dem Tag noch keine Lektion gemacht hast.</p><button class="btn primary" id="remOn">Erinnerung einschalten</button>',
-    homescreen: `<p>Auf dem iPhone geht das nur, wenn die App auf dem Home-Bildschirm ist:</p><ol class="steps"><li>Schreib dir deinen Code auf: <b class="code">${esc(getState().code)}</b> (die App auf dem Home-Bildschirm fängt sonst leer an)</li><li>Unten in Safari auf <b>Teilen</b> tippen (Viereck mit Pfeil)</li><li><b>Zum Home-Bildschirm</b> wählen, dann <b>Hinzufügen</b></li><li>Die App über das neue Symbol öffnen und hier die Erinnerung einschalten</li></ol>`,
+    homescreen: `<p class="muted">Auf dem iPhone geht das nur, wenn die App auf dem Home-Bildschirm ist.</p><details class="more"><summary>So geht's (4 Schritte)</summary><ol class="steps"><li>Schreib dir deinen Code auf: <b class="code">${esc(getState().code)}</b> (die App auf dem Home-Bildschirm fängt sonst leer an)</li><li>Unten in Safari auf <b>Teilen</b> tippen (Viereck mit Pfeil)</li><li><b>Zum Home-Bildschirm</b> wählen, dann <b>Hinzufügen</b></li><li>Die App über das neue Symbol öffnen und hier die Erinnerung einschalten</li></ol></details>`,
     blocked: '<p>Mitteilungen sind für diese App ausgeschaltet. Einschalten: <b>Einstellungen › Mitteilungen › Miri English</b>.</p>',
     unsupported: '<p class="muted">Dieses Handy oder dieser Browser kann leider keine Erinnerungen zeigen.</p>',
   }[st];
