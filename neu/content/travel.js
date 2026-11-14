@@ -48,6 +48,9 @@ export default {
           keywords: [['window'], ['please']],
         },
       ],
+      tip: {"de": "Höflich bestellen: Sag „I'd like …“ (= ich hätte gern) statt „I want …“. „I want“ klingt auf Englisch oft unhöflich.", "en": "I'd like a window seat, please."},
+      write: {"de": "Schreib, wohin du gern einmal fliegen möchtest und warum.", "useWords": ["I'd like to fly to", "because"], "sample": "I'd like to fly to Canada because I love nature."},
+      talk: {"they": "Do you like flying?", "de": "Erzähl, ob du gern fliegst und was du am Flughafen machst.", "useWords": ["I like", "I don't like", "usually"], "sample": "Not really. I usually read a book at the airport."},
       story: {
         title: 'Annas Flug',
         de: 'Anna fliegt in den Urlaub. Hör gut zu.',
@@ -104,6 +107,9 @@ export default {
           keywords: [['what time', 'when'], ['breakfast']],
         },
       ],
+      tip: {"de": "„Is there …?“ = Gibt es …? Bei mehreren Dingen: „Are there …?“ – zum Beispiel: Are there towels in the room?", "en": "Is there Wi-Fi in the room?"},
+      write: {"de": "Schreib eine kurze Nachricht an ein Hotel: Du hast eine Frage zum Frühstück oder zum Parken.", "useWords": ["Is there", "What time", "Thank you"], "sample": "Hello, is there parking at the hotel? And what time is breakfast? Thank you!"},
+      talk: {"they": "What is important for you in a hotel?", "de": "Sag, was dir in einem Hotel wichtig ist.", "useWords": ["a good bed", "quiet", "breakfast"], "sample": "A good bed and a quiet room. And a nice breakfast!"},
       story: {
         title: 'Ein Zimmer mit Aussicht',
         de: 'Tom kommt in seinem Hotel an. Hör gut zu.',
@@ -159,6 +165,9 @@ export default {
           keywords: [['ticket'], ['to the airport']],
         },
       ],
+      tip: {"de": "Nach dem Weg fragen: „How do I get to …?“ = Wie komme ich zu …? Nicht „How do I come to …“.", "en": "How do I get to the museum?"},
+      write: {"de": "Erklär einem Freund den Weg von deiner Wohnung zum nächsten Supermarkt.", "useWords": ["go straight on", "turn left", "turn right", "it's on the"], "sample": "Go straight on and turn left at the bank. The supermarket is on the right."},
+      talk: {"they": "How do you usually travel in your city?", "de": "Erzähl, wie du in deiner Stadt unterwegs bist (Bus, Fahrrad, Auto …).", "useWords": ["by bus", "by bike", "on foot"], "sample": "I usually go by bike. When it rains, I take the bus."},
       story: {
         title: 'Der falsche Bus',
         de: 'Lisa will zum Strand fahren. Hör gut zu.',
@@ -215,6 +224,9 @@ export default {
           keywords: [['delicious', 'very good', 'tasty', 'really good', 'great', 'lovely'], ['thank', 'thanks']],
         },
       ],
+      tip: {"de": "„I'll have …“ ist die normale Art zu bestellen. „I'll take …“ sagt man eher im Geschäft.", "en": "I'll have the fish, please."},
+      write: {"de": "Schreib, was du in einem Restaurant am liebsten bestellst.", "useWords": ["I usually have", "my favourite", "with"], "sample": "I usually have pasta with vegetables. My favourite dessert is ice cream."},
+      talk: {"they": "What's your favourite restaurant?", "de": "Erzähl von deinem Lieblingsrestaurant: Was gibt es dort, was isst du?", "useWords": ["It's a small", "The food is", "I always order"], "sample": "It's a small Italian restaurant. I always order the pizza."},
       story: {
         title: 'Ein Abend in Rom',
         de: 'Maria und Paul gehen essen. Hör gut zu.',
@@ -271,6 +283,9 @@ export default {
           keywords: [['when', 'what time'], ['after that', 'after', 'next']],
         },
       ],
+      tip: {"de": "Für etwas, das gerade passiert ist, nimmt man oft die einfache Vergangenheit: „I lost my bag.“ – nicht „I have lost“ mit Zeitangabe wie „yesterday“.", "en": "I lost my bag yesterday."},
+      write: {"de": "Schreib eine kurze Nachricht an die Rezeption: In deinem Zimmer ist etwas kaputt.", "useWords": ["Hello", "is broken", "Can you"], "sample": "Hello, the light in my room is broken. Can you help me, please?"},
+      talk: {"they": "Did something ever go wrong on one of your trips?", "de": "Erzähl, was auf einer Reise einmal schiefging.", "useWords": ["Once", "I missed", "I lost", "it was"], "sample": "Once I missed my train. I waited two hours for the next one."},
       story: {
         title: 'Der verlorene Koffer',
         de: 'Ben kommt in Dublin an. Hör gut zu.',

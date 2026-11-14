@@ -1,0 +1,15 @@
+# Safety check for every pull request and every push to main: lessons complete, voices there, code parses.
+name: Check
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/check_content.mjs

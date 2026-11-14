@@ -249,3 +249,8 @@ body.in-session .tabbar { display: none; }
 .welt-pic { font-size: 44px; text-align: center; letter-spacing: 6px; padding: 18px 0; border-radius: 16px; background: linear-gradient(#bfe3f5, #cfe9b8); }
 .welt-list { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
 a.btn { text-align: center; text-decoration: none; display: block; }
+
+/* Schreiben: open writing task */
+textarea.write { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 12px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--fg); resize: vertical; }
+textarea.write:focus { outline: none; border-color: var(--ok); }
+.level { margin: 22px 0 4px; font-size: 1.15rem; }

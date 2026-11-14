@@ -114,8 +114,8 @@ def collect():
                 elif t == "match":
                     for en, _ in e["pairs"]:
                         main.add(en)
-    # new app: neu/content/*.js (repeat / build / say / story)
-    for f in sorted(NEW_CONTENT.glob("*.js")):
+    # new app: neu/content/*.js (repeat / build / say / write / talk / story)
+    for f in sorted(p for p in NEW_CONTENT.glob("*.js") if p.name != "index.js"):
         mod = load_module(f)
         for l in mod["lessons"]:
             for r in l.get("repeat", []):
@@ -125,6 +125,14 @@ def collect():
             for s in l.get("say", []):
                 s.get("they") and friend.add(s["they"])
                 main.add(s["answers"][0])
+            # open tasks: the friend's question and the example answer
+            if l.get("talk"):
+                friend.add(l["talk"]["they"])
+                main.add(l["talk"]["sample"])
+            if l.get("tip"):
+                main.add(l["tip"]["en"])
+            if l.get("write"):
+                main.add(l["write"]["sample"])
             st = l.get("story")
             if st:
                 main.update(st["lines"])

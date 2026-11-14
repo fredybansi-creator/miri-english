@@ -1,6 +1,6 @@
 // Supabase Edge Function: backup and restore of learning progress.
 //   POST { action: "get", code }                       → { ok, data | null, updatedAt }
-//   POST { action: "put", code, data, updatedAt }        → { ok }
+//   POST { action: "put", code, data, updatedAt }        → { ok } or { ok, stale } (online copy is newer: kept)
 // The backup code is the only key (like a password). Only its SHA-256 hash is stored.
 
 const ALLOWED_ORIGINS = [
@@ -73,6 +73,12 @@ Deno.serve(async (req) => {
   if (body.action === "put") {
     if (!body.data || typeof body.data !== "object") return json({ error: "no_data" }, 400, origin);
     const updatedAt = Number(body.updatedAt) || Date.now();
+    // Newer progress wins: an old phone (or an old browser tab) must not overwrite a newer online copy.
+    const old = await rest(`progress?id=eq.${id}&select=updated_at`);
+    if (old.ok) {
+      const rows = await old.json();
+      if (rows.length && Date.parse(rows[0].updated_at) > updatedAt) return json({ ok: true, stale: true }, 200, origin);
+    }
     const r = await rest("progress", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
