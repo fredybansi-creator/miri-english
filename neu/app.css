@@ -254,3 +254,21 @@ a.btn { text-align: center; text-decoration: none; display: block; }
 textarea.write { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; padding: 12px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--fg); resize: vertical; }
 textarea.write:focus { outline: none; border-color: var(--ok); }
 .level { margin: 22px 0 4px; font-size: 1.15rem; }
+
+/* layout pass: low Raluca picture on Heute, folding topics, Karten as a row in Heute */
+.stage.low { aspect-ratio: 1 / 0.5; }
+.stage.low .bubble { max-width: 46%; }
+p.center { text-align: center; }
+details.topic { display: block; }
+details.topic > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 52px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; font-weight: 700; font-size: 17px; }
+details.topic > summary::-webkit-details-marker { display: none; }
+details.topic > summary .tt::before { content: '›'; display: inline-block; width: 18px; color: var(--muted); transition: transform .15s; }
+details.topic[open] > summary .tt::before { transform: rotate(90deg); }
+details.topic > summary .muted { font-weight: 600; font-size: 14px; white-space: nowrap; }
+details.topic[open] > summary { margin-bottom: 8px; }
+.rowlink { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; font: inherit; font-weight: 700; font-size: 15px; color: inherit; text-align: left; cursor: pointer; }
+.rowlink .muted { flex: 1; text-align: right; }
+.rowlink b { color: var(--muted); font-size: 20px; line-height: 1; }
+.btn.link.back { align-self: flex-start; padding: 0 4px; }
+.parts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+details.topic > summary .tt::before { text-align: center; margin-right: 4px; line-height: 1; }
