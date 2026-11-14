@@ -208,7 +208,7 @@ function home() {
     ${due && !run && !finishedToday ? `<button class="btn" data-go="cards">🃏 ${due} ${due === 1 ? 'Karte' : 'Karten'} zum Wiederholen</button>` : ''}
     ${['off', 'homescreen'].includes(reminderState()) ? '<button class="btn link" data-go="progress">🔔 Erinnerung um 19 Uhr einschalten</button>' : ''}
   `);
-  ralucaStage();
+  ralucaStage('#stage', true); // the 3D Raluca, like in the Raluca tab
   wireGo();
   const go = $('#go');
   if (go) go.addEventListener('click', () => (run ? resume() : startLesson(next)));
