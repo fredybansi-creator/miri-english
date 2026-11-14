@@ -236,3 +236,11 @@ Full engineer + teacher review: https://claude.ai/artifact/A32G6uXxcBdmdWsRPvQ7V
   never "right" (tip shows the missing words). The question-mark "say" exercises use the lessons' `keywords` the same way.
 - If the AI is slow (9 s) or down, the game falls back to the word check + key words + a scripted reply.
 - Voice in friend talk now only transcribes (no second check call), so it is still about one AI call per answer.
+
+## Layout pass (2026-11-14)
+- Five tabs: Heute, Lektionen, Raluca, Welt, Fortschritt. The Karten page still exists (`#cards`, `PAGES` in `neu/app.js`)
+  and is opened from a row on Heute; the Heute tab stays marked.
+- Heute: low Raluca picture (`.stage.low`), the start button sits directly under the lesson title (visible without scrolling,
+  also on iPhone SE).
+- Lektionen: topics are `<details>`; only the topic of the next lesson is open.
+- Fortschritt: the home-screen steps for the reminder are folded.
