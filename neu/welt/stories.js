@@ -29,10 +29,10 @@ export default {
       q: 'How old is Hugo?', options: ['Three years old.', 'Five years old.', 'Ten years old.'], right: 1,
     },
     {
-      title: 'Storm is afraid', de: 'Storm hat Angst',
-      en: ['Storm the wolf is big and strong.', 'But tonight there is thunder, and Storm is afraid.', 'Raluca sits next to him.', '"Don\'t worry," she says. "The thunder can\'t hurt you."'],
-      tr: ['Storm, der Wolf, ist groß und stark.', 'Aber heute Nacht donnert es, und Storm hat Angst.', 'Raluca setzt sich neben ihn.', '„Keine Sorge“, sagt sie. „Der Donner kann dir nichts tun.“'],
-      q: 'Why is Storm afraid?', options: ['Because of the thunder.', 'Because he is hungry.', 'Because he is lost.'], right: 0,
+      title: 'Keysha is afraid', de: 'Keysha hat Angst',
+      en: ['Keysha the wolf is big and strong.', 'But tonight there is thunder, and Keysha is afraid.', 'Raluca sits next to her.', '"Don\'t worry," she says. "The thunder can\'t hurt you."'],
+      tr: ['Keysha, die Wölfin, ist groß und stark.', 'Aber heute Nacht donnert es, und Keysha hat Angst.', 'Raluca setzt sich neben sie.', '„Keine Sorge“, sagt sie. „Der Donner kann dir nichts tun.“'],
+      q: 'Why is Keysha afraid?', options: ['Because of the thunder.', 'Because she is hungry.', 'Because she is lost.'], right: 0,
     },
     {
       title: 'A letter for Luna', de: 'Ein Brief für Luna',
@@ -68,7 +68,7 @@ export default {
       title: 'The lost crystal', de: 'Der verlorene Kristall',
       en: ['Luna had a beautiful crystal, but now it is gone.', 'Raluca follows little footprints in the sand.', 'They lead to a magpie\'s nest.', 'The magpie says sorry and gives the crystal back.'],
       tr: ['Luna hatte einen wunderschönen Kristall, aber jetzt ist er weg.', 'Raluca folgt kleinen Fußspuren im Sand.', 'Sie führen zum Nest einer Elster.', 'Die Elster entschuldigt sich und gibt den Kristall zurück.'],
-      q: 'Who took the crystal?', options: ['A magpie.', 'A mouse.', 'Storm.'], right: 0,
+      q: 'Who took the crystal?', options: ['A magpie.', 'A mouse.', 'Keysha.'], right: 0,
     },
     {
       title: 'Cooking with Finn', de: 'Kochen mit Finn',
@@ -84,8 +84,8 @@ export default {
     },
     {
       title: 'A party at the den', de: 'Ein Fest am Bau',
-      en: ['Tonight there is a big party at the den.', 'All the friends come: Olli, Rosie, Hugo, Storm, Luna and Pip.', 'They eat, sing and dance under the stars.', 'Raluca says: "Thank you for being my friends."'],
-      tr: ['Heute Abend gibt es ein großes Fest am Bau.', 'Alle Freunde kommen: Olli, Rosie, Hugo, Storm, Luna und Pip.', 'Sie essen, singen und tanzen unter den Sternen.', 'Raluca sagt: „Danke, dass ihr meine Freunde seid.“'],
+      en: ['Tonight there is a big party at the den.', 'All the friends come: Olli, Rosie, Hugo, Keysha, Luna and Pip.', 'They eat, sing and dance under the stars.', 'Raluca says: "Thank you for being my friends."'],
+      tr: ['Heute Abend gibt es ein großes Fest am Bau.', 'Alle Freunde kommen: Olli, Rosie, Hugo, Keysha, Luna und Pip.', 'Sie essen, singen und tanzen unter den Sternen.', 'Raluca sagt: „Danke, dass ihr meine Freunde seid.“'],
       q: 'When is the party?', options: ['In the morning.', 'At lunchtime.', 'In the evening.'], right: 2,
     },
   ],

@@ -13,7 +13,7 @@
 // right answer at the first try moves that card up a box. 🎧 Listening marks: hear a sentence, pick its meaning.
 // 📻 Olli's story of the day (stories.js): listen, then one question; a new one every day.
 // Minimap (top left) says the way to the next question mark in English (north, south-east …); tap it for the big map
-// with English place names. Storm the wolf (north forest) is a friend too; with 5 hearts he walks with Raluca.
+// with English place names. Keysha the wolf (north forest, id 'storm') is a friend too; with 5 hearts she walks with Raluca.
 // Step 7: building. 🧱 Bauen (key G) puts an earth block in front of her (uses dug earth 🟫: walls, steps, bridges);
 // at the den the 🏠 menu builds things (leaf bed, lamp, fence …) from earth and found things (English names, sound).
 // Step 6: animal friends (Olli the owl at the den, Rosie the rabbit, Hugo the hedgehog, Luna the owl on the hill)
@@ -400,7 +400,7 @@ function moveAnimals(list, dt, P, time) {
     a.t += dt;
     let moving = false, speed = a.speed;
     if (a.follow && P.x < 0) { a.g.visible = false; continue; }   // she is in the den
-    if (a.follow) {   // Storm walks with her: a little behind and to the side
+    if (a.follow) {   // Keysha the wolf walks with her: a little behind and to the side
       const [fb, fs] = a.fo || [1.9, 0.9], bx = P.x + Math.cos(P.face) * fb + Math.sin(P.face) * fs, bz = P.z - Math.sin(P.face) * fb + Math.cos(P.face) * fs;
       const tx = bx - a.x, tz = bz - a.z, td = Math.hypot(tx, tz);
       a.t += dt; a.g.visible = true;
@@ -1162,7 +1162,7 @@ function start() {
     const head = (line) => `<div class="talk"><span class="who">${f.icon}</span><div><b>${f.name}</b> <span class="hearts">${hearts(f)}</span>
       <p class="en say">${esc(line.en)} <span class="spk">🔊</span></p><p class="small">${esc(line.de)}</p></div></div>`;
     const close = () => { if (talkRec) { talkRec.cancel(); talkRec = null; } $('sheet').classList.remove('open'); card.onclick = null; busy = false; save(); };
-    const gotHeart = () => { sfx('heart'); pop(`❤️ ${f.name}`); f.step++; f.acc = false; f.has = false; cheer = 1.2; family(f, true); if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Storm geht jetzt mit dir! 🐺  Storm walks with you.'); } save(); };
+    const gotHeart = () => { sfx('heart'); pop(`❤️ ${f.name}`); f.step++; f.acc = false; f.has = false; cheer = 1.2; family(f, true); if (f.id === 'storm' && f.step >= f.steps.length) { f.a.follow = true; toast('Keysha geht jetzt mit dir! 🐺  Keysha walks with you.'); } save(); };
     let line;
     if (!st) {   // all tasks done: just a friendly word
       line = f.chat[Math.floor(Math.random() * f.chat.length)];

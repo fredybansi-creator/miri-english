@@ -60,9 +60,10 @@ export default {
       chat: [{ en: 'Hello again! I am still slow.', de: 'Hallo nochmal! Ich bin immer noch langsam.' }, { en: 'Do you have a worm for me? Just kidding!', de: 'Hast du einen Wurm für mich? Nur Spaß!' }],
     },
     {
-      id: 'storm', name: 'Storm', kind: 'wolf', icon: '🐺', place: 'north forest',
+      // Keysha the wolf (was called Storm until 2026-11-24; the id stays 'storm' so saved hearts are kept)
+      id: 'storm', name: 'Keysha', kind: 'wolf', icon: '🐺', place: 'north forest',
       steps: [
-        { say: { en: 'Hello. I am Storm. I am a wolf. Are you afraid of me?', de: 'Hallo. Ich bin Storm. Ich bin ein Wolf. Hast du Angst vor mir?' },
+        { say: { en: 'Hello. I am Keysha. I am a wolf. Are you afraid of me?', de: 'Hallo. Ich bin Keysha. Ich bin eine Wölfin. Hast du Angst vor mir?' },
           task: 'Sag: Nein, ich habe keine Angst.', keys: [['not', 'no', 'never'], ['afraid', 'scared', 'frightened', 'fear']], answers: ["No, I'm not afraid.", 'No, I am not afraid of you.'] },
         { say: { en: 'Wolves love fish. Can you catch a fish for me?', de: 'Wölfe lieben Fisch. Kannst du einen Fisch für mich fangen?' },
           want: 'fish', thanks: { en: 'Thank you, little fox. You are a good hunter.', de: 'Danke, kleiner Fuchs. Du bist eine gute Jägerin.' } },
