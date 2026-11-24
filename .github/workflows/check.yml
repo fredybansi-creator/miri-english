@@ -13,3 +13,4 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check_content.mjs
+      - run: node --test tests/*.test.mjs
