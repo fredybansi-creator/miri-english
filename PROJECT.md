@@ -179,7 +179,7 @@ https://claude.ai/artifact/VaSxckCQSLcxD5tCA7U4Ff
   (not when she listened to the hint first).
 - Minimap + wolf (Freddy's wishes, 2026-11-13): minimap top left (north up, ? marks, friends, den, her arrow) with
   "🧭 north-east" = English direction to the next question mark; tap it (key M) → big map with English place names
-  (tap = sound) and N/E/S/W words. Storm the wolf (`MODELS.wolf`, north forest) is a 5th friend in friends.js; with
+  (tap = sound) and N/E/S/W words. Keysha the wolf (was Storm; id `storm`, `MODELS.wolf`, north forest) is a 5th friend in friends.js; with
   5 hearts he follows Raluca (`a.follow`). Still to do in step 9 (needs the app): shop paid with lesson coins (an
   animal shopkeeper, ask in English), daily quests built from the day's lesson words.
 - Big den (2026-11-13): den model at 1.6× with a 5×5 footprint; at the door the act button says "🚪 Reingehen". The
