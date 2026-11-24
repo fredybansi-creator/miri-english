@@ -44,6 +44,8 @@ import { cardItems } from '../cards.js';
 import { sfx, pop, soundOn, setSound } from './fx.js';
 if (new URLSearchParams(location.search).has('fps')) document.body.classList.add('showfps');   // frame counter only for Freddy's speed tests: ?fps
 import { TOPICS } from '../content/index.js';
+import { words as nWords, hasKey, typedLevel, finalLevel } from './answer.js';
+import { aiFeedback } from '../../js/ai.js';
 
 // the "build the sentence" exercises of all lessons: { en, de, extra? }
 const SENTENCES = TOPICS.flatMap((t) => t.lessons.flatMap((l) => l.build || []));
@@ -742,10 +744,21 @@ function start() {
   function markDone(m) { if (m.onDone) { m.onDone(); return; } m.done = true; found++; showCount(); cheer = 1.2; earn(3); save(); if (found === marks.length) { round++; setTimeout(() => { toast('Alle gefunden! Neue Fragezeichen sind da.'); placeMarks(); save(); }, 1500); } }
   /** answer by voice (checked on the server) or by typing; onResult(level, said, corrected, praise) */
   function micInto(box, { check, hint, answers, keys, onResult: done }) {
-    const onResult = (level, said, corrected, praise) => {   // a missing key word is never "right"
-      const miss = missingKey(said, keys);
-      if (miss && level !== 'try') { level = 'try'; praise = keyTip(miss); corrected = ''; }
+    const onResult = (level0, said, corrected, praise) => {   // close to an example = right; a missing key word = not right
+      const { level, miss } = finalLevel(level0, said, answers, keys);
+      if (miss && level0 !== 'try') { praise = keyTip(miss); corrected = ''; }
       done(level, said, corrected, praise);
+    };
+    // typed answers: the AI judges them too (like spoken ones); without internet or when slow: the word check
+    const judgeTyped = async (t) => {
+      const btn = $('mTyped').querySelector('button'); btn.disabled = true; $('mStatus').textContent = 'Ich schaue mir das an …';
+      const fb = await Promise.race([
+        aiFeedback({ they: check.they, de: check.de, answers }, t, { timeout: 8000 }).catch(() => null),
+        new Promise((r) => setTimeout(() => r(null), 9000)),
+      ]);
+      if (!$('mTyped')) return;   // closed meanwhile
+      btn.disabled = false; $('mStatus').textContent = '';
+      if (fb) onResult(fb.level, t, fb.corrected, fb.praise); else onResult(typedLevel(t, answers), t, '', '');
     };
     box.innerHTML = `<p class="small" id="mStatus"></p><div class="row">${canRecord() ? '<button class="btn primary" id="mMic">🎤 Sprechen</button>' : ''}<button class="btn" id="mType">⌨️ Tippen</button></div>
       <form class="typed" id="mTyped" hidden><input id="mIn" autocomplete="off" autocapitalize="sentences" placeholder="Auf Englisch schreiben …"><button class="btn primary">OK</button></form>`;
@@ -768,7 +781,7 @@ function start() {
       mic.disabled = false; mic.textContent = '■ Fertig'; status('Jetzt sprechen! Dann auf „Fertig“ tippen.');
     };
     $('mType').onclick = () => { $('mTyped').hidden = !$('mTyped').hidden; if (!$('mTyped').hidden) $('mIn').focus(); };
-    $('mTyped').onsubmit = (ev) => { ev.preventDefault(); const t = $('mIn').value.trim(); if (t) onResult(typedLevel(t, answers), t, '', ''); };
+    $('mTyped').onsubmit = (ev) => { ev.preventDefault(); const t = $('mIn').value.trim(); if (t) judgeTyped(t); };
     return { cancel() { if (rec) { rec.cancel(); rec = null; } } };
   }
   // say it in English / repeat after me (at a question mark)
@@ -1119,19 +1132,7 @@ function start() {
   // ---------------- animal friends: talking, tasks, hearts
   function wantDug() { for (const f of pals) { const st = f.steps[f.step]; if (st && f.acc && !f.has && ['worm', 'carrot', 'potato', 'bone'].includes(st.want)) return st.want; } return null; }
   const hearts = (f) => '❤️'.repeat(f.step) + '🤍'.repeat(f.steps.length - f.step);
-  const nWords = (t) => t.toLowerCase().replace(/[^a-z' ]/g, ' ').split(/\s+/).filter(Boolean);
-  function typedLevel(text, answers) {   // typing has no server check: compare the words with the example answers
-    const said = new Set(nWords(text)); let best = 0;
-    for (const a of answers) { const w = nWords(a); best = Math.max(best, w.filter((x) => said.has(x)).length / w.length); }
-    return best >= 0.85 ? 'great' : best >= 0.55 ? 'good' : 'try';
-  }
-  /** the first group of key words that is missing in her answer (null = all there). A word start is enough. */
-  function missingKey(text, keys) {   // → list of the missing groups, or null
-    if (!keys || !keys.length) return null;
-    const words = nWords(String(text).replace(/n't\b/gi, ' not'));
-    const miss = keys.filter((g) => !g.some((k) => words.some((w) => w === k || (k.length >= 4 && w.startsWith(k)))));
-    return miss.length ? miss : null;
-  }
+  // nWords, typedLevel, missingKey, finalLevel: see answer.js (fair to speech recognition and the iPhone keyboard)
   const keyTip = (miss) => miss.length > 1
     ? `Tipp: Benutze die Wörter ${miss.map((g) => `„${g[0]}“`).join(' und ')}.`
     : `Tipp: Benutze das Wort „${miss[0][0]}“${miss[0].length > 1 ? ` (oder ${miss[0].slice(1, 3).map((x) => `„${x}“`).join(', ')})` : ''}.`;
@@ -1205,9 +1206,7 @@ function start() {
         const ai = await friendReply(f, st, said);
         if (!$('talkRes') || !card.contains($('talkRes'))) return;   // closed meanwhile
         btns.forEach((b) => { b.disabled = false; });
-        const miss = missingKey(said, st.keys);
-        let level = ai ? ai.level : typedLevel(said, st.answers);
-        if (miss) level = 'try';
+        const { level, miss } = finalLevel(ai ? ai.level : typedLevel(said, st.answers), said, st.answers, st.keys);
         const ok = level !== 'try';
         let reply = ai && (ai.level !== 'try') === ok ? ai.reply : '';
         if (!reply) reply = ok ? (f.cub ? 'Yay! Thank you, Mum!' : ['Great! Thank you, Raluca.', 'Oh, nice! Thank you.', 'Wonderful, Raluca!'][f.step % 3]) : (f.cub ? 'Hmm? I don\'t understand, Mum.' : 'Hmm, I don\'t understand. Can you say it again?');
@@ -1416,7 +1415,7 @@ function start() {
       mic = micInto($('mBox'), {
         check: { they: 'What would you like?', de: `Kann ich bitte ${it.de} haben?`, answers }, hint: `She asks for ${it.en} in a shop.`, answers,
         onResult(level, said, corrected) {
-          const okWord = nWords(said).includes(nWords(it.en).at(-1));
+          const okWord = hasKey(said, nWords(it.en).at(-1));   // the thing she wants must be in it (candles, honeycake …)
           if ((level === 'great' || level === 'good') && okWord) {
             if (coins() < it.price) { list(); return; }
             update((st) => { st.coins -= it.price; }); try { backup(); } catch { /* offline */ }

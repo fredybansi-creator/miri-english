@@ -227,6 +227,9 @@ Full engineer + teacher review: https://claude.ai/artifact/A32G6uXxcBdmdWsRPvQ7V
   range requests) – offline the phone voice speaks.
 - Safety check: `node tools/check_content.mjs` (lessons complete, extra words, voice files, all JS parses); runs on
   GitHub for every pull request (`.github/workflows/check.yml`).
+- Answer check of Ralucas Welt (friends, question marks, quests, Pip's shop): `neu/welt/answer.js` – forgives
+  iPhone apostrophes, contractions, numbers, joined words (Goodnight), small speech slips (Raluka); key words may be
+  phrases. Tests: `node --test tests/*.test.mjs` (also on GitHub); every example answer must pass its own key words.
 - Not done on purpose: splitting `neu/welt/welt.js` (another thread was still changing it); `neu/` still imports
   `js/check.js`, `js/ai.js`, `js/config.js` from the old app – keep those files.
 ### 2026-11-14: fair answers + friends reply with AI
